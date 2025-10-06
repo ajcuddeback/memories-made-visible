@@ -1,0 +1,31 @@
+/* App shell layout: make the app root a column flex container that fills
+	 the viewport so the footer is pushed to the bottom on short pages. */
+
+:host {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+}
+
+/* The main content area should grow and shrink to fill available space. */
+main {
+	flex: 1 0 auto;
+
+	/* Add top padding equal to the header height to avoid overlap when the header is sticky.
+	   Use CSS variable exported by the header if present, otherwise fall back to 64px. */
+	padding-top: var(--app-header-height, 64px);
+}
+
+/* As a fallback, ensure footer doesn't shrink if its own styles are minimal. */
+.app-footer {
+	flex-shrink: 0;
+}
+
+/* Small helper: center short content visually */
+.page-center {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+}

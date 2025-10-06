@@ -1,0 +1,19 @@
+.hero {
+  padding:4rem 1rem;
+  display:flex;
+  gap:2rem;
+  align-items:center;
+  background: linear-gradient(90deg, rgba(196,123,106,0.05), rgba(90,167,161,0.02));
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+
+  .hero-content { flex:1; max-width:720px; }
+  h1 { margin:0; font-size:2.5rem; line-height:1.05; }
+  .subtitle { margin-top:.5rem; color: var(--color-muted); font-size:1.05rem }
+  .cta { display:inline-block; margin-top:1rem; padding:.6rem 1rem; border-radius:8px; text-decoration:none; }
+
+  /* Avoid using @extend to pull global selectors here. Consumers of the
+    hero CTA should apply the global `.btn` or `.btn--secondary` classes
+    to get consistent button styling. */
+
+  .hero-image { width:320px; height:200px; background:#ddd; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#666 }
+}

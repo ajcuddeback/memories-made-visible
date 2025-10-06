@@ -1,0 +1,52 @@
+.app-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:1rem 2rem;
+  /* expose header height for layout consumers */
+  --app-header-height: 64px;
+  height: var(--app-header-height);
+  /* Use fixed positioning so header remains visible even if an ancestor
+    creates a new stacking context or a transformed container which can
+    break `position: sticky`. We adjust layout by adding top padding to
+    `main` using the same CSS variable. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  /* subtle glass effect */
+  backdrop-filter: blur(6px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.75));
+  box-shadow: 0 6px 18px rgba(16,24,40,0.06);
+
+  .brand {
+    font-weight:600;
+    text-decoration:none;
+    color: var(--color-accent-2);
+    font-size: 1.05rem;
+  }
+
+  /* nav links styling consolidated below */
+  /* Make the nav horizontally scrollable on narrow viewports to prevent
+     links from running off the screen. Keep links on one line. */
+  .nav {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    /* Allow horizontal scroll when needed */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav a {
+    margin-right: 1rem;
+    color: var(--color-text);
+    text-decoration: none;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    padding: .35rem .5rem;
+    border-radius: 6px;
+  }
+  .nav a:hover { background: rgba(90,167,161,0.06); color: var(--color-accent-2); }
+}

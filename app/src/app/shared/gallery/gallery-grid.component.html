@@ -1,0 +1,7 @@
+<div class="gallery-grid">
+  <div *ngFor="let p of photos; index as i" class="tile">
+    <button type="button" class="img-button" (click)="click(i)">
+      <img [src]="p.thumbUrl || p.url" [alt]="p.alt || p.title" />
+    </button>
+  </div>
+</div>

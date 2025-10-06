@@ -1,0 +1,47 @@
+/* You can add global styles to this file, and also import other style files */
+/* Color palette for the site (warm, approachable, photo-friendly) */
+:root {
+	--color-bg: #ffffff;
+	--color-surface: #fffdf9; /* warm off-white */
+	--color-text: #111827; /* dark slate */
+	--color-muted: #6b7280; /* neutral gray */
+	--color-accent: #c47b6a; /* warm muted coral */
+	--color-accent-2: #5aa7a1; /* muted teal for secondary accents */
+	--color-footer-bg: #faf7f5;
+}
+
+/* Base typography and page background */
+html, body {
+	height: 100%;
+}
+body {
+	margin: 0;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+	color: var(--color-text);
+	background: linear-gradient(180deg, #fffefc 0%, #fbf8f6 100%);
+	-webkit-font-smoothing:antialiased;
+	-moz-osx-font-smoothing:grayscale;
+}
+
+/* Buttons / CTAs */
+.btn {
+	display: inline-block;
+	padding: .6rem 1rem;
+	border-radius: 8px;
+	background: var(--color-accent);
+	color: #fff;
+	text-decoration: none;
+	font-weight: 600;
+	box-shadow: 0 6px 18px rgba(196,123,106,0.12);
+	transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(196,123,106,0.14); }
+.btn:active { transform: translateY(0); }
+.btn--secondary { background: var(--color-accent-2); box-shadow: 0 6px 18px rgba(90,167,161,0.07); }
+
+/* Links */
+a { color: var(--color-text); }
+a:hover { color: var(--color-accent-2); }
+
+/* Utility */
+.container { max-width: 1100px; margin: 0 auto; padding: 0 1rem; }

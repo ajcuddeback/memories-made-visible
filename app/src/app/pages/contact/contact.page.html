@@ -1,0 +1,18 @@
+<main class="contact-main">
+  <h1>Contact</h1>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Name
+      <input formControlName="name" />
+    </label>
+    <label>
+      Email
+      <input formControlName="email" />
+    </label>
+    <label>
+      Message
+      <textarea formControlName="message"></textarea>
+    </label>
+    <button type="submit">Send</button>
+  </form>
+</main>

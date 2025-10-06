@@ -1,0 +1,18 @@
+[
+  {
+    "id": "sample-1",
+    "title": "Sample Photo 1",
+    "alt": "Sample landscape",
+    "category": "landscape",
+  "url": "/assets/images/sample/sample-1.svg",
+  "thumbUrl": "/assets/images/sample/sample-1-thumb.svg"
+  },
+  {
+    "id": "sample-2",
+    "title": "Sample Photo 2",
+    "alt": "Sample portrait",
+    "category": "portrait",
+  "url": "/assets/images/sample/sample-2.svg",
+  "thumbUrl": "/assets/images/sample/sample-2-thumb.svg"
+  }
+]
