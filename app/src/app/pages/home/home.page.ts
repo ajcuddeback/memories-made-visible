@@ -5,17 +5,20 @@ import { HeroComponent } from '../../shared/hero/hero.component';
 import { GalleryGridComponent } from '../../shared/gallery/gallery-grid.component';
 import { TestimonialsComponent } from '../../shared/testimonials/testimonials.component';
 import { ImageService } from '../../services/image.service';
+import { LightboxComponent } from '../../shared/lightbox/lightbox.component';
 
 @Component({
   selector: 'home-page',
   standalone: true,
-  imports: [CommonModule, HeroComponent, GalleryGridComponent, TestimonialsComponent],
+  imports: [CommonModule, HeroComponent, GalleryGridComponent, TestimonialsComponent, LightboxComponent],
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomePage {
   photos: any[] = [];
+  // index of currently opened photo in the lightbox, or null
+  openIndex: number | null = null;
   testimonials: { quote: string; author: string; context?: string }[] = [];
 
   constructor(private readonly imageService: ImageService) {
@@ -30,7 +33,10 @@ export class HomePage {
   }
 
   open(index: number) {
-    // placeholder: will integrate lightbox later
-    console.log('Open photo', index, this.photos[index]);
+    this.openIndex = index;
+  }
+
+  closeLightbox() {
+    this.openIndex = null;
   }
 }

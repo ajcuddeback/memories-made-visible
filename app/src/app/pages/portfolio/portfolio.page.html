@@ -1,5 +1,6 @@
 <main class="portfolio-main">
   <h1>Portfolio</h1>
   <p>Browse by category or view all examples.</p>
-  <gallery-grid [photos]="photos"></gallery-grid>
+  <gallery-grid [photos]="photos" (photoClick)="open($event)"></gallery-grid>
+  <app-lightbox [photos]="photos" [(openIndex)]="openIndex"></app-lightbox>
 </main>

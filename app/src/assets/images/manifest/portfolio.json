@@ -1,18 +1,82 @@
 [
   {
-    "id": "sample-1",
-    "title": "Sample Photo 1",
-    "alt": "Sample landscape",
-    "category": "landscape",
-  "url": "/assets/images/sample/sample-1.svg",
-  "thumbUrl": "/assets/images/sample/sample-1-thumb.svg"
+    "id": "portfolio4",
+    "title": "portfolio4.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio4.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio4.jpg"
   },
   {
-    "id": "sample-2",
-    "title": "Sample Photo 2",
-    "alt": "Sample portrait",
-    "category": "portrait",
-  "url": "/assets/images/sample/sample-2.svg",
-  "thumbUrl": "/assets/images/sample/sample-2-thumb.svg"
+    "id": "portfolio5",
+    "title": "portfolio5.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio5.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio5.jpg"
+  },
+  {
+    "id": "portfolio6",
+    "title": "portfolio6.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio6.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio6.jpg"
+  },
+  {
+    "id": "portfolio7",
+    "title": "portfolio7.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio7.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio7.jpg"
+  },
+  {
+    "id": "portfolio8",
+    "title": "portfolio8.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio8.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio8.jpg"
+  },
+  {
+    "id": "portfolio9",
+    "title": "portfolio9.jpeg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio9.jpeg",
+    "thumbUrl": "/assets/images/portfolio/portfolio9.jpeg"
+  },
+  {
+    "id": "portfolio10",
+    "title": "portfolio10.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio10.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio10.jpg"
+  },
+  {
+    "id": "portfolio11",
+    "title": "portfolio11.jpeg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio11.jpeg",
+    "thumbUrl": "/assets/images/portfolio/portfolio11.jpeg"
+  },
+  {
+    "id": "portfolio13",
+    "title": "portfolio13.jpeg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio13.jpeg",
+    "thumbUrl": "/assets/images/portfolio/portfolio13.jpeg"
+  },
+  {
+    "id": "portfolio14",
+    "title": "portfolio14.jpg",
+    "alt": "",
+    "category": "portfolio",
+    "url": "/assets/images/portfolio/portfolio14.jpg",
+    "thumbUrl": "/assets/images/portfolio/portfolio14.jpg"
   }
 ]

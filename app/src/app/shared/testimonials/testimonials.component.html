@@ -1,9 +1,11 @@
 <section class="testimonials">
   <h2>What our clients say</h2>
   <div class="testimonials-grid">
-    <article class="testimonial" *ngFor="let t of items">
-      <blockquote>{{ t.quote }}</blockquote>
-      <footer class="author">— {{ t.author }}, <span class="meta">{{ t.context }}</span></footer>
-    </article>
+    @for (t of items; track t) {
+      <article class="testimonial">
+        <blockquote>{{ t.quote }}</blockquote>
+        <footer class="author">— {{ t.author }}, <span class="meta">{{ t.context }}</span></footer>
+      </article>
+    }
   </div>
 </section>

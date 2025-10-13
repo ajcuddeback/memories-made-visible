@@ -1,0 +1,11 @@
+@if (isOpen) {
+  <div class="lightbox-overlay" role="dialog" aria-modal="true">
+    <button class="lb-close" (click)="close()" aria-label="Close">✕</button>
+    <button class="lb-prev" (click)="prev()" aria-label="Previous">‹</button>
+    <div class="lb-content">
+      <img [src]="photos[openIndex!].url" [alt]="photos[openIndex!].alt || photos[openIndex!].title" />
+      <div class="lb-caption">{{ photos[openIndex!].title }}</div>
+    </div>
+    <button class="lb-next" (click)="next()" aria-label="Next">›</button>
+  </div>
+}

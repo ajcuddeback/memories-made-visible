@@ -9,6 +9,7 @@
   <section class="featured" >
     <h2>Featured Work</h2>
     <gallery-grid [photos]="photos" (photoClick)="open($event)"></gallery-grid>
+    <app-lightbox [photos]="photos" [(openIndex)]="openIndex"></app-lightbox>
   </section>
 
   <app-testimonials [testimonials]="testimonials"></app-testimonials>
