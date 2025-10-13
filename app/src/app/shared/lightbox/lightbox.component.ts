@@ -50,4 +50,9 @@ export class LightboxComponent {
     if (e.key === 'ArrowRight') this.next();
     if (e.key === 'ArrowLeft') this.prev();
   }
+
+  onOverlayClick(e: MouseEvent) {
+    // clicking outside of the content area should close the lightbox
+    this.close();
+  }
 }

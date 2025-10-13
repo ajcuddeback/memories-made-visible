@@ -10,4 +10,15 @@ import { RouterLink } from '@angular/router';
   styleUrls: ['./header.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HeaderComponent {}
+export class HeaderComponent {
+  isOpen = false;
+
+  toggle() {
+    this.isOpen = !this.isOpen;
+  }
+
+  close() {
+    this.isOpen = false;
+    console.log('Menu closed');
+  }
+}

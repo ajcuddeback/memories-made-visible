@@ -1,6 +1,12 @@
 <header class="app-header">
   <a routerLink="/" class="brand">Memories Made Visible</a>
-  <nav class="nav">
+  <button class="hamburger" aria-label="Toggle menu" aria-expanded="{{isOpen}}" (click)="toggle()">
+    <span class="hamburger-box">
+      <span class="hamburger-inner"></span>
+    </span>
+  </button>
+
+  <nav class="nav" [attr.data-open]="isOpen" (click)="close()" (keydown.escape)="close()" tabindex="-1">
     <a routerLink="/portfolio">Portfolio</a>
     <a routerLink="/services">Services</a>
     <a routerLink="/contact">Contact</a>
