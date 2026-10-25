@@ -1,7 +1,7 @@
 <section class="container hero">
   <div>
     <h1 class="hero-title">Photos in a world we built for you.</h1>
-    <p class="hero-lede">Memories Made Visible is a family-run photography studio serving Polk County, Florida. We photograph weddings, families and solo portraits, couples, maternity and newborn sessions, seniors and events.</p>
+    <p class="hero-lede">Memories Made Visible is a family-run photography studio based in Winter Haven, Florida and serving all of Polk County. We photograph weddings, families and solo portraits, couples, maternity and newborn sessions, seniors and events.</p>
     <div class="hero-actions">
       <a routerLink="/book" class="btn btn-primary btn-lg">Book a session</a>
       <a routerLink="/portfolio" class="btn btn-secondary btn-lg">View portfolio</a>
@@ -10,18 +10,27 @@
   <div class="hero-art">
     <div class="hero-blob" aria-hidden="true"></div>
     <div class="hero-photo washed">
-      <app-photo-slot slot="home-hero" placeholder="Signature photo" alt="A recent session by Memories Made Visible" />
+      <app-photo-slot slot="home-hero" placeholder="Signature photo" alt="A recent session by Memories Made Visible" [priority]="true" />
     </div>
     <div class="hero-badge">
-      <img src="images/logo.png" alt="" />
+      <img src="images/logo.webp" alt="" width="400" height="400" loading="lazy" decoding="async" />
     </div>
   </div>
 </section>
 
+@defer (hydrate on viewport) {
 <section class="container block">
   <span class="kicker">Sessions</span>
   <h2 class="section-title">What we photograph</h2>
   <div class="services">
+    @if (services().length === 0) {
+      @for (i of skeletons; track i) {
+        <div class="service" aria-hidden="true">
+          <span class="service-dot sk"></span>
+          <div><span class="sk sk-title"></span><span class="sk sk-line"></span><span class="sk sk-line short"></span></div>
+        </div>
+      }
+    }
     @for (s of services(); track s.key) {
       <div class="service">
         <span class="service-dot" [style.background]="s.dot"></span>
@@ -83,3 +92,4 @@
     <a routerLink="/book" class="btn btn-primary btn-xl">Book a session</a>
   </div>
 </section>
+}

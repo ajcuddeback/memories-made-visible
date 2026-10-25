@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { SeoService } from './core/seo.service';
 import { ThemeService } from './core/theme.service';
 
 @Component({
@@ -11,4 +12,8 @@ import { ThemeService } from './core/theme.service';
 export class App {
   // Instantiated here so the theme attribute is kept in sync from first render.
   private readonly theme = inject(ThemeService);
+
+  constructor() {
+    inject(SeoService).init();
+  }
 }

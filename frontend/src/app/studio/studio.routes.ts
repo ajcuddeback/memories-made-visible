@@ -5,6 +5,7 @@ export const STUDIO_ROUTES: Routes = [
     path: '',
     loadComponent: () => import('./studio-shell').then((m) => m.StudioShell),
     title: 'Studio admin · Memories Made Visible',
+    data: { seo: { title: 'Studio admin · Memories Made Visible', description: '', noindex: true } },
     children: [
       { path: '', loadComponent: () => import('./sections/overview').then((m) => m.OverviewSection) },
       { path: 'requests', loadComponent: () => import('./sections/requests').then((m) => m.RequestsSection) },

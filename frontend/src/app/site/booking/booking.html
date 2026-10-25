@@ -9,16 +9,19 @@
     </div>
   } @else {
     <h1 class="page-title">Book a session</h1>
-    <p class="lede intro">Pick a session type, date and time. This is a request — we'll confirm availability and details with you before anything is final.</p>
+    <p class="lede intro">Pick a session type, date and time. This is a request — we'll confirm availability and details with you before anything is final. We're based in Winter Haven and travel throughout Polk County.</p>
 
     <div class="layout">
       <div class="steps">
         <div>
           <h2 class="step-title">1. Session type</h2>
-          @if (types().length === 0) {
-            <p class="hint">{{ typesError() ? 'Session types aren’t loading right now — please refresh in a moment.' : 'Loading session types…' }}</p>
+          @if (typesError()) {
+            <p class="hint">Session types aren’t loading right now — please refresh in a moment.</p>
           }
           <div class="types" role="radiogroup" aria-label="Session type">
+            @if (types().length === 0 && !typesError()) {
+              @for (i of skeletons; track i) { <div class="type type--skeleton" aria-hidden="true"><span class="type-dot"></span><span class="sk"></span></div> }
+            }
             @for (t of types(); track t.key) {
               <button type="button" class="type" [class.is-on]="type() === t.key" role="radio" [attr.aria-checked]="type() === t.key" (click)="type.set(t.key)">
                 <span class="type-dot" aria-hidden="true"></span>
@@ -41,9 +44,13 @@
                 <span class="cal-wd">{{ w }}</span>
               }
               @for (d of days(); track $index) {
-                <button type="button" class="cal-day" [class.is-selected]="isSelected(d)" [class.is-past]="d.past"
-                        [disabled]="d.past || !d.date" [attr.aria-label]="d.date ? d.date.toDateString() : null"
-                        (click)="d.date && date.set(d.date)">{{ d.label }}</button>
+                @if (d.date) {
+                  <button type="button" class="cal-day" [class.is-selected]="isSelected(d)" [class.is-past]="d.past"
+                          [disabled]="d.past" [attr.aria-label]="d.label + ', ' + d.date.toDateString()" [attr.aria-pressed]="isSelected(d)"
+                          (click)="date.set(d.date)">{{ d.label }}</button>
+                } @else {
+                  <span class="cal-day cal-day--blank" aria-hidden="true"></span>
+                }
               }
             </div>
           </div>
@@ -65,7 +72,7 @@
           </div>
           <label class="field notes">Tell us about your session<textarea class="input lg" [value]="notes()" (input)="notes.set(value($event))" placeholder="Who's in the photos, the occasion, any ideas you have"></textarea></label>
           <!-- Honeypot: hidden from people, filled by bots -->
-          <label class="visually-hidden" aria-hidden="true">Website<input tabindex="-1" autocomplete="off" [value]="website()" (input)="website.set(value($event))" /></label>
+          <div class="visually-hidden" aria-hidden="true"><input name="website" aria-label="Website" tabindex="-1" autocomplete="off" [value]="website()" (input)="website.set(value($event))" /></div>
         </div>
       </div>
 

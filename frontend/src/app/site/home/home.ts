@@ -17,6 +17,8 @@ export class HomePage {
     this.data.sessionTypes().map((s, i) => ({ ...s, dot: i % 2 === 0 ? 'var(--color-accent)' : 'var(--color-accent-2)' })),
   );
 
+  readonly skeletons = [0, 1, 2, 3, 4, 5];
+
   readonly steps = [
     { n: '1', title: 'Request a date', desc: 'Choose your session type, a day and a time that works for you.' },
     { n: '2', title: 'Plan together', desc: 'We confirm availability and talk through location, timing and what to wear.' },

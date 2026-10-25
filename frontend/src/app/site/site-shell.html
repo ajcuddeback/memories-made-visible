@@ -2,7 +2,7 @@
   <header class="site-header">
     <nav class="site-nav container" aria-label="Primary">
       <a routerLink="/" class="brand logo-crop" aria-label="Memories Made Visible — home">
-        <img src="images/logo.png" alt="Memories Made Visible Photography" />
+        <img src="images/logo.webp" alt="Memories Made Visible Photography" width="400" height="400" fetchpriority="high" />
       </a>
 
       @if (!viewport.narrow()) {
@@ -45,11 +45,12 @@
     <div class="container footer-inner">
       <div class="footer-brand">
         <div class="footer-logo">
-          <img src="images/logo.png" alt="Memories Made Visible Photography" />
+          <img src="images/logo.webp" alt="Memories Made Visible Photography" width="400" height="400" loading="lazy" decoding="async" />
         </div>
         <div class="footer-text">
           <div class="footer-name">Memories Made Visible</div>
-          <div>Photography serving Polk County, Florida</div>
+          <address class="footer-address">Winter Haven, FL · Serving all of Polk County</address>
+          <div><a href="mailto:bookings@memoriesmadevisible.com" class="footer-mail">bookings@memoriesmadevisible.com</a></div>
           <div>© {{ year }} Memories Made Visible LLC</div>
         </div>
       </div>

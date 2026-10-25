@@ -5,6 +5,14 @@
     <p class="lede">Our price list isn't loading right now — please try again in a moment, or <a routerLink="/book">send a booking request</a> and we'll quote you directly.</p>
   }
   <div class="grid">
+    @if (services().length === 0 && !error()) {
+      @for (i of skeletons; track i) {
+        <div class="card plan plan--skeleton" aria-hidden="true">
+          <span class="plan-dot sk"></span><span class="sk sk-title"></span><span class="sk sk-line"></span><span class="sk sk-line short"></span>
+          <span class="sk sk-price"></span><span class="sk sk-line"></span><span class="sk sk-line"></span><span class="sk sk-btn"></span>
+        </div>
+      }
+    }
     @for (s of services(); track s.key) {
       <div class="card plan">
         <span class="plan-dot" [style.background]="s.tint"></span>

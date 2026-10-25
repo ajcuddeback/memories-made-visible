@@ -38,6 +38,9 @@ dependencies {
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:url-connection-client")
 
+    // Server-side photo resizing so a 6 MB camera JPEG never ships to visitors
+    implementation("net.coobird:thumbnailator:0.4.20")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("com.h2database:h2")

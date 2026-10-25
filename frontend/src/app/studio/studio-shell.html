@@ -6,7 +6,7 @@
       <div class="topbar">
         <div class="topbar-row">
           <div class="logo-crop topbar-logo">
-            <img src="images/logo.png" alt="Memories Made Visible" />
+            <img src="images/logo.webp" alt="Memories Made Visible" />
           </div>
           <button type="button" class="avatar-btn" (click)="menuOpen.set(!menuOpen())" aria-label="Account menu" [attr.aria-expanded]="menuOpen()">{{ auth.user()?.initial }}</button>
         </div>
@@ -30,7 +30,7 @@
     } @else {
       <aside class="sidebar">
         <div class="logo-crop sidebar-logo">
-          <img src="images/logo.png" alt="Memories Made Visible" />
+          <img src="images/logo.webp" alt="Memories Made Visible" />
         </div>
         @for (n of nav; track n.path) {
           <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="side-link">

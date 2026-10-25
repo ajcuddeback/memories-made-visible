@@ -14,3 +14,12 @@
 .tier-detail { font-size: 13.5px; line-height: 1.5; color: var(--ink-72); }
 .tier-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
 .plan-cta { font-size: 15px; padding: 10px 18px; align-self: start; }
+
+/* Skeletons keep the page the same height while /api/pricing loads, so nothing jumps */
+.plan--skeleton { min-height: 420px; }
+.sk { display: block; border-radius: 999px; background: var(--ink-7); }
+.sk-title { height: 26px; width: 60%; margin-top: 6px; }
+.sk-line { height: 14px; width: 90%; }
+.sk-line.short { width: 55%; }
+.sk-price { height: 34px; width: 40%; margin-top: 4px; }
+.sk-btn { height: 40px; width: 160px; margin-top: auto; }

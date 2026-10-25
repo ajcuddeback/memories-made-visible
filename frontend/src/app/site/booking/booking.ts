@@ -26,6 +26,7 @@ export class BookingPage {
   private readonly today = today();
 
   readonly weekdays = WEEKDAYS_SHORT;
+  readonly skeletons = [0, 1, 2, 3, 4, 5];
   readonly times = TIMES;
   readonly types = this.data.sessionTypes;
   readonly typesError = this.data.pricingError;

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
@@ -23,10 +24,12 @@ public class PhotoService {
 
     private final SitePhotoRepository photos;
     private final PhotoStorage storage;
+    private final ImageProcessor images;
 
-    public PhotoService(SitePhotoRepository photos, PhotoStorage storage) {
+    public PhotoService(SitePhotoRepository photos, PhotoStorage storage, ImageProcessor images) {
         this.photos = photos;
         this.storage = storage;
+        this.images = images;
     }
 
     public record PhotoView(String slotId, String url, String contentType) {}
@@ -65,9 +68,17 @@ public class PhotoService {
         if (!ALLOWED.contains(contentType)) {
             throw new IllegalArgumentException("Please upload a JPEG, PNG, WebP or AVIF image.");
         }
-        String key = storage.keyPrefix() + "site/" + slotId + "/" + UUID.randomUUID() + extensionFor(contentType);
+        // Resize + re-encode before it ever reaches the bucket; the original is never stored.
+        ImageProcessor.Processed web;
         try (var in = file.getInputStream()) {
-            storage.put(key, in, file.getSize(), contentType);
+            web = images.toWebJpeg(in);
+        } catch (IOException | RuntimeException e) {
+            throw new IllegalArgumentException("That file doesn't look like a readable image.");
+        }
+        contentType = web.contentType();
+        String key = storage.keyPrefix() + "site/" + slotId + "/" + UUID.randomUUID() + ".jpg";
+        try {
+            storage.put(key, new ByteArrayInputStream(web.bytes()), web.bytes().length, contentType);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -103,13 +114,4 @@ public class PhotoService {
         }
     }
 
-    private static String extensionFor(String contentType) {
-        return switch (contentType) {
-            case "image/jpeg" -> ".jpg";
-            case "image/png" -> ".png";
-            case "image/webp" -> ".webp";
-            case "image/avif" -> ".avif";
-            default -> "";
-        };
-    }
 }
