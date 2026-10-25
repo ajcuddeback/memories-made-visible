@@ -1,0 +1,268 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Memories Made Visible — global styles.
+   Tokens and component classes come from the "Organic" design system used in
+   the Claude Design mock-ups; the dark/light palettes are the ones the mock-ups
+   apply at runtime, keyed off <html data-theme="dark|light">.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* — fonts (self-hosted subsets) — */
+@font-face {
+  font-family: 'Caprasimo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/caprasimo-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Caprasimo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/caprasimo-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/figtree-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Figtree';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/figtree-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* — tokens — */
+:root {
+  /* Tonal ramp steps that neither theme overrides */
+  --color-neutral-300: #dcd3c4;
+  --color-neutral-400: #c0b6a5;
+  --color-neutral-500: #a19786;
+  --color-neutral-600: #82796a;
+  --color-neutral-700: #645c50;
+  --color-accent-400: #f6a06b;
+  --color-accent-500: #d67f48;
+  --color-accent-900: #402310;
+  --color-accent-2-400: #aebf92;
+  --color-accent-2-500: #8fa073;
+  --color-accent-2-600: #728157;
+  --color-accent-2-900: #272e1b;
+
+  --font-heading: 'Caprasimo', system-ui, sans-serif;
+  --font-heading-weight: 400;
+  --font-body: 'Figtree', system-ui, sans-serif;
+
+  --space-1: 4.4px;
+  --space-2: 8.8px;
+  --space-3: 13.2px;
+  --space-4: 17.6px;
+  --space-6: 26.4px;
+  --space-8: 35.2px;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+
+  /* Dark is the default theme */
+  --color-bg: #0f1012;
+  --color-surface: #18191c;
+  --color-text: #f4f4f5;
+  --color-divider: rgba(255, 255, 255, 0.14);
+  --color-accent: #d4a85a;
+  --color-accent-100: #26231d;
+  --color-accent-200: #353024;
+  --color-accent-300: #4a412d;
+  --color-accent-600: #e0b96f;
+  --color-accent-700: #e3bd78;
+  --color-accent-800: #f0d39a;
+  --color-accent-2: #9aa3ad;
+  --color-accent-2-100: #1b1e22;
+  --color-accent-2-200: #252a30;
+  --color-accent-2-300: #3a414a;
+  --color-accent-2-700: #b4bcc5;
+  --color-accent-2-800: #c9d0d7;
+  --color-neutral-100: #1e1f23;
+  --color-neutral-200: #1e1f23;
+  --color-neutral-800: #f4f4f5;
+  --color-neutral-900: #08080a;
+  --logo-filter: none;
+  --logo-blend: screen;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-text: #141518;
+  --color-divider: rgba(0, 0, 0, 0.12);
+  --color-accent: #9a6b22;
+  --color-accent-100: #f6efe3;
+  --color-accent-200: #ecdec6;
+  --color-accent-300: #dfc69e;
+  --color-accent-600: #865c1c;
+  --color-accent-700: #7d5419;
+  --color-accent-800: #5f3f12;
+  --color-accent-2: #5f6b78;
+  --color-accent-2-100: #eef0f3;
+  --color-accent-2-200: #dde2e8;
+  --color-accent-2-300: #c3cbd4;
+  --color-accent-2-700: #4a5561;
+  --color-accent-2-800: #3a434d;
+  --color-neutral-100: #eeeef0;
+  --color-neutral-200: #ececef;
+  --color-neutral-800: #141518;
+  --color-neutral-900: #f0f0f2;
+  --logo-filter: invert(1);
+  --logo-blend: multiply;
+  color-scheme: light;
+}
+
+/* Derived ink tints used throughout the mock-ups */
+:root {
+  --ink-80: color-mix(in srgb, var(--color-text) 80%, transparent);
+  --ink-78: color-mix(in srgb, var(--color-text) 78%, transparent);
+  --ink-75: color-mix(in srgb, var(--color-text) 75%, transparent);
+  --ink-72: color-mix(in srgb, var(--color-text) 72%, transparent);
+  --ink-70: color-mix(in srgb, var(--color-text) 70%, transparent);
+  --ink-68: color-mix(in srgb, var(--color-text) 68%, transparent);
+  --ink-65: color-mix(in srgb, var(--color-text) 65%, transparent);
+  --ink-55: color-mix(in srgb, var(--color-text) 55%, transparent);
+  --ink-12: color-mix(in srgb, var(--color-text) 12%, transparent);
+  --ink-7: color-mix(in srgb, var(--color-text) 7%, transparent);
+  --ink-4: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+/* — base — */
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--color-bg); }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 400;
+  text-wrap: pretty;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s, color 0.25s;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  line-height: 1.12;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-2);
+}
+h1 { font-size: 42px; }
+h2 { font-size: 32px; }
+h3 { font-size: 25px; }
+h4 { font-size: 20px; }
+p { margin: 0 0 var(--space-3); }
+a { color: var(--color-accent-700); text-decoration: none; text-underline-offset: 3px; }
+a:hover { color: var(--color-accent-800); text-decoration: underline; }
+img { display: block; max-width: 100%; }
+figure { margin: 0; }
+button { font: inherit; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--color-accent) 30%, transparent); }
+.text-muted { color: var(--ink-55); }
+.washed { filter: saturate(0.6) contrast(0.85) brightness(1.1) opacity(0.94); }
+
+/* — buttons — */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; text-decoration: none;
+  font-family: var(--font-heading); font-weight: var(--font-heading-weight);
+  font-size: 14px; line-height: 1.2; color: var(--color-text);
+  background: transparent; border: 1px solid transparent;
+  padding: var(--space-2) calc(var(--space-3) * 1.2);
+  border-radius: 999px;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn:hover { text-decoration: none; }
+.btn svg { display: block; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary { background: var(--color-accent); color: var(--color-bg); }
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-600); color: var(--color-bg); }
+.btn-primary:active:not(:disabled) { background: var(--color-accent-700); }
+.btn-secondary { border-color: var(--color-divider); color: var(--color-text); }
+.btn-secondary:hover:not(:disabled) { background: var(--ink-7); color: var(--color-text); }
+.btn-secondary:active:not(:disabled) { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
+.btn-ghost { color: var(--color-accent-700); padding-inline: var(--space-1); }
+.btn-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--color-accent) 10%, transparent); color: var(--color-accent-700); }
+.btn-ghost:active:not(:disabled) { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
+.btn-icon { width: 36px; height: 36px; padding: 0; }
+.btn-block { width: 100%; margin-top: var(--space-2); }
+
+/* — forms — */
+.input {
+  width: 100%; min-height: 36px; padding: 6px 14px; font: inherit;
+  font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider); border-radius: 999px;
+}
+.input::placeholder { color: var(--ink-55); }
+.input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+.input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
+textarea.input { min-height: 90px; resize: vertical; border-radius: 24px; padding: 14px 16px; }
+select.input { appearance: auto; }
+.field {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 14px; font-weight: 600;
+}
+.field--sm { font-size: 13px; }
+
+/* — cards & tags — */
+.card {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3); border-radius: calc(var(--radius-lg) * 1.15); background: var(--color-surface);
+}
+.tag {
+  display: inline-flex; align-items: center; font-size: 11px;
+  letter-spacing: 0.02em; padding: 3px 10px; border-radius: 999px;
+}
+.tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
+.tag-accent-2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
+.tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
+.tag-outline { border: 1px solid var(--color-accent); color: var(--color-accent); }
+
+/* — layout helpers — */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-inline: clamp(20px, 5vw, 64px);
+}
+.kicker {
+  display: block; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 600; color: var(--color-accent-700); margin-bottom: 14px;
+}
+.page-title {
+  font-size: clamp(40px, 5vw, 64px); line-height: 1.08; margin: 0 0 20px; margin-left: -0.028em;
+}
+.lede { font-size: 17px; line-height: 1.65; max-width: 56ch; margin: 0; color: var(--ink-80); }
+.section-title { font-size: clamp(30px, 3.4vw, 42px); line-height: 1.15; margin: 0 0 40px; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* Logo: the artwork is a square; crop boxes show the wordmark region */
+.logo-crop { overflow: hidden; border-radius: 12px; }
+.logo-crop img {
+  display: block; max-width: none;
+  filter: var(--logo-filter); mix-blend-mode: var(--logo-blend);
+}

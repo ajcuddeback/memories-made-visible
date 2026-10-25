@@ -1,0 +1,115 @@
+package com.memoriesmadevisible.photo;
+
+import com.memoriesmadevisible.common.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+@Service
+public class PhotoService {
+
+    private static final Logger log = LoggerFactory.getLogger(PhotoService.class);
+    private static final Set<String> ALLOWED = Set.of("image/jpeg", "image/png", "image/webp", "image/avif");
+
+    private final SitePhotoRepository photos;
+    private final PhotoStorage storage;
+
+    public PhotoService(SitePhotoRepository photos, PhotoStorage storage) {
+        this.photos = photos;
+        this.storage = storage;
+    }
+
+    public record PhotoView(String slotId, String url, String contentType) {}
+    public record GroupView(String title, List<SlotView> slots) {}
+    public record SlotView(String id, String label, String url) {}
+
+    /** slotId → URL for every filled slot. Public pages fetch this once and look up by slot id. */
+    @Transactional(readOnly = true)
+    public Map<String, String> urlsBySlot() {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (var p : photos.findAll()) {
+            out.put(p.getSlotId(), storage.urlFor(p.getS3Key()));
+        }
+        return out;
+    }
+
+    /** The admin's grouped slot grid, with current URLs merged in. */
+    @Transactional(readOnly = true)
+    public List<GroupView> groupsForAdmin() {
+        var urls = urlsBySlot();
+        return PhotoSlots.groups().stream()
+                .map(g -> new GroupView(g.title(), g.slots().stream()
+                        .map(s -> new SlotView(s.id(), s.label(), urls.get(s.id()))).toList()))
+                .toList();
+    }
+
+    @Transactional
+    public PhotoView upload(String slotId, MultipartFile file) {
+        if (!PhotoSlots.isValid(slotId)) {
+            throw new IllegalArgumentException("Unknown photo slot: " + slotId);
+        }
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Choose an image to upload.");
+        }
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        if (!ALLOWED.contains(contentType)) {
+            throw new IllegalArgumentException("Please upload a JPEG, PNG, WebP or AVIF image.");
+        }
+        String key = storage.keyPrefix() + "site/" + slotId + "/" + UUID.randomUUID() + extensionFor(contentType);
+        try (var in = file.getInputStream()) {
+            storage.put(key, in, file.getSize(), contentType);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        var existing = photos.findById(slotId).orElse(null);
+        String oldKey = existing == null ? null : existing.getS3Key();
+        if (existing == null) {
+            existing = new SitePhoto(slotId, key, contentType);
+        } else {
+            existing.setS3Key(key);
+            existing.setContentType(contentType);
+        }
+        photos.save(existing);
+        if (oldKey != null) {
+            safeDelete(oldKey);
+        }
+        return new PhotoView(slotId, storage.urlFor(key), contentType);
+    }
+
+    @Transactional
+    public void clear(String slotId) {
+        var existing = photos.findById(slotId).orElseThrow(() -> new NotFoundException("No photo in slot " + slotId));
+        photos.delete(existing);
+        safeDelete(existing.getS3Key());
+    }
+
+    private void safeDelete(String key) {
+        try {
+            storage.delete(key);
+        } catch (Exception e) {
+            // An orphaned object is a cleanup chore, not a failure the admin should see.
+            log.warn("Could not delete old photo object {}", key, e);
+        }
+    }
+
+    private static String extensionFor(String contentType) {
+        return switch (contentType) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/avif" -> ".avif";
+            default -> "";
+        };
+    }
+}

@@ -1,0 +1,16 @@
+.page { padding-block: clamp(48px, 7vw, 88px) 88px; }
+.intro { margin-bottom: 48px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 24px; }
+.plan { padding: 32px; gap: 14px; border-radius: 32px; }
+.plan-dot { width: 40px; height: 40px; border-radius: 50%; }
+.plan-name { font-size: 24px; line-height: 1.2; margin: 6px 0 0; }
+.plan-desc { font-size: 15px; line-height: 1.6; margin: 0; color: var(--ink-78); }
+.plan-from { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+.from-label { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; color: var(--ink-70); }
+.from-price { font-family: var(--font-heading); font-size: 34px; line-height: 1; color: var(--color-accent-700); }
+.tiers { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 8px 0 6px; }
+.tier { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; }
+.tier-name { font-size: 15px; font-weight: 600; }
+.tier-detail { font-size: 13.5px; line-height: 1.5; color: var(--ink-72); }
+.tier-price { font-size: 16px; font-weight: 700; white-space: nowrap; }
+.plan-cta { font-size: 15px; padding: 10px 18px; align-self: start; }

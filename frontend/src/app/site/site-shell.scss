@@ -1,0 +1,48 @@
+/* overflow-x: clip here (not only on body) so decorative bleed never widens the page on phones */
+.site { min-height: 100vh; display: flex; flex-direction: column; overflow-x: clip; }
+.site-main { flex: 1; }
+
+.site-header { position: sticky; top: 0; z-index: 10; background: var(--color-bg); }
+.site-nav {
+  padding-block: 10px;
+  display: flex; align-items: center; gap: clamp(12px, 2.4vw, 32px); flex-wrap: wrap;
+}
+.brand {
+  margin-right: auto; display: block; width: 140px; height: 102px;
+}
+.brand img { width: 200px; height: 200px; margin: -44px 0 0 -26px; }
+.nav-link {
+  font-size: 15px; font-weight: 600; padding: 8px 2px; color: var(--color-text);
+  border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.nav-link:hover { color: var(--color-accent-700); text-decoration: none; }
+.nav-link.is-active { color: var(--color-accent-700); border-bottom-color: var(--color-accent); }
+.theme-toggle { color: var(--color-text); width: 40px; height: 40px; }
+.menu-toggle { color: var(--color-text); width: 44px; height: 44px; }
+.book-btn { font-size: 15px; padding: 10px 20px; }
+
+.mobile-menu {
+  padding: 4px 20px 24px; display: flex; flex-direction: column; gap: 4px; box-shadow: var(--shadow-md);
+}
+.mobile-link {
+  text-align: left; font-size: 18px; font-weight: 600; padding: 14px 18px; border-radius: 999px; color: var(--color-text);
+}
+.mobile-link:hover { text-decoration: none; background: var(--ink-4); }
+.mobile-link.is-active { background: var(--color-accent-100); color: var(--color-accent-700); }
+.mobile-book { font-size: 16px; padding: 14px 20px; margin-top: 10px; }
+
+.site-footer { background: var(--color-neutral-900); color: var(--color-text); }
+.footer-inner {
+  padding-block: 56px; display: flex; gap: 40px; justify-content: space-between; align-items: center; flex-wrap: wrap;
+}
+.footer-brand { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.footer-logo { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; flex: none; }
+.footer-logo img {
+  width: 100%; height: 100%; object-fit: cover; transform: scale(1.12);
+  filter: var(--logo-filter); mix-blend-mode: var(--logo-blend);
+}
+.footer-text { font-size: 14px; line-height: 1.7; color: var(--ink-78); }
+.footer-name { font-family: var(--font-heading); font-size: 20px; color: var(--color-text); }
+.footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+.footer-link { font-size: 15px; font-weight: 600; color: var(--color-text); padding: 4px 0; }
+.footer-link:hover { color: var(--color-accent-700); text-decoration: none; }

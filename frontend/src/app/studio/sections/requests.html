@@ -1,0 +1,43 @@
+<div class="tabs" role="tablist">
+  @for (t of tabs(); track t.key) {
+    <button type="button" class="btn tab" [class.btn-primary]="tab() === t.key" [class.btn-secondary]="tab() !== t.key"
+            role="tab" [attr.aria-selected]="tab() === t.key" (click)="tab.set(t.key)">{{ t.label }} ({{ t.count }})</button>
+  }
+</div>
+
+@if (requests().length === 0) {
+  <p class="empty">Nothing here right now.</p>
+}
+
+<div class="list">
+  @for (r of requests(); track r.id) {
+    <article class="req">
+      <div class="req-main">
+        <div class="req-head">
+          <h3 class="req-name">{{ r.name }}</h3>
+          <span class="tag tag-accent req-type">{{ r.sessionTypeName }}</span>
+        </div>
+        <div class="req-when">{{ r.when }}</div>
+        <div class="req-meta">{{ r.location || 'Location not given' }}</div>
+        <div class="req-meta"><a [href]="'mailto:' + r.email">{{ r.email }}</a>@if (r.phone) { · <a [href]="'tel:' + r.phone">{{ r.phone }}</a> }</div>
+        @if (r.notes) { <p class="req-notes">{{ r.notes }}</p> }
+      </div>
+      <div class="req-actions">
+        @switch (r.status) {
+          @case ('PENDING') {
+            <label class="field field--sm">Quote ($)<input class="input quote" type="number" min="0" step="1" [value]="r.quote ?? 0" (change)="quoteChanged(r.id, $event)" /></label>
+            <button type="button" class="btn btn-primary act" (click)="approve(r.id)">Approve</button>
+            <button type="button" class="btn btn-secondary act" (click)="decline(r.id)">Decline</button>
+          }
+          @case ('CONFIRMED') {
+            <div class="price">{{ r.priceLabel }}</div>
+            <button type="button" class="btn btn-ghost cancel" (click)="decline(r.id)">Cancel session</button>
+          }
+          @case ('DECLINED') {
+            <button type="button" class="btn btn-secondary act" (click)="restore(r.id)">Move back to pending</button>
+          }
+        }
+      </div>
+    </article>
+  }
+</div>

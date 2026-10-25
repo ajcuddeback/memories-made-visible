@@ -1,0 +1,32 @@
+.add { background: var(--color-surface); border-radius: 32px; padding: 28px; margin-bottom: 24px; }
+.add-title { font-size: 22px; margin: 0 0 18px; }
+.add-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; align-items: end; }
+.input.md { font-size: 14px; min-height: 42px; }
+.add-btn { font-size: 14px; padding: 11px 18px; min-height: 42px; }
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+.pop {
+  background: var(--color-surface); border-radius: 30px; padding: 18px 24px 18px 18px;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.date-pill {
+  width: 66px; height: 66px; flex: none; border-radius: 50%; background: var(--color-accent-2-200);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.date-pill.is-past { background: var(--color-neutral-200); }
+.date-mon { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+.date-day { font-family: var(--font-heading); font-size: 24px; margin-top: 3px; }
+.pop-main { flex: 1 1 220px; min-width: 0; }
+.pop-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.pop-title { font-size: 19px; margin: 0; }
+.pop-status { font-size: 12px; font-weight: 600; }
+.pop-meta { font-size: 13.5px; color: var(--ink-70); }
+.pop-sales { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.sales-label { font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--ink-70); }
+.counter { display: flex; align-items: center; gap: 6px; }
+.ctr { width: 34px; height: 34px; font-size: 18px; color: var(--color-text); }
+.count { min-width: 36px; text-align: center; font-family: var(--font-heading); font-size: 22px; }
+.price { width: 84px; font-size: 14px; min-height: 34px; color: var(--color-text); }
+.revenue { min-width: 70px; }
+.revenue-value { font-size: 17px; font-weight: 700; color: var(--color-text); }
+.remove { font-size: 13px; color: var(--color-accent-700); }

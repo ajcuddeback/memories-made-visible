@@ -1,0 +1,29 @@
+# Local development: docker compose up → Postgres :5432, MinIO :9000, Mailpit :1025/:8025
+spring:
+  jpa:
+    show-sql: false
+
+app:
+  seed-demo-data: true
+  admin:
+    users:
+      - name: Erica
+        role: Lead photographer
+        password: ${ADMIN_ERICA_PASSWORD:erica-dev}
+      - name: Austin
+        role: Second photographer & operations
+        password: ${ADMIN_AUSTIN_PASSWORD:austin-dev}
+  jwt:
+    secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+  notifications:
+    to: ${NOTIFY_TO:studio@example.test}
+    send-customer-confirmation: true
+  s3:
+    bucket: ${S3_BUCKET:mmv-photos}
+    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    path-style-access: true
+    public-base-url: ${S3_PUBLIC_BASE_URL:http://localhost:9000/mmv-photos}
+
+logging:
+  level:
+    com.memoriesmadevisible: DEBUG

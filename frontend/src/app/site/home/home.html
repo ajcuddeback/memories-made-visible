@@ -1,0 +1,85 @@
+<section class="container hero">
+  <div>
+    <h1 class="hero-title">Photos in a world we built for you.</h1>
+    <p class="hero-lede">Memories Made Visible is a family-run photography studio serving Polk County, Florida. We photograph weddings, families and solo portraits, couples, maternity and newborn sessions, seniors and events.</p>
+    <div class="hero-actions">
+      <a routerLink="/book" class="btn btn-primary btn-lg">Book a session</a>
+      <a routerLink="/portfolio" class="btn btn-secondary btn-lg">View portfolio</a>
+    </div>
+  </div>
+  <div class="hero-art">
+    <div class="hero-blob" aria-hidden="true"></div>
+    <div class="hero-photo washed">
+      <app-photo-slot slot="home-hero" placeholder="Signature photo" alt="A recent session by Memories Made Visible" />
+    </div>
+    <div class="hero-badge">
+      <img src="images/logo.png" alt="" />
+    </div>
+  </div>
+</section>
+
+<section class="container block">
+  <span class="kicker">Sessions</span>
+  <h2 class="section-title">What we photograph</h2>
+  <div class="services">
+    @for (s of services(); track s.key) {
+      <div class="service">
+        <span class="service-dot" [style.background]="s.dot"></span>
+        <div>
+          <h3 class="service-name">{{ s.name }}</h3>
+          <p class="service-desc">{{ s.description }}</p>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="container block">
+  <div class="favorites-head">
+    <div>
+      <span class="kicker">Recent work</span>
+      <h2 class="section-title no-mb">A few favorites</h2>
+    </div>
+    <a routerLink="/portfolio" class="btn btn-ghost see-all">See the full portfolio →</a>
+  </div>
+  <div class="favorites">
+    <div class="fav washed"><app-photo-slot slot="home-feat-1" placeholder="Wedding photo" alt="Wedding photo" /></div>
+    <div class="fav fav--offset washed"><app-photo-slot slot="home-feat-2" placeholder="Family photo" alt="Family photo" /></div>
+    <div class="fav washed"><app-photo-slot slot="home-feat-3" placeholder="Newborn photo" alt="Newborn photo" /></div>
+  </div>
+</section>
+
+<section class="container meet">
+  <div class="meet-photo washed">
+    <app-photo-slot slot="home-erica" fallback="images/erica-home.webp" placeholder="Photo of Erica" alt="Erica Cuddeback" />
+  </div>
+  <div>
+    <span class="kicker">Behind the camera</span>
+    <h2 class="section-title mb-20">Meet Erica Cuddeback</h2>
+    <p class="meet-text">Erica is our lead photographer. She guides every session from the first conversation to the final gallery, with direction that feels natural so you can relax and be yourselves.</p>
+    <a routerLink="/about" class="btn btn-secondary btn-md">About the team</a>
+  </div>
+</section>
+
+<section class="container block">
+  <h2 class="section-title">How booking works</h2>
+  <div class="steps">
+    @for (st of steps; track st.n) {
+      <div>
+        <div class="step-n">{{ st.n }}</div>
+        <h3 class="step-title">{{ st.title }}</h3>
+        <p class="step-desc">{{ st.desc }}</p>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="container cta-wrap">
+  <div class="cta">
+    <div>
+      <h2 class="cta-title">Ready to pick a date?</h2>
+      <p class="cta-text">Choose a session type, a day and a time. We'll confirm the details with you personally.</p>
+    </div>
+    <a routerLink="/book" class="btn btn-primary btn-xl">Book a session</a>
+  </div>
+</section>

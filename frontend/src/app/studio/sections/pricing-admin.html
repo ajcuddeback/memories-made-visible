@@ -1,0 +1,27 @@
+<div class="toolbar">
+  <button type="button" class="btn btn-primary tb" [disabled]="busy()" (click)="save()">{{ busy() ? 'Saving…' : 'Save changes' }}</button>
+  <button type="button" class="btn btn-secondary tb" [disabled]="busy()" (click)="reset()">Reset to defaults</button>
+  <span class="msg" aria-live="polite">{{ msg() }}</span>
+</div>
+
+<div class="grid">
+  @for (pc of draft(); track pc.key; let i = $index) {
+    <div class="plan">
+      <div class="plan-head">
+        <h2 class="plan-name">{{ pc.name }}</h2>
+        <label class="from">From<input class="input from-input" [value]="pc.from" (input)="setFrom(i, $event)" aria-label="Starting price" /></label>
+      </div>
+      <div class="tiers">
+        @for (t of pc.tiers; track ti; let ti = $index) {
+          <div class="tier">
+            <input class="input t-name" [value]="t.name" (input)="setTier(i, ti, 'name', $event)" aria-label="Package name" placeholder="Package" />
+            <input class="input t-detail" [value]="t.detail" (input)="setTier(i, ti, 'detail', $event)" aria-label="What's included" placeholder="What's included" />
+            <input class="input t-price" [value]="t.price" (input)="setTier(i, ti, 'price', $event)" aria-label="Price" placeholder="$0" />
+            <button type="button" class="btn btn-ghost btn-icon t-remove" (click)="removeTier(i, ti)" aria-label="Remove package"><app-icon name="close" [size]="16" /></button>
+          </div>
+        }
+      </div>
+      <button type="button" class="btn btn-ghost add-tier" (click)="addTier(i)">+ Add package</button>
+    </div>
+  }
+</div>

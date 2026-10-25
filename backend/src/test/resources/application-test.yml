@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:mmv;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+app:
+  seed-demo-data: false
+  admin:
+    users:
+      - name: Erica
+        role: Lead photographer
+        password: test-pass
+      - name: Austin
+        role: Second photographer & operations
+        password: test-pass
+  jwt:
+    secret: test-secret-test-secret-test-secret-test-secret
+    ttl-hours: 1
+  cors:
+    allowed-origins: http://localhost:4200
+  notifications:
+    from: no-reply@test.local
+    to: studio@test.local
+    send-customer-confirmation: true
+    site-url: http://localhost:4200
+  s3:
+    bucket: test-bucket
+    region: us-east-1
+    endpoint: http://localhost:9
+    path-style-access: true
+    public-base-url: http://cdn.test/photos
+    key-prefix: ""

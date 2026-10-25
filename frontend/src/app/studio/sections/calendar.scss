@@ -1,0 +1,35 @@
+.cal { background: var(--color-surface); border-radius: 32px; padding: clamp(16px, 3vw, 28px); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+.cal-title { font-size: 24px; margin: 0; }
+.cal-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.legend { font-size: 12px; font-weight: 600; }
+.nav { color: var(--color-text); }
+
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wd { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-align: center; padding: 4px 0; color: var(--ink-65); }
+.day {
+  min-height: 92px; border-radius: 16px; padding: 8px; background: var(--ink-4);
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+}
+.day.is-blank { background: transparent; }
+.day.is-today { background: var(--color-accent-100); }
+.day-n { font-size: 13px; font-weight: 700; }
+.day.is-today .day-n { color: var(--color-accent-700); }
+.item {
+  font-size: 11.5px; font-weight: 600; line-height: 1.3; padding: 3px 7px; border-radius: 8px;
+  background: var(--color-accent-200); color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item--popup { background: var(--color-accent-2-200); }
+
+.empty { font-size: 15px; margin: 0; color: var(--ink-70); }
+.agenda { display: flex; flex-direction: column; gap: 14px; }
+.ag { display: flex; gap: 14px; align-items: flex-start; }
+.ag-date { width: 48px; flex: none; text-align: center; line-height: 1.1; }
+.ag-wd { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-65); }
+.ag-day { font-family: var(--font-heading); font-size: 22px; }
+.ag-items { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ag-item {
+  font-size: 14px; font-weight: 600; line-height: 1.4; padding: 10px 14px; border-radius: 16px;
+  background: var(--color-accent-200); color: var(--color-text);
+}
+.ag-item.item--popup { background: var(--color-accent-2-200); }
