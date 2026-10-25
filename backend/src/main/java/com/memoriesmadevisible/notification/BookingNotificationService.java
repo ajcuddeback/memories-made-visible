@@ -88,11 +88,10 @@ public class BookingNotificationService {
 
     SimpleMailMessage customerMessage(Booking b, String sessionTypeName) {
         var msg = new SimpleMailMessage();
-        msg.setFrom(cfg.from());
+        String sender = cfg.customerFrom() == null || cfg.customerFrom().isBlank() ? cfg.from() : cfg.customerFrom();
+        msg.setFrom(sender);
+        msg.setReplyTo(sender);
         msg.setTo(b.getEmail());
-        if (cfg.to() != null && !cfg.to().isBlank()) {
-            msg.setReplyTo(cfg.to().split("\\s*,\\s*")[0]);
-        }
         msg.setSubject("We received your session request — Memories Made Visible");
         msg.setText("""
                 Hi %s,

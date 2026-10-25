@@ -16,7 +16,6 @@ app:
   jwt:
     secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
   notifications:
-    to: ${NOTIFY_TO:studio@example.test}
     send-customer-confirmation: true
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
