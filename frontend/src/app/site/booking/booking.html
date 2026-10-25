@@ -15,6 +15,9 @@
       <div class="steps">
         <div>
           <h2 class="step-title">1. Session type</h2>
+          @if (types().length === 0) {
+            <p class="hint">{{ typesError() ? 'Session types aren’t loading right now — please refresh in a moment.' : 'Loading session types…' }}</p>
+          }
           <div class="types" role="radiogroup" aria-label="Session type">
             @for (t of types(); track t.key) {
               <button type="button" class="type" [class.is-on]="type() === t.key" role="radio" [attr.aria-checked]="type() === t.key" (click)="type.set(t.key)">

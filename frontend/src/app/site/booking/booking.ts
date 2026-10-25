@@ -28,6 +28,7 @@ export class BookingPage {
   readonly weekdays = WEEKDAYS_SHORT;
   readonly times = TIMES;
   readonly types = this.data.sessionTypes;
+  readonly typesError = this.data.pricingError;
 
   // Form state
   readonly type = signal<string | null>(null);

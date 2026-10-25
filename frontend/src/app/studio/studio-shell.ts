@@ -55,10 +55,11 @@ export class StudioShell {
       this.url.set((e as NavigationEnd).urlAfterRedirects);
       this.menuOpen.set(false);
     });
-    // Load the studio data whenever a session becomes active.
+    // Fetch fresh studio data every time the admin opens (sign-in or return from the site);
+    // the store is only a cache of API responses, never a source of data.
     effect(() => {
       if (this.auth.isLoggedIn()) {
-        if (!this.store.loaded()) this.store.load();
+        this.store.load();
       } else {
         this.store.reset();
       }

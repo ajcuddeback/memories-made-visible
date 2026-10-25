@@ -12,6 +12,7 @@ import { SiteDataService } from '../../core/site-data.service';
 export class PricingPage {
   private readonly data = inject(SiteDataService);
 
+  readonly error = this.data.pricingError;
   readonly services = computed(() =>
     this.data.sessionTypes().map((s, i) => ({ ...s, tint: i % 2 === 0 ? 'var(--color-accent-200)' : 'var(--color-accent-2-200)' })),
   );

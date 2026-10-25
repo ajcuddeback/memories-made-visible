@@ -1,6 +1,9 @@
 <section class="container page">
   <h1 class="page-title">Pricing</h1>
   <p class="lede intro">Straightforward packages for every session. All prices include a private online gallery, a print release and travel within Polk County.</p>
+  @if (error()) {
+    <p class="lede">Our price list isn't loading right now — please try again in a moment, or <a routerLink="/book">send a booking request</a> and we'll quote you directly.</p>
+  }
   <div class="grid">
     @for (s of services(); track s.key) {
       <div class="card plan">
