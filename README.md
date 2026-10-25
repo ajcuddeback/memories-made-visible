@@ -18,8 +18,8 @@ Website and studio admin for Memories Made Visible Photography (Polk County, FL)
 Sections: Overview (revenue + next up), Requests (approve / decline / quote), Calendar, Pop-ups (with print sales),
 Galleries (delivery pipeline), Pricing (edits publish straight to the site), Photos (upload to S3 into named site slots).
 
-**Booking requests** from `/book` are stored as `PENDING` and immediately emailed to the studio inbox
-(`NOTIFY_TO`), with an optional acknowledgement to the customer (`NOTIFY_CUSTOMER=true`). The form has a honeypot
+**Booking requests** from `/book` are stored as `PENDING` and immediately emailed to **bookings@memoriesmadevisible.com**
+(`NOTIFY_TO`) from admin@, with an optional acknowledgement to the customer (`NOTIFY_CUSTOMER=true`). The form has a honeypot
 and a per-IP rate limit.
 
 ## Run it locally
@@ -58,7 +58,7 @@ Everything the API needs is an environment variable — see [`.env.example`](.en
 | --- | --- |
 | `ADMIN_ERICA_PASSWORD`, `ADMIN_AUSTIN_PASSWORD` | Admin passwords; upserted (bcrypt) on every boot, so changing one and restarting is the reset flow |
 | `APP_JWT_SECRET` | ≥ 32 chars; signs admin sessions (12 h) |
-| `NOTIFY_TO` | Studio inbox for booking requests (**TBD** — leave blank and requests are stored but a warning is logged instead of an email) |
+| `NOTIFY_TO` / `NOTIFY_FROM` | Booking requests go to `bookings@memoriesmadevisible.com`, sent from `admin@memoriesmadevisible.com` (defaults; override per environment). Customer acknowledgements come from `NOTIFY_CUSTOMER_FROM` (bookings@) |
 | `SMTP_*` | Mail server (SES SMTP, Google Workspace, Postmark…) |
 | `S3_BUCKET`, `AWS_REGION`, `S3_PUBLIC_BASE_URL` | Photo bucket; with a public base URL (CloudFront or bucket site) links are plain, otherwise the API issues 12-hour presigned links |
 | `APP_CORS_ORIGINS`, `APP_SITE_URL` | Site origin for CORS and for the admin link inside emails |

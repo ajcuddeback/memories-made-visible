@@ -72,12 +72,15 @@ class BookingFlowTest {
         var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender, timeout(5000).times(2)).send(captor.capture());
         var studio = captor.getAllValues().get(0);
-        assertThat(studio.getTo()).containsExactly("studio@test.local");
+        assertThat(studio.getTo()).containsExactly("bookings@test.local");
+        assertThat(studio.getFrom()).isEqualTo("admin@test.local");
         assertThat(studio.getReplyTo()).isEqualTo("taylor@example.com");
         assertThat(studio.getSubject()).contains("Weddings").contains("Taylor Reyes");
         assertThat(studio.getText()).contains("Winter Haven").contains("About 120 guests.").contains("/studio");
         var customer = captor.getAllValues().get(1);
         assertThat(customer.getTo()).containsExactly("taylor@example.com");
+        assertThat(customer.getFrom()).isEqualTo("bookings@test.local");
+        assertThat(customer.getReplyTo()).isEqualTo("bookings@test.local");
     }
 
     @Test

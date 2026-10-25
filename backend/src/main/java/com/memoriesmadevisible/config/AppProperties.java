@@ -27,10 +27,12 @@ public record AppProperties(
     public record Cors(List<String> allowedOrigins) {}
 
     /**
-     * {@code to} is the inbox that receives every new booking request. It is
-     * intentionally unset by default so a mis-deploy can never mail a stranger.
+     * {@code to} is the studio inbox that receives every new booking request
+     * (bookings@), {@code from} is the internal sender (admin@), and
+     * {@code customerFrom} is the address customers see on their acknowledgement.
      */
-    public record Notifications(String from, String to, boolean sendCustomerConfirmation, String siteUrl) {}
+    public record Notifications(String from, String to, String customerFrom, boolean sendCustomerConfirmation,
+                                String siteUrl) {}
 
     /**
      * {@code publicBaseUrl} (bucket website / CloudFront) is optional — when it
