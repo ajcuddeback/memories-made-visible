@@ -11,6 +11,15 @@
   margin-right: auto; display: block; width: 140px; height: 102px;
 }
 .brand img { width: 200px; height: 200px; margin: -44px 0 0 -26px; }
+.nav-wide { display: flex; align-items: center; gap: clamp(12px, 2.4vw, 32px); }
+.nav-narrow { display: none; align-items: center; gap: 8px; }
+@media (max-width: 819.98px) {
+  .nav-wide { display: none; }
+  .nav-narrow { display: flex; }
+}
+@media (min-width: 820px) {
+  .mobile-menu { display: none; }
+}
 .nav-link {
   font-size: 15px; font-weight: 600; padding: 8px 2px; color: var(--color-text);
   border-bottom: 2px solid transparent; white-space: nowrap;

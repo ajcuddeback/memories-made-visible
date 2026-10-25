@@ -5,7 +5,9 @@
         <img src="images/logo.webp" alt="Memories Made Visible Photography" width="400" height="400" fetchpriority="high" />
       </a>
 
-      @if (!viewport.narrow()) {
+      <!-- Both header variants are in the prerendered HTML; CSS picks one by viewport width,
+           so phones never paint the desktop nav and then shift when hydration kicks in. -->
+      <div class="nav-wide">
         @for (n of nav; track n.path) {
           <a [routerLink]="n.path" routerLinkActive="is-active" class="nav-link">{{ n.label }}</a>
         }
@@ -15,7 +17,8 @@
           <app-icon [name]="theme.isDark() ? 'sun' : 'moon'" />
         </button>
         <a routerLink="/book" class="btn btn-primary book-btn">Book a session</a>
-      } @else {
+      </div>
+      <div class="nav-narrow">
         <button type="button" class="btn btn-ghost btn-icon theme-toggle" (click)="theme.toggle()"
                 [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
           <app-icon [name]="theme.isDark() ? 'sun' : 'moon'" />
@@ -24,10 +27,10 @@
                 aria-label="Menu" [attr.aria-expanded]="menuOpen()">
           <app-icon [name]="menuOpen() ? 'close' : 'menu'" [size]="22" />
         </button>
-      }
+      </div>
     </nav>
 
-    @if (viewport.narrow() && menuOpen()) {
+    @if (menuOpen()) {
       <div class="mobile-menu">
         @for (n of mobileNav; track n.path) {
           <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.path === '/' }" class="mobile-link">{{ n.label }}</a>

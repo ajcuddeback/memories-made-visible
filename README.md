@@ -13,6 +13,19 @@ Website and studio admin for Memories Made Visible Photography (Polk County, FL)
 ## What's in the site
 
 **Public** — `/`, `/portfolio`, `/events`, `/pricing`, `/book`, `/about`. Dark/light theme toggle. Fully responsive.
+Every public route is **prerendered to static HTML** at build time (Angular SSR, static output mode) and hydrated in the
+browser, so crawlers get complete pages and first paint doesn't wait for JavaScript. Page data (pricing, pop-ups, photos)
+is fetched from the API in the browser; skeletons hold the layout meanwhile.
+
+**SEO** — per-route titles/descriptions/canonicals/Open Graph (`app.routes.ts` → `SeoService`), `LocalBusiness` JSON-LD
+with the Winter Haven address and Polk County service area (`src/index.html`), `robots.txt`, `sitemap.xml`, web manifest.
+The canonical domain lives in `src/app/core/site.ts` and in `public/robots.txt` / `public/sitemap.xml` — change all three
+if the domain changes.
+
+**Performance** — uploaded photos are resized server-side (1800px max edge, JPEG) before they reach S3; logo is a 9 KB
+WebP; above-the-fold fonts are preloaded; the hero image is `fetchpriority=high`, everything else lazy-loads; below-the-fold
+home sections use incremental hydration. Lighthouse (mobile, throttled) on the prerendered build: performance 90–98,
+SEO 100, accessibility 100, best practices 100, CLS 0.
 
 **Studio admin** — `/studio`. Not linked from anywhere on the site; share the URL with the two studio accounts only.
 Sections: Overview (revenue + next up), Requests (approve / decline / quote), Calendar, Pop-ups (with print sales),
@@ -47,7 +60,7 @@ Booking emails land in Mailpit at http://localhost:8025. Uploaded photos land in
 
 ```bash
 cd backend && ./gradlew test      # Spring Boot slice tests on H2 (mail + S3 mocked)
-cd frontend && npm run build      # production build (type-checks templates)
+cd frontend && npm run build      # production build + prerender (type-checks templates)
 ```
 
 ## Configuration
