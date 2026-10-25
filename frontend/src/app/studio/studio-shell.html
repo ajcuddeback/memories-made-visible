@@ -1,0 +1,68 @@
+@if (!auth.isLoggedIn()) {
+  <app-studio-login />
+} @else {
+  <div class="studio">
+    @if (viewport.narrow()) {
+      <div class="topbar">
+        <div class="topbar-row">
+          <div class="logo-crop topbar-logo">
+            <img src="images/logo.png" alt="Memories Made Visible" />
+          </div>
+          <button type="button" class="avatar-btn" (click)="menuOpen.set(!menuOpen())" aria-label="Account menu" [attr.aria-expanded]="menuOpen()">{{ auth.user()?.initial }}</button>
+        </div>
+        @if (menuOpen()) {
+          <div class="topbar-menu">
+            <span class="who">{{ auth.user()?.name }} · <span class="who-role">{{ auth.user()?.role }}</span></span>
+            <button type="button" class="btn btn-secondary sm" (click)="theme.toggle()">{{ theme.isDark() ? 'Light mode' : 'Dark mode' }}</button>
+            <a routerLink="/" class="btn btn-secondary sm">View site</a>
+            <button type="button" class="btn btn-ghost sm logout" (click)="logOut()">Log out</button>
+          </div>
+        }
+        <nav class="topnav" aria-label="Studio sections">
+          @for (n of nav; track n.path) {
+            <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="topnav-link">
+              <span>{{ n.label }}</span>
+              @if (n.label === 'Requests' && pendingCount() > 0) { <span class="badge">{{ pendingCount() }}</span> }
+            </a>
+          }
+        </nav>
+      </div>
+    } @else {
+      <aside class="sidebar">
+        <div class="logo-crop sidebar-logo">
+          <img src="images/logo.png" alt="Memories Made Visible" />
+        </div>
+        @for (n of nav; track n.path) {
+          <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="side-link">
+            <span>{{ n.label }}</span>
+            @if (n.label === 'Requests' && pendingCount() > 0) { <span class="badge badge--lg">{{ pendingCount() }}</span> }
+          </a>
+        }
+        <div class="spacer"></div>
+        <div class="account">
+          <span class="avatar">{{ auth.user()?.initial }}</span>
+          <div class="account-text">
+            <div class="account-name">{{ auth.user()?.name }}</div>
+            <div class="account-role">{{ auth.user()?.role }}</div>
+          </div>
+        </div>
+        <div class="account-actions">
+          <button type="button" class="btn btn-secondary sm" (click)="theme.toggle()">{{ theme.isDark() ? 'Light mode' : 'Dark mode' }}</button>
+          <a routerLink="/" class="btn btn-secondary sm">View site</a>
+          <button type="button" class="btn btn-ghost sm logout" (click)="logOut()">Log out</button>
+        </div>
+      </aside>
+    }
+
+    <main class="main">
+      <div class="main-head">
+        <div class="greeting">{{ greeting() }}</div>
+        <h1 class="main-title">{{ sectionTitle() }}</h1>
+      </div>
+      @if (store.loadError(); as err) {
+        <p class="load-error">{{ err }} <button type="button" class="btn btn-secondary sm" (click)="store.load()">Retry</button></p>
+      }
+      <router-outlet />
+    </main>
+  </div>
+}

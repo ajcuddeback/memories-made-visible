@@ -1,0 +1,28 @@
+:host-context([data-theme='light']) .wrap { --color-bg: #f3f3f5; }
+.wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--color-bg); }
+.card-login {
+  width: min(440px, 100%); background: var(--color-surface); border-radius: 36px;
+  padding: clamp(28px, 5vw, 44px); box-shadow: var(--shadow-lg);
+}
+.login-logo { width: 140px; height: 102px; }
+.login-logo img { width: 200px; height: 200px; margin: -44px 0 0 -26px; }
+.title { font-size: 32px; line-height: 1.1; margin: 20px 0 8px; }
+.sub { font-size: 15px; line-height: 1.6; margin: 0 0 28px; color: var(--ink-75); }
+.who-label { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.who-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.who {
+  cursor: pointer; text-align: left; padding: 14px; border-radius: 22px; border: 2px solid var(--color-divider);
+  background: transparent; color: var(--color-text); display: flex; align-items: center; gap: 10px;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.who:hover { border-color: var(--color-accent); }
+.who.is-on { border-color: var(--color-accent); background: var(--color-accent-100); }
+.who-initial {
+  width: 36px; height: 36px; flex: none; border-radius: 50%; background: var(--color-accent-200); color: var(--color-accent-800);
+  display: grid; place-items: center; font-family: var(--font-heading); font-size: 17px;
+}
+.who-name { font-size: 15px; font-weight: 600; }
+.pw { font-size: 15px; min-height: 44px; }
+.sign-in { font-size: 16px; padding: 13px 20px; margin-top: 18px; }
+.error { font-size: 13px; line-height: 1.5; margin: 14px 0 0; min-height: 20px; color: var(--color-accent-700); }
+.back { display: inline-block; margin-top: 8px; font-size: 14px; font-weight: 600; }

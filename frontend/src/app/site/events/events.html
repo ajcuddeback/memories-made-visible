@@ -1,0 +1,58 @@
+<section class="container hero">
+  <div>
+    <span class="kicker">Pop-up events</span>
+    <h1 class="page-title">Themed photo sets at local markets</h1>
+    <p class="lede">We set up themed photo sets at markets and community events around Polk County, with mobile printing on site. Step in, take your photos, and leave with prints in hand.</p>
+  </div>
+  <div class="hero-photos">
+    <div class="frame washed"><app-photo-slot slot="events-set-1" placeholder="Themed set photo" alt="A themed pop-up photo set" /></div>
+    <div class="frame frame--offset washed"><app-photo-slot slot="events-set-2" placeholder="Prints on site" alt="Prints made on site" /></div>
+  </div>
+</section>
+
+<section class="container block">
+  <h2 class="section-title">How it works</h2>
+  <div class="steps">
+    @for (st of steps; track st.n) {
+      <div>
+        <div class="step-n">{{ st.n }}</div>
+        <h3 class="step-title">{{ st.title }}</h3>
+        <p class="step-desc">{{ st.desc }}</p>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="container block">
+  <h2 class="section-title mb-32">Upcoming pop-ups</h2>
+  @if (upcoming().length === 0) {
+    <p class="empty">No pop-ups on the calendar right now — check back soon.</p>
+  }
+  <div class="list">
+    @for (e of upcoming(); track e.id) {
+      <div class="event">
+        <div class="date-pill">
+          <span class="date-mon">{{ e.mon }}</span>
+          <span class="date-day">{{ e.day }}</span>
+        </div>
+        <div class="event-body">
+          <div class="event-head">
+            <h3 class="event-title">{{ e.title }}</h3>
+            <span class="tag tag-accent event-tag">{{ e.theme }}</span>
+          </div>
+          <div class="event-meta">{{ e.venue }} · {{ e.time }}</div>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<section class="container cta-wrap">
+  <div class="cta">
+    <div>
+      <h2 class="cta-title">Hosting a market or event?</h2>
+      <p class="cta-text">We bring the themed set, lighting and printer. Tell us about your event and we'll plan a pop-up that fits.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-xl" (click)="inviteUs()">Invite us</button>
+  </div>
+</section>

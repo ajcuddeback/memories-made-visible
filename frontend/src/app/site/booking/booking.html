@@ -1,0 +1,83 @@
+<section class="container page">
+  @if (submitted()) {
+    <div class="done">
+      <div class="done-check"><app-icon name="check" [size]="30" /></div>
+      <h1 class="done-title">Request sent</h1>
+      <p class="done-text">Thank you, {{ name() }}. We've received your request for a <strong>{{ typeName() }}</strong> session on <strong>{{ dateLabel() }}</strong> at <strong>{{ time() }}</strong>.</p>
+      <p class="done-text muted">Erica will reach out at {{ email() }} to confirm your date and plan the session.</p>
+      <button type="button" class="btn btn-secondary btn-md" (click)="reset()">Make another request</button>
+    </div>
+  } @else {
+    <h1 class="page-title">Book a session</h1>
+    <p class="lede intro">Pick a session type, date and time. This is a request — we'll confirm availability and details with you before anything is final.</p>
+
+    <div class="layout">
+      <div class="steps">
+        <div>
+          <h2 class="step-title">1. Session type</h2>
+          <div class="types" role="radiogroup" aria-label="Session type">
+            @for (t of types(); track t.key) {
+              <button type="button" class="type" [class.is-on]="type() === t.key" role="radio" [attr.aria-checked]="type() === t.key" (click)="type.set(t.key)">
+                <span class="type-dot" aria-hidden="true"></span>
+                <span class="type-name">{{ t.name }}</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div>
+          <h2 class="step-title">2. Date &amp; time</h2>
+          <div class="calendar">
+            <div class="cal-head">
+              <button type="button" class="btn btn-ghost btn-icon cal-nav" (click)="prevMonth()" [disabled]="prevDisabled()" aria-label="Previous month"><app-icon name="prev" /></button>
+              <span class="cal-label">{{ monthLabel() }}</span>
+              <button type="button" class="btn btn-ghost btn-icon cal-nav" (click)="nextMonth()" aria-label="Next month"><app-icon name="next" /></button>
+            </div>
+            <div class="cal-grid">
+              @for (w of weekdays; track w) {
+                <span class="cal-wd">{{ w }}</span>
+              }
+              @for (d of days(); track $index) {
+                <button type="button" class="cal-day" [class.is-selected]="isSelected(d)" [class.is-past]="d.past"
+                        [disabled]="d.past || !d.date" [attr.aria-label]="d.date ? d.date.toDateString() : null"
+                        (click)="d.date && date.set(d.date)">{{ d.label }}</button>
+              }
+            </div>
+          </div>
+          <div class="times" role="radiogroup" aria-label="Time">
+            @for (tm of times; track tm) {
+              <button type="button" class="btn time" [class.btn-primary]="time() === tm" [class.btn-secondary]="time() !== tm"
+                      role="radio" [attr.aria-checked]="time() === tm" [disabled]="!date()" (click)="time.set(tm)">{{ tm }}</button>
+            }
+          </div>
+        </div>
+
+        <div>
+          <h2 class="step-title">3. Your details</h2>
+          <div class="details">
+            <label class="field">Full name<input class="input lg" [value]="name()" (input)="name.set(value($event))" placeholder="Jane Smith" autocomplete="name" /></label>
+            <label class="field">Email<input class="input lg" type="email" [value]="email()" (input)="email.set(value($event))" placeholder="you@example.com" autocomplete="email" /></label>
+            <label class="field">Phone<input class="input lg" type="tel" [value]="phone()" (input)="phone.set(value($event))" placeholder="(863) 555-0123" autocomplete="tel" /></label>
+            <label class="field">Preferred location<input class="input lg" [value]="location()" (input)="location.set(value($event))" placeholder="e.g. Lake Mirror, Lakeland" /></label>
+          </div>
+          <label class="field notes">Tell us about your session<textarea class="input lg" [value]="notes()" (input)="notes.set(value($event))" placeholder="Who's in the photos, the occasion, any ideas you have"></textarea></label>
+          <!-- Honeypot: hidden from people, filled by bots -->
+          <label class="visually-hidden" aria-hidden="true">Website<input tabindex="-1" autocomplete="off" [value]="website()" (input)="website.set(value($event))" /></label>
+        </div>
+      </div>
+
+      <aside class="summary">
+        <h2 class="summary-title">Your request</h2>
+        <dl class="summary-list">
+          <div><dt>Session</dt><dd>{{ typeName() ?? '—' }}</dd></div>
+          <div><dt>Date</dt><dd>{{ dateLabel() ?? '—' }}</dd></div>
+          <div><dt>Time</dt><dd>{{ time() ?? '—' }}</dd></div>
+        </dl>
+        <button type="button" class="btn btn-primary btn-block send" [disabled]="missing().length > 0 || submitting()" (click)="submit()">
+          {{ submitting() ? 'Sending…' : 'Send request' }}
+        </button>
+        <p class="hint" [class.is-error]="error()">{{ error() ?? hint() }}</p>
+      </aside>
+    </div>
+  }
+</section>

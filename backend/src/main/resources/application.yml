@@ -1,0 +1,76 @@
+spring:
+  application:
+    name: mmv-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/mmv}
+    username: ${DATABASE_USERNAME:mmv}
+    password: ${DATABASE_PASSWORD:mmv}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 26MB
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: native
+  compression:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  health:
+    # A slow SMTP server shouldn't take the whole app out of the load balancer.
+    mail:
+      enabled: false
+
+app:
+  seed-demo-data: false
+  admin:
+    users:
+      - name: Erica
+        role: Lead photographer
+        password: ${ADMIN_ERICA_PASSWORD:}
+      - name: Austin
+        role: Second photographer & operations
+        password: ${ADMIN_AUSTIN_PASSWORD:}
+  jwt:
+    # At least 32 characters. Generate one with: openssl rand -base64 48
+    secret: ${APP_JWT_SECRET:}
+    ttl-hours: 12
+  cors:
+    allowed-origins: ${APP_CORS_ORIGINS:http://localhost:4200}
+  notifications:
+    from: ${NOTIFY_FROM:no-reply@memoriesmadevisible.com}
+    # The studio inbox that gets every new booking request (TBD — set in the environment).
+    to: ${NOTIFY_TO:}
+    send-customer-confirmation: ${NOTIFY_CUSTOMER:false}
+    site-url: ${APP_SITE_URL:http://localhost:4200}
+  s3:
+    bucket: ${S3_BUCKET:mmv-photos}
+    region: ${AWS_REGION:us-east-1}
+    # Leave blank for real AWS; set to http://localhost:9000 for MinIO.
+    endpoint: ${S3_ENDPOINT:}
+    path-style-access: ${S3_PATH_STYLE:false}
+    # Optional CloudFront / bucket-website base. Blank → presigned GET URLs.
+    public-base-url: ${S3_PUBLIC_BASE_URL:}
+    key-prefix: ${S3_KEY_PREFIX:}

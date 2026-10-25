@@ -1,0 +1,42 @@
+<div class="cal">
+  <div class="cal-head">
+    <h2 class="cal-title">{{ label() }}</h2>
+    <div class="cal-tools">
+      <span class="tag tag-accent legend">Sessions</span>
+      <span class="tag tag-accent-2 legend">Pop-ups</span>
+      <button type="button" class="btn btn-ghost btn-icon nav" (click)="prev()" aria-label="Previous month"><app-icon name="prev" /></button>
+      <button type="button" class="btn btn-ghost btn-icon nav" (click)="next()" aria-label="Next month"><app-icon name="next" /></button>
+    </div>
+  </div>
+
+  @if (!viewport.narrow()) {
+    <div class="grid">
+      @for (w of weekdays; track w) { <div class="wd">{{ w }}</div> }
+      @for (d of days(); track $index) {
+        <div class="day" [class.is-today]="d.isToday" [class.is-blank]="!d.label">
+          <span class="day-n">{{ d.label }}</span>
+          @for (it of d.items; track it.full) {
+            <span class="item" [class.item--popup]="it.kind === 'popup'" [title]="it.full">{{ it.text }}</span>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    @if (agenda().length === 0) { <p class="empty">Nothing booked this month.</p> }
+    <div class="agenda">
+      @for (ag of agenda(); track ag.label) {
+        <div class="ag">
+          <div class="ag-date">
+            <div class="ag-wd">{{ ag.wd }}</div>
+            <div class="ag-day">{{ ag.label }}</div>
+          </div>
+          <div class="ag-items">
+            @for (it of ag.items; track it.full) {
+              <div class="ag-item" [class.item--popup]="it.kind === 'popup'">{{ it.full }}</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

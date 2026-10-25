@@ -1,0 +1,50 @@
+<div class="stats">
+  @for (st of stats(); track st.label) {
+    <div class="stat">
+      <div class="stat-label">{{ st.label }}</div>
+      <div class="stat-value" [class.is-accent]="st.accent">{{ st.value }}</div>
+      <div class="stat-sub">{{ st.sub }}</div>
+    </div>
+  }
+</div>
+
+<div class="panels">
+  <div class="panel">
+    <h2 class="panel-title">Revenue</h2>
+    <p class="panel-sub">Confirmed sessions plus pop-up print sales</p>
+    <div class="chart" role="img" aria-label="Monthly revenue, last three months through two months ahead">
+      @for (m of months(); track m.mon) {
+        <div class="bar-col">
+          <span class="bar-label">{{ m.label }}</span>
+          <div class="bar" [style.height.%]="m.h" [style.background]="m.bg"></div>
+          <span class="bar-mon">{{ m.mon }}</span>
+        </div>
+      }
+    </div>
+  </div>
+  <div class="panel">
+    <h2 class="panel-title mb-18">Next up</h2>
+    @if (nextUp().length === 0) {
+      <p class="empty">Nothing on the calendar yet.</p>
+    }
+    <div class="next-list">
+      @for (x of nextUp(); track x.date + x.title) {
+        <div class="next">
+          <div class="date-pill" [style.background]="x.tint">
+            <span class="date-mon">{{ x.mon }}</span>
+            <span class="date-day">{{ x.day }}</span>
+          </div>
+          <div class="next-body">
+            <div class="next-title">{{ x.title }}</div>
+            <div class="next-sub">{{ x.sub }}</div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<div class="quick">
+  <a routerLink="/studio/requests" class="btn btn-secondary quick-btn">{{ pendingLabel() }}</a>
+  <a routerLink="/studio/galleries" class="btn btn-secondary quick-btn">{{ galleriesLabel() }}</a>
+</div>

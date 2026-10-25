@@ -1,0 +1,32 @@
+<p class="intro">Drag a photo onto any slot, or tap it to browse. Photos placed here show up in the same spot on the website.</p>
+@if (error(); as err) { <p class="error" role="alert">{{ err }}</p> }
+<input #picker type="file" accept="image/jpeg,image/png,image/webp,image/avif" class="visually-hidden" tabindex="-1" aria-hidden="true" />
+
+<div class="groups">
+  @for (pg of store.photoGroups(); track pg.title) {
+    <section>
+      <h2 class="group-title">{{ pg.title }}</h2>
+      <div class="slots">
+        @for (sl of pg.slots; track sl.id) {
+          <figure class="slot">
+            <button type="button" class="drop" [class.is-over]="dragOver() === sl.id" [class.is-busy]="isBusy(sl.id)"
+                    [attr.aria-label]="(sl.url ? 'Replace photo: ' : 'Add photo: ') + sl.label"
+                    (click)="pick(sl.id, picker)"
+                    (dragover)="onDragOver(sl.id, $event)" (dragleave)="onDragLeave()" (drop)="onDrop(sl.id, $event)">
+              @if (sl.url) {
+                <img [src]="sl.url" [alt]="sl.label" loading="lazy" />
+              } @else {
+                <span class="drop-hint"><app-icon name="upload" [size]="22" /><span>Drop photo</span></span>
+              }
+              @if (isBusy(sl.id)) { <span class="spinner" aria-hidden="true"></span> }
+            </button>
+            <figcaption class="caption">
+              <span>{{ sl.label }}</span>
+              @if (sl.url) { <button type="button" class="clear" (click)="clear(sl.id, sl.label)">Remove</button> }
+            </figcaption>
+          </figure>
+        }
+      </div>
+    </section>
+  }
+</div>

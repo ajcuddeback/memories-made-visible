@@ -1,1 +1,29 @@
-.github
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/coverage/
+frontend/npm-debug.log*
+
+# Backend
+backend/.gradle/
+backend/build/
+backend/out/
+backend/bin/
+backend/*.log
+
+# Docker volumes
+.data/

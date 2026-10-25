@@ -1,0 +1,28 @@
+<div class="wrap">
+  <form class="card-login" (submit)="$event.preventDefault(); signIn()">
+    <div class="logo-crop login-logo">
+      <img src="images/logo.png" alt="Memories Made Visible Photography" />
+    </div>
+    <h1 class="title">Studio admin</h1>
+    <p class="sub">Sign in to manage bookings, pop-ups, galleries and pricing.</p>
+
+    <div class="who-label">Who's signing in?</div>
+    <div class="who-grid" role="radiogroup" aria-label="Who's signing in?">
+      @for (u of users(); track u.name) {
+        <button type="button" class="who" [class.is-on]="loginAs() === u.name" role="radio" [attr.aria-checked]="loginAs() === u.name" (click)="loginAs.set(u.name)">
+          <span class="who-initial">{{ u.initial }}</span>
+          <span class="who-name">{{ u.name }}</span>
+        </button>
+      }
+    </div>
+
+    <label class="field">Password
+      <input class="input pw" type="password" [value]="pw()" (input)="onPw($event)" placeholder="••••••••" autocomplete="current-password" />
+    </label>
+    <button type="submit" class="btn btn-primary btn-block sign-in" [disabled]="busy() || !loginAs()">
+      {{ busy() ? 'Signing in…' : 'Sign in as ' + (loginAs() || '…') }}
+    </button>
+    <p class="error" aria-live="polite">{{ error() }}</p>
+    <a routerLink="/" class="back">← Back to the website</a>
+  </form>
+</div>

@@ -1,0 +1,36 @@
+<section class="container intro">
+  <h1 class="page-title intro-title">A family studio in Polk County, Florida</h1>
+  <p class="intro-text">Memories Made Visible is run by Erica and Austin Cuddeback. We photograph the moments people want to hold on to — weddings, new babies, graduations, and the ordinary days that turn out to matter most.</p>
+</section>
+
+<section class="container person">
+  <div class="portrait washed">
+    <app-photo-slot slot="about-erica" fallback="images/erica.webp" placeholder="Portrait of Erica" alt="Erica Cuddeback" />
+  </div>
+  <div>
+    <span class="tag tag-accent role">Lead photographer</span>
+    <h2 class="person-name">Erica Cuddeback</h2>
+    <p class="person-text">Erica leads every session, from the first planning conversation to the final edit. Her approach is calm and well-directed: she handles the posing and the light so you can focus on each other.</p>
+    <p class="person-text muted">She photographs weddings, families, couples, maternity and newborn sessions, seniors and events throughout Polk County.</p>
+  </div>
+</section>
+
+<section class="container person person--austin">
+  <div class="portrait-wrap">
+    <div class="portrait-round washed">
+      <app-photo-slot slot="about-austin" fallback="images/austin.webp" placeholder="Portrait of Austin" alt="Austin Cuddeback" />
+    </div>
+  </div>
+  <div>
+    <span class="tag tag-accent-2 role">Second photographer &amp; operations</span>
+    <h2 class="person-name person-name--sm">Austin Cuddeback</h2>
+    <p class="person-text">Austin shoots alongside Erica at weddings and events, covering the second angle so nothing is missed. He also runs the studio's operations — scheduling, contracts and gallery delivery.</p>
+  </div>
+</section>
+
+<section class="container cta-wrap">
+  <div class="cta">
+    <h2 class="cta-title">We'd love to photograph your story.</h2>
+    <a routerLink="/book" class="btn btn-primary btn-xl">Book a session</a>
+  </div>
+</section>

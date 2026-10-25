@@ -1,0 +1,45 @@
+<form class="add" (submit)="$event.preventDefault(); add()">
+  <h2 class="add-title">Add a pop-up</h2>
+  <div class="add-grid">
+    <label class="field field--sm">Date<input class="input md" type="date" [value]="ne().date" (input)="set('date', $event)" required /></label>
+    <label class="field field--sm">Name<input class="input md" [value]="ne().title" (input)="set('title', $event)" placeholder="Spring Pop-Up" required /></label>
+    <label class="field field--sm">Theme<input class="input md" [value]="ne().theme" (input)="set('theme', $event)" placeholder="Wildflower set" /></label>
+    <label class="field field--sm">Venue<input class="input md" [value]="ne().venue" (input)="set('venue', $event)" placeholder="Market · City" /></label>
+    <label class="field field--sm">Hours<input class="input md" [value]="ne().time" (input)="set('time', $event)" placeholder="9:00 AM – 1:00 PM" /></label>
+    <button type="submit" class="btn btn-primary add-btn" [disabled]="cantAdd()">Add pop-up</button>
+  </div>
+</form>
+
+<div class="list">
+  @for (e of popups(); track e.id) {
+    <article class="pop">
+      <div class="date-pill" [class.is-past]="e.past">
+        <span class="date-mon">{{ e.mon }}</span>
+        <span class="date-day">{{ e.day }}</span>
+      </div>
+      <div class="pop-main">
+        <div class="pop-head">
+          <h3 class="pop-title">{{ e.title }}</h3>
+          <span class="tag pop-status" [class.tag-neutral]="e.past" [class.tag-accent-2]="!e.past">{{ e.status }}</span>
+        </div>
+        <div class="pop-meta">{{ e.theme }} · {{ e.venue }} · {{ e.time }}</div>
+      </div>
+      <div class="pop-sales">
+        <div>
+          <div class="sales-label">Prints sold</div>
+          <div class="counter">
+            <button type="button" class="btn btn-secondary btn-icon ctr" (click)="dec(e.id, e.prints)" aria-label="One fewer print">−</button>
+            <span class="count">{{ e.prints }}</span>
+            <button type="button" class="btn btn-secondary btn-icon ctr" (click)="inc(e.id, e.prints)" aria-label="One more print">+</button>
+          </div>
+        </div>
+        <label class="field field--sm sales-label">$ / print<input class="input price" type="number" min="0" step="0.5" [value]="e.printPrice" (change)="price(e.id, $event)" /></label>
+        <div class="revenue">
+          <div class="sales-label">Revenue</div>
+          <div class="revenue-value">{{ e.revenue }}</div>
+        </div>
+        <button type="button" class="btn btn-ghost remove" (click)="remove(e.id, e.title)">Remove</button>
+      </div>
+    </article>
+  }
+</div>

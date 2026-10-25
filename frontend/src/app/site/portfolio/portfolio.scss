@@ -1,0 +1,10 @@
+.page { padding-block: clamp(48px, 7vw, 88px) 88px; }
+.intro { margin-bottom: 36px; max-width: 54ch; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px; }
+.filter { font-size: 14px; padding: 8px 16px; }
+.masonry { columns: 3 240px; column-gap: 20px; }
+.item { break-inside: avoid; margin: 0 0 20px; }
+.frame { border-radius: 28px; overflow: hidden; background: var(--color-neutral-200); }
+.caption {
+  font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; margin-top: 10px; color: var(--ink-70);
+}
