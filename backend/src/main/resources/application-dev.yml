@@ -15,6 +15,9 @@ app:
         password: ${ADMIN_AUSTIN_PASSWORD:austin-dev}
   jwt:
     secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+  cors:
+    # ng serve (4200) and the prerendered-build static server (4300), on either loopback name
+    allowed-origins: http://localhost:4200,http://127.0.0.1:4200,http://localhost:4300,http://127.0.0.1:4300
   notifications:
     send-customer-confirmation: true
   s3:
