@@ -88,9 +88,12 @@ public class BookingNotificationService {
 
     SimpleMailMessage customerMessage(Booking b, String sessionTypeName) {
         var msg = new SimpleMailMessage();
+        // Most mailbox providers (Namecheap Private Email included) only let the authenticated
+        // mailbox send as itself, so the From stays on the SMTP account unless customerFrom is set
+        // to an alias of it; replies still go to the bookings inbox.
         String sender = cfg.customerFrom() == null || cfg.customerFrom().isBlank() ? cfg.from() : cfg.customerFrom();
         msg.setFrom(sender);
-        msg.setReplyTo(sender);
+        msg.setReplyTo(cfg.to() == null || cfg.to().isBlank() ? sender : cfg.to().split("\\s*,\\s*")[0]);
         msg.setTo(b.getEmail());
         msg.setSubject("We received your session request — Memories Made Visible");
         msg.setText("""

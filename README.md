@@ -72,7 +72,7 @@ Everything the API needs is an environment variable — see [`.env.example`](.en
 | `ADMIN_ERICA_PASSWORD`, `ADMIN_AUSTIN_PASSWORD` | Admin passwords; upserted (bcrypt) on every boot, so changing one and restarting is the reset flow |
 | `APP_JWT_SECRET` | ≥ 32 chars; signs admin sessions (12 h) |
 | `NOTIFY_TO` / `NOTIFY_FROM` | Booking requests go to `bookings@memoriesmadevisible.com`, sent from `admin@memoriesmadevisible.com` (defaults; override per environment). Customer acknowledgements come from `NOTIFY_CUSTOMER_FROM` (bookings@) |
-| `SMTP_*` | Mail server (SES SMTP, Google Workspace, Postmark…) |
+| `SMTP_*` | Mail server. Namecheap Private Email: `mail.privateemail.com`, port 587 (STARTTLS), username = full mailbox address. `NOTIFY_FROM` must be that mailbox (or one of its aliases) |
 | `S3_BUCKET`, `AWS_REGION`, `S3_PUBLIC_BASE_URL` | Photo bucket; with a public base URL (CloudFront or bucket site) links are plain, otherwise the API issues 12-hour presigned links |
 | `APP_CORS_ORIGINS`, `APP_SITE_URL` | Site origin for CORS and for the admin link inside emails |
 
