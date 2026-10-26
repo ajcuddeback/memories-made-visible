@@ -31,6 +31,10 @@
 .service-dot { width: 18px; height: 18px; border-radius: 50%; margin-top: 6px; }
 .service-name { font-size: 22px; line-height: 1.25; margin: 0 0 8px; }
 .service-desc { font-size: 15.5px; line-height: 1.6; margin: 0; color: var(--ink-78); }
+.sk { display: block; border-radius: 999px; background: var(--ink-7); }
+.sk-title { height: 22px; width: 70%; margin: 3px 0 12px; }
+.sk-line { height: 13px; width: 95%; margin-bottom: 8px; }
+.sk-line.short { width: 60%; }
 
 .favorites-head {
   display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 32px;

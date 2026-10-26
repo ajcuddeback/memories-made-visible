@@ -1,0 +1,50 @@
+# Production-style stack: nginx (site + /api proxy) → Spring Boot → Postgres.
+# Photos go to real S3; email goes to your SMTP provider. Configure via .env (see .env.example).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Put TLS termination (Caddy, Traefik, an ALB, Cloudflare) in front of port 80.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mmv}
+      POSTGRES_USER: ${POSTGRES_USER:-mmv}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mmv} -d ${POSTGRES_DB:-mmv}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    image: ${BACKEND_IMAGE:-mmv-backend:latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-mmv}
+      DATABASE_USERNAME: ${POSTGRES_USER:-mmv}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
+      - "8080"
+
+  frontend:
+    build: ./frontend
+    image: ${FRONTEND_IMAGE:-mmv-frontend:latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "${HTTP_PORT:-80}:8080"
+
+volumes:
+  pgdata:

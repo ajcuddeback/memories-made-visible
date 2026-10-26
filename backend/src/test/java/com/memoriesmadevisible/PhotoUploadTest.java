@@ -48,13 +48,21 @@ class PhotoUploadTest {
                 .andReturn().getResponse().getContentAsString();
         var auth = "Bearer " + json.readTree(res).get("token").asText();
 
-        var file = new MockMultipartFile("file", "hero.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        var file = new MockMultipartFile("file", "hero.png", "image/png", pngOfSize(2400, 1600));
         mvc.perform(multipart("/api/admin/photos/home-hero").file(file).header("Authorization", auth))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slotId").value("home-hero"))
                 .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.startsWith("http://cdn.test/photos/site/home-hero/")));
 
-        verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        var putReq = org.mockito.ArgumentCaptor.forClass(PutObjectRequest.class);
+        var putBody = org.mockito.ArgumentCaptor.forClass(RequestBody.class);
+        verify(s3Client).putObject(putReq.capture(), putBody.capture());
+        // Stored object is a resized JPEG, not the original PNG
+        org.assertj.core.api.Assertions.assertThat(putReq.getValue().contentType()).isEqualTo("image/jpeg");
+        org.assertj.core.api.Assertions.assertThat(putReq.getValue().key()).endsWith(".jpg");
+        var stored = javax.imageio.ImageIO.read(putBody.getValue().contentStreamProvider().newStream());
+        org.assertj.core.api.Assertions.assertThat(stored.getWidth()).isEqualTo(1800);
+        org.assertj.core.api.Assertions.assertThat(stored.getHeight()).isEqualTo(1200);
 
         mvc.perform(get("/api/photos"))
                 .andExpect(status().isOk())
@@ -66,5 +74,20 @@ class PhotoUploadTest {
         var text = new MockMultipartFile("file", "x.txt", "text/plain", new byte[]{1});
         mvc.perform(multipart("/api/admin/photos/home-feat-1").file(text).header("Authorization", auth))
                 .andExpect(status().isBadRequest());
+        // Claims to be an image but isn't decodable
+        var junk = new MockMultipartFile("file", "x.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        mvc.perform(multipart("/api/admin/photos/home-feat-1").file(junk).header("Authorization", auth))
+                .andExpect(status().isBadRequest());
+    }
+
+    private static byte[] pngOfSize(int w, int h) throws Exception {
+        var img = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var g = img.createGraphics();
+        g.setColor(java.awt.Color.ORANGE);
+        g.fillRect(0, 0, w, h);
+        g.dispose();
+        var out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(img, "png", out);
+        return out.toByteArray();
     }
 }

@@ -2,12 +2,85 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
-    <title>Memories Made Visible Photography</title>
+    <title>Memories Made Visible | Photographer in Winter Haven & Polk County, FL</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Memories Made Visible is a family-run photography studio serving Polk County, Florida — weddings, families, couples, maternity and newborn, seniors and events." />
+    <meta name="description" content="Family-run photography studio in Winter Haven, Florida. Wedding, family, couples, maternity, newborn, senior and event photography across Polk County. Book a session online." />
     <meta name="theme-color" content="#0f1012" />
-    <link rel="icon" type="image/png" href="images/logo.png" />
+    <meta name="geo.region" content="US-FL" />
+    <meta name="geo.placename" content="Winter Haven, Florida" />
+    <link rel="icon" type="image/png" sizes="64x64" href="favicon.png" />
+    <link rel="apple-touch-icon" href="images/logo.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <!-- Fonts used above the fold; preloading them removes the swap flash and the CLS it causes -->
+    <link rel="preload" href="fonts/caprasimo-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/figtree-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": ["LocalBusiness", "ProfessionalService"],
+          "@id": "https://www.memoriesmadevisible.com/#business",
+          "name": "Memories Made Visible Photography",
+          "alternateName": "Memories Made Visible",
+          "url": "https://www.memoriesmadevisible.com/",
+          "logo": "https://www.memoriesmadevisible.com/images/logo.png",
+          "image": "https://www.memoriesmadevisible.com/images/og-default.jpg",
+          "email": "bookings@memoriesmadevisible.com",
+          "description": "Family-run photography studio based in Winter Haven, Florida, photographing weddings, families, couples, maternity and newborn sessions, seniors and events across Polk County.",
+          "slogan": "Photos in a world we built for you.",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Winter Haven",
+            "addressRegion": "FL",
+            "addressCountry": "US"
+          },
+          "geo": { "@type": "GeoCoordinates", "latitude": 28.0222, "longitude": -81.7329 },
+          "areaServed": [
+            { "@type": "AdministrativeArea", "name": "Polk County, Florida" },
+            { "@type": "City", "name": "Winter Haven" },
+            { "@type": "City", "name": "Lakeland" },
+            { "@type": "City", "name": "Bartow" },
+            { "@type": "City", "name": "Auburndale" },
+            { "@type": "City", "name": "Haines City" },
+            { "@type": "City", "name": "Lake Wales" },
+            { "@type": "City", "name": "Davenport" }
+          ],
+          "priceRange": "$$",
+          "founder": [
+            { "@type": "Person", "name": "Erica Cuddeback", "jobTitle": "Lead photographer" },
+            { "@type": "Person", "name": "Austin Cuddeback", "jobTitle": "Second photographer & operations" }
+          ],
+          "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "Photography sessions",
+            "itemListElement": [
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Wedding photography" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Family & solo portrait photography" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Couples & engagement photography" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Maternity & newborn photography" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Senior & graduation portraits" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Event photography" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Pop-up photo sets with on-site printing" } }
+            ]
+          },
+          "potentialAction": {
+            "@type": "ReserveAction",
+            "target": "https://www.memoriesmadevisible.com/book",
+            "name": "Book a session"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.memoriesmadevisible.com/#website",
+          "url": "https://www.memoriesmadevisible.com/",
+          "name": "Memories Made Visible Photography",
+          "publisher": { "@id": "https://www.memoriesmadevisible.com/#business" }
+        }
+      ]
+    }
+    </script>
     <script>
       // Apply the saved theme before first paint to avoid a flash.
       try {

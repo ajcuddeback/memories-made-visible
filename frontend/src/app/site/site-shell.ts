@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { ThemeService } from '../core/theme.service';
-import { ViewportService } from '../core/viewport.service';
 import { SiteDataService } from '../core/site-data.service';
 import { Icon } from '../shared/icons';
 
@@ -20,7 +19,6 @@ interface NavItem {
 })
 export class SiteShell {
   readonly theme = inject(ThemeService);
-  readonly viewport = inject(ViewportService);
   private readonly router = inject(Router);
   private readonly data = inject(SiteDataService);
 

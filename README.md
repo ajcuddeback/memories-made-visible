@@ -13,6 +13,19 @@ Website and studio admin for Memories Made Visible Photography (Polk County, FL)
 ## What's in the site
 
 **Public** — `/`, `/portfolio`, `/events`, `/pricing`, `/book`, `/about`. Dark/light theme toggle. Fully responsive.
+Every public route is **prerendered to static HTML** at build time (Angular SSR, static output mode) and hydrated in the
+browser, so crawlers get complete pages and first paint doesn't wait for JavaScript. Page data (pricing, pop-ups, photos)
+is fetched from the API in the browser; skeletons hold the layout meanwhile.
+
+**SEO** — per-route titles/descriptions/canonicals/Open Graph (`app.routes.ts` → `SeoService`), `LocalBusiness` JSON-LD
+with the Winter Haven address and Polk County service area (`src/index.html`), `robots.txt`, `sitemap.xml`, web manifest.
+The canonical domain lives in `src/app/core/site.ts` and in `public/robots.txt` / `public/sitemap.xml` — change all three
+if the domain changes.
+
+**Performance** — uploaded photos are resized server-side (1800px max edge, JPEG) before they reach S3; logo is a 9 KB
+WebP; above-the-fold fonts are preloaded; the hero image is `fetchpriority=high`, everything else lazy-loads; below-the-fold
+home sections use incremental hydration. Lighthouse (mobile, throttled) on the prerendered build: performance 90–98,
+SEO 100, accessibility 100, best practices 100, CLS 0.
 
 **Studio admin** — `/studio`. Not linked from anywhere on the site; share the URL with the two studio accounts only.
 Sections: Overview (revenue + next up), Requests (approve / decline / quote), Calendar, Pop-ups (with print sales),
@@ -47,7 +60,7 @@ Booking emails land in Mailpit at http://localhost:8025. Uploaded photos land in
 
 ```bash
 cd backend && ./gradlew test      # Spring Boot slice tests on H2 (mail + S3 mocked)
-cd frontend && npm run build      # production build (type-checks templates)
+cd frontend && npm run build      # production build + prerender (type-checks templates)
 ```
 
 ## Configuration
@@ -68,12 +81,46 @@ Photo slot ids are defined once in `PhotoSlots.java` and referenced by the Angul
 
 ## Deploying
 
+### Docker (recommended)
+
+Both apps ship a multi-stage `Dockerfile`:
+
+| Image | Base | Serves |
+| --- | --- | --- |
+| `backend/Dockerfile` | Temurin 21 JRE (alpine), non-root, layered Spring Boot jar | API on `:8080`, health at `/actuator/health` |
+| `frontend/Dockerfile` | nginx-unprivileged (alpine) | Angular build on `:8080`, SPA fallback, `/api/*` proxied to `BACKEND_URL` |
+
+**Single host with Compose** (site + API + Postgres; photos on S3, mail via your SMTP provider):
+
+```bash
+cp .env.example .env     # fill in passwords, JWT secret, SMTP, S3, POSTGRES_PASSWORD
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+The site is on port 80 (`HTTP_PORT`); put TLS in front of it (Caddy/Traefik/Cloudflare/ALB). Because nginx proxies
+`/api`, the browser only ever talks to one origin, so `APP_CORS_ORIGINS` can simply be your site URL.
+
+**Prebuilt images**: the GitHub Actions workflow (`.github/workflows/ci.yml`) runs the tests on every PR and, on `main`
+and `v*` tags, pushes `ghcr.io/ajcuddeback/memories-made-visible-backend` and `…-frontend`. Set `BACKEND_IMAGE` /
+`FRONTEND_IMAGE` in `.env` to pull those instead of building on the server.
+
+**Managed platforms** (ECS/Fargate, Fly.io, Render, Railway…): run the two images as two services with the env from
+`.env.example`; point the frontend's `BACKEND_URL` at the backend service's internal address, and give the backend a
+managed Postgres `DATABASE_URL`. The backend picks up AWS credentials from a task/instance role, so `AWS_ACCESS_KEY_ID`
+is only needed off-AWS.
+
+### Without Docker
+
 - **Frontend**: `npm run build` → static files in `frontend/dist/frontend/browser`. Serve from S3 + CloudFront, Netlify, or
   behind the same reverse proxy as the API. Route every unknown path to `index.html`, and forward `/api/*` to the backend.
 - **Backend**: `./gradlew bootJar` → `backend/build/libs/mmv-backend-*.jar`. Needs Java 21, a Postgres URL, and the env above.
-  Flyway runs migrations on start. Health check: `GET /actuator/health`.
-- **S3**: one bucket, block public ACLs, and either put CloudFront in front (recommended) or enable bucket-policy reads on the
-  `site/` prefix. The IAM identity needs `s3:PutObject`, `s3:DeleteObject`, `s3:GetObject` on that bucket.
+  Flyway runs migrations on start.
+
+### S3
+
+One bucket, block public ACLs, and either put CloudFront in front (recommended, set `S3_PUBLIC_BASE_URL`) or enable
+bucket-policy reads on the `site/` prefix. The IAM identity needs `s3:PutObject`, `s3:DeleteObject`, `s3:GetObject` on
+that bucket.
 
 ## Layout
 

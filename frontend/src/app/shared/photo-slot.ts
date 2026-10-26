@@ -4,13 +4,17 @@ import { SiteDataService } from '../core/site-data.service';
 /**
  * A named photo slot on the public site. Shows the photo the admin uploaded
  * for this slot, else a bundled fallback, else a quiet placeholder — so the
- * layout never jumps while the API loads.
+ * layout never jumps while the API loads. The parent fixes the aspect ratio,
+ * so swapping placeholder → photo costs no layout shift.
+ *
+ * `priority` marks the page's LCP image: eager + high fetch priority instead of lazy.
  */
 @Component({
   selector: 'app-photo-slot',
   template: `
     @if (src(); as url) {
-      <img [src]="url" [alt]="alt()" loading="lazy" decoding="async" />
+      <img [src]="url" [alt]="alt()" [attr.loading]="priority() ? null : 'lazy'"
+           [attr.fetchpriority]="priority() ? 'high' : null" decoding="async" />
     } @else {
       <div class="placeholder" aria-hidden="true"><span>{{ placeholder() }}</span></div>
     }
@@ -35,6 +39,7 @@ export class PhotoSlot {
   readonly placeholder = input('Photo');
   readonly fallback = input<string | null>(null);
   readonly alt = input('');
+  readonly priority = input(false);
 
   readonly src = computed(() => this.data.photos()[this.slot()] ?? this.fallback());
 
