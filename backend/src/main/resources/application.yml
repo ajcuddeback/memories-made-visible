@@ -66,7 +66,7 @@ app:
     to: ${NOTIFY_TO:bookings@memoriesmadevisible.com}
     # Optional: a different From for customer acknowledgements. Must be an alias of the SMTP
     # mailbox or the provider will reject it. Blank = same as `from`; replies go to `to` regardless.
-    customer-from: ${NOTIFY_CUSTOMER_FROM:}
+    customer-from: ${NOTIFY_CUSTOMER_FROM:hello@memoriesmadevisible.com}
     send-customer-confirmation: ${NOTIFY_CUSTOMER:false}
     site-url: ${APP_SITE_URL:http://localhost:4200}
   s3:
