@@ -123,6 +123,23 @@ class BookingFlowTest {
 
         assertThat(bookings.findById(id).orElseThrow().getQuote()).isEqualByComparingTo(BigDecimal.valueOf(250));
 
+        // Approval emails the customer (studio + ack from creation = 2, plus this one = 3), BCC the studio inbox.
+        var sent = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender, timeout(5000).times(3)).send(sent.capture());
+        var confirm = sent.getAllValues().get(2);
+        assertThat(confirm.getTo()).containsExactly("ava@example.com");
+        assertThat(confirm.getBcc()).containsExactly("bookings@test.local");
+        assertThat(confirm.getSubject()).contains("confirmed");
+        assertThat(confirm.getText()).contains("$250.00").contains("Golden hour");
+
+        // Cancelling a confirmed session emails too; restoring to pending does not.
+        mvc.perform(post("/api/admin/bookings/" + id + "/decline").header("Authorization", auth)).andExpect(status().isOk());
+        verify(mailSender, timeout(5000).times(4)).send(sent.capture());
+        assertThat(sent.getAllValues().get(sent.getAllValues().size() - 1).getSubject()).contains("cancelled");
+        mvc.perform(post("/api/admin/bookings/" + id + "/restore").header("Authorization", auth)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/bookings/" + id + "/approve").header("Authorization", auth)).andExpect(status().isOk());
+        verify(mailSender, timeout(5000).times(5)).send(any(SimpleMailMessage.class));
+
         // A confirmed session can get a gallery; a second one is refused.
         mvc.perform(post("/api/admin/galleries").header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"bookingId\":" + id + "}"))

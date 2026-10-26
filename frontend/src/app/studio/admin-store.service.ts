@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { forkJoin } from 'rxjs';
+import { forkJoin, tap } from 'rxjs';
 import { Booking, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, SessionType } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
@@ -57,11 +57,11 @@ export class AdminStore {
   setQuote(id: number, quote: number): void {
     this.http.patch<Booking>(`/api/admin/bookings/${id}/quote`, { quote }).subscribe((b) => this.replaceBooking(b));
   }
-  approve(id: number): void { this.bookingAction(id, 'approve'); }
-  decline(id: number): void { this.bookingAction(id, 'decline'); }
-  restore(id: number): void { this.bookingAction(id, 'restore'); }
-  private bookingAction(id: number, action: string): void {
-    this.http.post<Booking>(`/api/admin/bookings/${id}/${action}`, {}).subscribe((b) => this.replaceBooking(b));
+  approve(id: number) { return this.bookingAction(id, 'approve'); }
+  decline(id: number) { return this.bookingAction(id, 'decline'); }
+  restore(id: number) { return this.bookingAction(id, 'restore'); }
+  private bookingAction(id: number, action: string) {
+    return this.http.post<Booking>(`/api/admin/bookings/${id}/${action}`, {}).pipe(tap((b) => this.replaceBooking(b)));
   }
   private replaceBooking(b: Booking): void {
     this.bookings.update((list) => list.map((x) => (x.id === b.id ? b : x)));

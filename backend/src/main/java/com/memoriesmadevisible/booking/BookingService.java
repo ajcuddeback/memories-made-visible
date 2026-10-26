@@ -53,8 +53,14 @@ public class BookingService {
     @Transactional
     public BookingDtos.Response setStatus(Long id, BookingStatus status) {
         var b = find(id);
+        var previous = b.getStatus();
         b.setStatus(status);
-        return toResponse(bookings.save(b));
+        b = bookings.save(b);
+        if (previous != status) {
+            String typeName = pricing.findType(b.getSessionTypeKey()).map(t -> t.getName()).orElse(b.getSessionTypeKey());
+            notifications.notifyStatusChange(b, typeName, previous);
+        }
+        return toResponse(b);
     }
 
     @Transactional

@@ -5,6 +5,10 @@
   }
 </div>
 
+@if (notice(); as n) {
+  <p class="notice" role="status" aria-live="polite">{{ n }}</p>
+}
+
 @if (requests().length === 0) {
   <p class="empty">Nothing here right now.</p>
 }

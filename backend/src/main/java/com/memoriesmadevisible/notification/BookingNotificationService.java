@@ -1,6 +1,7 @@
 package com.memoriesmadevisible.notification;
 
 import com.memoriesmadevisible.booking.Booking;
+import com.memoriesmadevisible.booking.BookingStatus;
 import com.memoriesmadevisible.config.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,8 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
@@ -50,6 +53,95 @@ public class BookingNotificationService {
                 log.error("Failed to send customer confirmation for #{}", b.getId(), e);
             }
         }
+    }
+
+    /**
+     * Admin approved, declined or cancelled a request: tell the customer, and BCC the
+     * studio inbox so there's a record of what was sent. Restoring to pending sends nothing.
+     */
+    @Async
+    public void notifyStatusChange(Booking b, String sessionTypeName, BookingStatus previous) {
+        SimpleMailMessage msg = statusMessage(b, sessionTypeName, previous);
+        if (msg == null) return;
+        try {
+            mail.send(msg);
+            log.info("Booking #{} {} email sent to {}", b.getId(), b.getStatus(), b.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send {} email for booking #{}", b.getStatus(), b.getId(), e);
+        }
+    }
+
+    SimpleMailMessage statusMessage(Booking b, String sessionTypeName, BookingStatus previous) {
+        BookingStatus now = b.getStatus();
+        if (now == previous || now == BookingStatus.PENDING) return null;
+
+        var msg = customerEnvelope(b);
+        if (cfg.to() != null && !cfg.to().isBlank()) {
+            msg.setBcc(cfg.to().split("\\s*,\\s*")[0]);
+        }
+        String when = DATE.format(b.getDate()) + " at " + b.getTime();
+        if (now == BookingStatus.CONFIRMED) {
+            msg.setSubject("Your " + sessionTypeName + " session is confirmed — " + DATE.format(b.getDate()));
+            msg.setText("""
+                    Hi %s,
+
+                    Great news — your %s session is confirmed for %s%s.
+                    %s
+                    Reply to this email with any questions, and we'll be in touch before the day to plan the details.
+
+                    Erica & Austin
+                    Memories Made Visible Photography
+                    Winter Haven, FL · Serving all of Polk County
+                    """.formatted(b.getName(), sessionTypeName, when,
+                    b.getLocation() == null ? "" : " in " + b.getLocation(),
+                    quoteLine(b.getQuote())));
+        } else if (previous == BookingStatus.CONFIRMED) {
+            msg.setSubject("Your " + sessionTypeName + " session on " + DATE.format(b.getDate()) + " has been cancelled");
+            msg.setText("""
+                    Hi %s,
+
+                    Your %s session on %s has been cancelled. We're sorry for the change of plans.
+
+                    If you'd like to pick a new date, you can send another request any time at %s/book,
+                    or just reply to this email and we'll sort it out together.
+
+                    Erica & Austin
+                    Memories Made Visible Photography
+                    """.formatted(b.getName(), sessionTypeName, when, siteUrl()));
+        } else {
+            msg.setSubject("About your " + sessionTypeName + " session request");
+            msg.setText("""
+                    Hi %s,
+
+                    Thank you for your request for a %s session on %s. Unfortunately we're not able to
+                    take that date.
+
+                    We'd still love to photograph you — reply to this email with a couple of alternative
+                    dates, or send a new request at %s/book, and we'll find a time that works.
+
+                    Erica & Austin
+                    Memories Made Visible Photography
+                    """.formatted(b.getName(), sessionTypeName, when, siteUrl()));
+        }
+        return msg;
+    }
+
+    private SimpleMailMessage customerEnvelope(Booking b) {
+        var msg = new SimpleMailMessage();
+        String sender = cfg.customerFrom() == null || cfg.customerFrom().isBlank() ? cfg.from() : cfg.customerFrom();
+        msg.setFrom(sender);
+        msg.setReplyTo(cfg.to() == null || cfg.to().isBlank() ? sender : cfg.to().split("\\s*,\\s*")[0]);
+        msg.setTo(b.getEmail());
+        return msg;
+    }
+
+    private static String quoteLine(BigDecimal quote) {
+        if (quote == null || quote.signum() <= 0) return "";
+        return "Session price: " + NumberFormat.getCurrencyInstance(Locale.US).format(quote) + "\n";
+    }
+
+    private String siteUrl() {
+        return cfg.siteUrl() == null ? "" : cfg.siteUrl().replaceAll("/+$", "");
     }
 
     SimpleMailMessage studioMessage(Booking b, String sessionTypeName) {
@@ -109,8 +201,7 @@ public class BookingNotificationService {
     }
 
     private String adminUrl() {
-        String site = cfg.siteUrl() == null ? "" : cfg.siteUrl().replaceAll("/+$", "");
-        return site + "/studio";
+        return siteUrl() + "/studio";
     }
 
     private static String orDash(String s) {
