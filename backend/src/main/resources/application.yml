@@ -5,6 +5,13 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/mmv}
     username: ${DATABASE_USERNAME:mmv}
     password: ${DATABASE_PASSWORD:mmv}
+    hikari:
+      # Small, polite pool: managed Postgres tiers cap connections (Neon free ≈ 100, DO basic ≈ 22),
+      # and this app never needs more than a handful.
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      # Scale-to-zero providers (Neon) take ~1s to wake; give the first connection time.
+      connection-timeout: 20000
   jpa:
     open-in-view: false
     hibernate:
