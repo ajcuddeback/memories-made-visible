@@ -79,7 +79,7 @@ class BookingFlowTest {
         assertThat(studio.getText()).contains("Winter Haven").contains("About 120 guests.").contains("/studio");
         var customer = captor.getAllValues().get(1);
         assertThat(customer.getTo()).containsExactly("taylor@example.com");
-        assertThat(customer.getFrom()).isEqualTo("bookings@test.local");
+        assertThat(customer.getFrom()).isEqualTo("admin@test.local");
         assertThat(customer.getReplyTo()).isEqualTo("bookings@test.local");
     }
 
