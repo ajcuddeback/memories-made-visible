@@ -20,12 +20,13 @@ services:
       retries: 10
 
   # Local stand-in for S3 (LocalStack community edition). The backend's dev profile
-  # points at it; nothing here is used in production.
+  # points at it; nothing here is used in production. Uploaded photos survive
+  # `docker compose down`; `down -v` resets them. (Persistence across container
+  # recreation is a LocalStack Pro feature, so it isn't enabled here.)
   s3:
     image: localstack/localstack:latest
     environment:
       SERVICES: s3
-      PERSISTENCE: 1
     ports:
       - "4566:4566"
     volumes:
