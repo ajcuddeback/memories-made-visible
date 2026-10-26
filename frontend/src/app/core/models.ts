@@ -83,6 +83,20 @@ export interface PhotoGroup {
   slots: PhotoSlotView[];
 }
 
+export type EmailAction = 'approve' | 'decline' | 'cancel' | 'message';
+
+export interface EmailDraft {
+  subject: string;
+  body: string;
+  to: string;
+}
+
+export interface EmailRequest {
+  sendEmail?: boolean;
+  subject?: string;
+  body?: string;
+}
+
 export interface AdminUser {
   name: string;
   role: string;

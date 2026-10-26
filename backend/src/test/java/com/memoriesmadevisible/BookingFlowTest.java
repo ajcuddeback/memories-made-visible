@@ -10,7 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.mail.SimpleMailMessage;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.Multipart;
+import jakarta.mail.Part;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -46,6 +48,40 @@ class BookingFlowTest {
     @BeforeEach
     void clean() {
         bookings.deleteAll();
+        // The mocked sender must still hand out real MimeMessages for the helper to fill.
+        org.mockito.Mockito.when(mailSender.createMimeMessage())
+                .thenAnswer(inv -> new MimeMessage((jakarta.mail.Session) null));
+    }
+
+    /** Walk a multipart message and return its text/plain and text/html bodies. */
+    static String[] bodies(MimeMessage m) throws Exception {
+        m.saveChanges();
+        String[] out = new String[2];
+        walk(m, out);
+        return out;
+    }
+
+    private static void walk(Part p, String[] out) throws Exception {
+        Object c = p.getContent();
+        if (c instanceof Multipart mp) {
+            for (int i = 0; i < mp.getCount(); i++) walk(mp.getBodyPart(i), out);
+        } else if (p.isMimeType("text/html")) {
+            out[1] = String.valueOf(c);
+        } else if (p.isMimeType("text/plain")) {
+            out[0] = String.valueOf(c);
+        }
+    }
+
+    private static MimeMessage bySubject(ArgumentCaptor<MimeMessage> captor, String fragment) throws Exception {
+        for (MimeMessage m : captor.getAllValues()) {
+            if (m.getSubject() != null && m.getSubject().contains(fragment)) return m;
+        }
+        throw new AssertionError("No email with subject containing: " + fragment);
+    }
+
+    private static String[] addresses(jakarta.mail.Address[] a) {
+        if (a == null) return new String[0];
+        return java.util.Arrays.stream(a).map(x -> ((jakarta.mail.internet.InternetAddress) x).getAddress()).toArray(String[]::new);
     }
 
     @Test
@@ -69,18 +105,21 @@ class BookingFlowTest {
         assertThat(bookings.countByStatus(BookingStatus.PENDING)).isEqualTo(1);
 
         // Notification is async; wait for it. Studio email first, then the customer copy.
-        var captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender, timeout(5000).times(2)).send(captor.capture());
         var studio = captor.getAllValues().get(0);
-        assertThat(studio.getTo()).containsExactly("bookings@test.local");
-        assertThat(studio.getFrom()).isEqualTo("admin@test.local");
-        assertThat(studio.getReplyTo()).isEqualTo("taylor@example.com");
+        assertThat(addresses(studio.getRecipients(MimeMessage.RecipientType.TO))).containsExactly("bookings@test.local");
+        assertThat(addresses(studio.getFrom())[0]).isEqualTo("admin@test.local");
+        assertThat(addresses(studio.getReplyTo())[0]).isEqualTo("taylor@example.com");
         assertThat(studio.getSubject()).contains("Weddings").contains("Taylor Reyes");
-        assertThat(studio.getText()).contains("Winter Haven").contains("About 120 guests.").contains("/studio");
+        var studioBodies = bodies(studio);
+        assertThat(studioBodies[0]).contains("Winter Haven").contains("About 120 guests.").contains("/studio");
+        assertThat(studioBodies[1]).contains("<table").contains("Winter Haven").contains("Open in studio admin");
         var customer = captor.getAllValues().get(1);
-        assertThat(customer.getTo()).containsExactly("taylor@example.com");
-        assertThat(customer.getFrom()).isEqualTo("admin@test.local");
-        assertThat(customer.getReplyTo()).isEqualTo("bookings@test.local");
+        assertThat(addresses(customer.getRecipients(MimeMessage.RecipientType.TO))).containsExactly("taylor@example.com");
+        assertThat(addresses(customer.getFrom())[0]).isEqualTo("admin@test.local");
+        assertThat(addresses(customer.getReplyTo())[0]).isEqualTo("bookings@test.local");
+        assertThat(bodies(customer)[1]).contains("Hi Taylor,").doesNotContain("<script");
     }
 
     @Test
@@ -124,21 +163,46 @@ class BookingFlowTest {
         assertThat(bookings.findById(id).orElseThrow().getQuote()).isEqualByComparingTo(BigDecimal.valueOf(250));
 
         // Approval emails the customer (studio + ack from creation = 2, plus this one = 3), BCC the studio inbox.
-        var sent = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        var sent = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender, timeout(5000).times(3)).send(sent.capture());
-        var confirm = sent.getAllValues().get(2);
-        assertThat(confirm.getTo()).containsExactly("ava@example.com");
-        assertThat(confirm.getBcc()).containsExactly("bookings@test.local");
+        // Sends are async, so order isn't guaranteed — find messages by subject.
+        var confirm = bySubject(sent, "confirmed");
+        assertThat(addresses(confirm.getRecipients(MimeMessage.RecipientType.TO))).containsExactly("ava@example.com");
+        assertThat(addresses(confirm.getRecipients(MimeMessage.RecipientType.BCC))).containsExactly("bookings@test.local");
         assertThat(confirm.getSubject()).contains("confirmed");
-        assertThat(confirm.getText()).contains("$250.00").contains("Golden hour");
+        var confirmBodies = bodies(confirm);
+        assertThat(confirmBodies[0]).contains("$250.00").contains("Golden hour").contains("Hi Ava,");
+        assertThat(confirmBodies[1]).contains("Session price").contains("$250.00");
 
-        // Cancelling a confirmed session emails too; restoring to pending does not.
-        mvc.perform(post("/api/admin/bookings/" + id + "/decline").header("Authorization", auth)).andExpect(status().isOk());
+        // The admin can preview the draft and send an edited version; cancelling a confirmed session emails too.
+        mvc.perform(get("/api/admin/bookings/" + id + "/draft").param("action", "cancel").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject").value(org.hamcrest.Matchers.containsString("cancelled")))
+                .andExpect(jsonPath("$.to").value("ava@example.com"));
+        mvc.perform(post("/api/admin/bookings/" + id + "/decline").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"subject\":\"So sorry, Ava\",\"body\":\"Hi Ava,\\n\\nWe have a conflict that day.\\n\\nErica\"}"))
+                .andExpect(status().isOk());
         verify(mailSender, timeout(5000).times(4)).send(sent.capture());
-        assertThat(sent.getAllValues().get(sent.getAllValues().size() - 1).getSubject()).contains("cancelled");
+        var cancel = bySubject(sent, "So sorry, Ava");
+        assertThat(bodies(cancel)[1]).contains("We have a conflict that day.");
+
+        // Restoring to pending is silent; approving with sendEmail=false is silent too.
         mvc.perform(post("/api/admin/bookings/" + id + "/restore").header("Authorization", auth)).andExpect(status().isOk());
-        mvc.perform(post("/api/admin/bookings/" + id + "/approve").header("Authorization", auth)).andExpect(status().isOk());
-        verify(mailSender, timeout(5000).times(5)).send(any(SimpleMailMessage.class));
+        mvc.perform(post("/api/admin/bookings/" + id + "/approve").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"sendEmail\":false}"))
+                .andExpect(status().isOk());
+        Thread.sleep(300);
+        verify(mailSender, timeout(1000).times(4)).send(any(MimeMessage.class));
+
+        // Free-form message, no status change.
+        mvc.perform(post("/api/admin/bookings/" + id + "/message").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"subject\":\"Outfit ideas\",\"body\":\"Hi Ava,\\n\\nNeutral colours photograph best at golden hour.\"}"))
+                .andExpect(status().isAccepted());
+        verify(mailSender, timeout(5000).times(5)).send(sent.capture());
+        assertThat(bySubject(sent, "Outfit ideas")).isNotNull();
+        assertThat(bookings.findById(id).orElseThrow().getStatus()).isEqualTo(BookingStatus.CONFIRMED);
 
         // A confirmed session can get a gallery; a second one is refused.
         mvc.perform(post("/api/admin/galleries").header("Authorization", auth)

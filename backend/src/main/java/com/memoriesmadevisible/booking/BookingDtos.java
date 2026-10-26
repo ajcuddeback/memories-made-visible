@@ -34,4 +34,14 @@ public final class BookingDtos {
     ) {}
 
     public record QuoteUpdate(@NotNull BigDecimal quote) {}
+
+    /**
+     * Optional body for approve/decline/restore and the free-form message endpoint. The
+     * admin edits the drafted email in the studio; {@code sendEmail=false} skips it.
+     */
+    public record EmailRequest(Boolean sendEmail, @Size(max = 200) String subject, @Size(max = 8000) String body) {
+        public boolean shouldSend() { return sendEmail == null || sendEmail; }
+    }
+
+    public record EmailDraft(String subject, String body, String to) {}
 }
