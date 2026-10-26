@@ -12,7 +12,7 @@ import java.net.URI;
 /**
  * Credentials come from the default AWS provider chain (env vars, profile,
  * instance role). {@code app.s3.endpoint} + path-style lets local dev point
- * at MinIO without any code change.
+ * at LocalStack (or any S3-compatible store) without any code change.
  */
 @Configuration
 public class S3Config {

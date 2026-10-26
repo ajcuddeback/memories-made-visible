@@ -5,6 +5,13 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/mmv}
     username: ${DATABASE_USERNAME:mmv}
     password: ${DATABASE_PASSWORD:mmv}
+    hikari:
+      # Small, polite pool: managed Postgres tiers cap connections (Neon free ≈ 100, DO basic ≈ 22),
+      # and this app never needs more than a handful.
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      # Scale-to-zero providers (Neon) take ~1s to wake; give the first connection time.
+      connection-timeout: 20000
   jpa:
     open-in-view: false
     hibernate:
@@ -72,7 +79,7 @@ app:
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
     region: ${AWS_REGION:us-east-1}
-    # Leave blank for real AWS; set to http://localhost:9000 for MinIO.
+    # Leave blank for real AWS; the dev profile points this at LocalStack.
     endpoint: ${S3_ENDPOINT:}
     path-style-access: ${S3_PATH_STYLE:false}
     # Optional CloudFront / bucket-website base. Blank → presigned GET URLs.

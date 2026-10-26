@@ -1,4 +1,4 @@
-# Local development: docker compose up → Postgres :5432, MinIO :9000, Mailpit :1025/:8025
+# Local development: docker compose up → Postgres :5432, LocalStack S3 :4566, Mailpit :1025/:8025
 spring:
   jpa:
     show-sql: false
@@ -15,13 +15,16 @@ app:
         password: ${ADMIN_AUSTIN_PASSWORD:austin-dev}
   jwt:
     secret: ${APP_JWT_SECRET:dev-only-secret-change-me-dev-only-secret-change-me}
+  cors:
+    # ng serve (4200) and the prerendered-build static server (4300), on either loopback name
+    allowed-origins: http://localhost:4200,http://127.0.0.1:4200,http://localhost:4300,http://127.0.0.1:4300
   notifications:
     send-customer-confirmation: true
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
-    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    endpoint: ${S3_ENDPOINT:http://localhost:4566}
     path-style-access: true
-    public-base-url: ${S3_PUBLIC_BASE_URL:http://localhost:9000/mmv-photos}
+    public-base-url: ${S3_PUBLIC_BASE_URL:http://localhost:4566/mmv-photos}
 
 logging:
   level:

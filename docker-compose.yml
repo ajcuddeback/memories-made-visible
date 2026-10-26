@@ -1,7 +1,7 @@
 # Local development dependencies. Start with: docker compose up -d
-#   Postgres  → localhost:5432  (mmv / mmv)
-#   MinIO     → localhost:9000  (S3 API), console at localhost:9001  (minio / minio123)
-#   Mailpit   → localhost:1025  (SMTP), inbox UI at localhost:8025
+#   Postgres   → localhost:5432  (mmv / mmv)
+#   LocalStack → localhost:4566  (S3 API; credentials test / test)
+#   Mailpit    → localhost:1025  (SMTP), inbox UI at localhost:8025
 services:
   db:
     image: postgres:16-alpine
@@ -19,30 +19,23 @@ services:
       timeout: 3s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+  # Local stand-in for S3 (LocalStack community edition). The backend's dev profile
+  # points at it; nothing here is used in production.
+  s3:
+    image: localstack/localstack:latest
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
+      SERVICES: s3
+      PERSISTENCE: 1
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "4566:4566"
     volumes:
-      - miniodata:/data
-
-  # Creates the photo bucket and makes it publicly readable, like the production bucket/CDN.
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until mc alias set local http://minio:9000 minio minio123 >/dev/null 2>&1; do sleep 1; done;
-      mc mb --ignore-existing local/mmv-photos;
-      mc anonymous set download local/mmv-photos;
-      echo 'mmv-photos bucket ready';
-      "
+      - s3data:/var/lib/localstack
+      - ./docker/localstack-init.sh:/etc/localstack/init/ready.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   mail:
     image: axllent/mailpit:latest
@@ -52,4 +45,4 @@ services:
 
 volumes:
   pgdata:
-  miniodata:
+  s3data:
