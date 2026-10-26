@@ -79,7 +79,7 @@ app:
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
     region: ${AWS_REGION:us-east-1}
-    # Leave blank for real AWS; the dev profile points this at LocalStack.
+    # Leave blank for real AWS; the dev profile points this at SeaweedFS.
     endpoint: ${S3_ENDPOINT:}
     path-style-access: ${S3_PATH_STYLE:false}
     # Optional CloudFront / bucket-website base. Blank → presigned GET URLs.
