@@ -2,6 +2,8 @@ package com.memoriesmadevisible.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
+import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -12,7 +14,7 @@ import java.net.URI;
 /**
  * Credentials come from the default AWS provider chain (env vars, profile,
  * instance role). {@code app.s3.endpoint} + path-style lets local dev point
- * at LocalStack (or any S3-compatible store) without any code change.
+ * at SeaweedFS (or any S3-compatible store) without any code change.
  */
 @Configuration
 public class S3Config {
@@ -26,7 +28,11 @@ public class S3Config {
                         .pathStyleAccessEnabled(s3.pathStyleAccess())
                         .build());
         if (s3.endpoint() != null && !s3.endpoint().isBlank()) {
-            builder.endpointOverride(URI.create(s3.endpoint()));
+            // S3-compatible stores don't all understand the SDK's default trailing-checksum
+            // streaming uploads; only compute checksums when the operation requires them.
+            builder.endpointOverride(URI.create(s3.endpoint()))
+                    .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
+                    .responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED);
         }
         return builder.build();
     }

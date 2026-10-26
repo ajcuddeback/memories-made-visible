@@ -7,7 +7,7 @@ Website and studio admin for Memories Made Visible Photography (Polk County, FL)
 | Public site + hidden admin | Angular 22 (standalone, signals, zoneless) | `frontend/` |
 | API | Java 21 · Spring Boot 3.5 · Spring Security (JWT) · JPA · Flyway | `backend/` |
 | Database | PostgreSQL 16 | `docker-compose.yml` |
-| Photo storage | Amazon S3 (LocalStack locally) | `backend/.../photo` |
+| Photo storage | Amazon S3 (SeaweedFS locally) | `backend/.../photo` |
 | Email | SMTP via Spring Mail (Mailpit locally) | `backend/.../notification` |
 
 ## What's in the site
@@ -40,10 +40,10 @@ and a per-IP rate limit.
 Prereqs: Node 24 (or ≥ 22.22.3), Java 21, Docker.
 
 ```bash
-# 1. Infrastructure: Postgres, LocalStack (S3), Mailpit (SMTP + inbox UI)
+# 1. Infrastructure: Postgres, SeaweedFS (S3), Mailpit (SMTP + inbox UI)
 docker compose up -d
 
-# 2. API — the dev profile seeds demo bookings/pop-ups and uses LocalStack + Mailpit
+# 2. API — the dev profile seeds demo bookings/pop-ups and uses SeaweedFS + Mailpit
 cd backend
 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test ./gradlew bootRun --args='--spring.profiles.active=dev'
 # (PowerShell: $env:AWS_ACCESS_KEY_ID='test'; $env:AWS_SECRET_ACCESS_KEY='test'; ./gradlew bootRun --args='--spring.profiles.active=dev')
@@ -55,7 +55,7 @@ npm start          # http://localhost:4200
 ```
 
 Dev admin logins: **Erica / erica-dev**, **Austin / austin-dev** (see `backend/src/main/resources/application-dev.yml`).
-Booking emails land in Mailpit at http://localhost:8025. Uploaded photos land in the LocalStack bucket (`docker compose exec s3 awslocal s3 ls s3://mmv-photos --recursive`).
+Booking emails land in Mailpit at http://localhost:8025. Uploaded photos can be browsed at http://localhost:8888/buckets/mmv-photos/.
 
 ### Tests
 

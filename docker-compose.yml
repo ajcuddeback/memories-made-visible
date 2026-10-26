@@ -1,6 +1,6 @@
 # Local development dependencies. Start with: docker compose up -d
 #   Postgres   → localhost:5432  (mmv / mmv)
-#   LocalStack → localhost:4566  (S3 API; credentials test / test)
+#   SeaweedFS  → localhost:8333  (S3 API; any credentials), file browser at localhost:8888
 #   Mailpit    → localhost:1025  (SMTP), inbox UI at localhost:8025
 services:
   db:
@@ -19,24 +19,32 @@ services:
       timeout: 3s
       retries: 10
 
-  # Local stand-in for S3 (LocalStack community edition). The backend's dev profile
-  # points at it; nothing here is used in production. Uploaded photos survive
-  # `docker compose down`; `down -v` resets them. (Persistence across container
-  # recreation is a LocalStack Pro feature, so it isn't enabled here.)
+  # Local stand-in for S3: SeaweedFS (Apache-2.0, on Docker Hub, no license token).
+  # With no identities configured it accepts any credentials and anonymous reads,
+  # which is exactly what the dev profile's public photo URLs need.
   s3:
-    image: localstack/localstack:latest
-    environment:
-      SERVICES: s3
+    image: chrislusf/seaweedfs:latest
+    command: server -s3 -dir=/data -ip.bind=0.0.0.0 -s3.port=8333 -filer.port=8888 -master.volumeSizeLimitMB=256
     ports:
-      - "4566:4566"
+      - "8333:8333"   # S3 API
+      - "8888:8888"   # filer UI — browse uploads at http://localhost:8888/buckets/mmv-photos/
     volumes:
-      - s3data:/var/lib/localstack
-      - ./docker/localstack-init.sh:/etc/localstack/init/ready.d/init.sh:ro
+      - s3data:/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8333/ >/dev/null 2>&1 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # Creates the photo bucket once the S3 API answers, then exits.
+  s3-init:
+    image: curlimages/curl:latest
+    depends_on:
+      s3:
+        condition: service_healthy
+    command: >
+      sh -c "until curl -sf -X PUT http://s3:8333/mmv-photos >/dev/null; do sleep 1; done;
+      echo 'mmv-photos bucket ready'"
 
   mail:
     image: axllent/mailpit:latest

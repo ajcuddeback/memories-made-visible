@@ -1,4 +1,4 @@
-# Local development: docker compose up → Postgres :5432, LocalStack S3 :4566, Mailpit :1025/:8025
+# Local development: docker compose up → Postgres :5432, SeaweedFS S3 :8333, Mailpit :1025/:8025
 spring:
   jpa:
     show-sql: false
@@ -22,9 +22,9 @@ app:
     send-customer-confirmation: true
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
-    endpoint: ${S3_ENDPOINT:http://localhost:4566}
+    endpoint: ${S3_ENDPOINT:http://localhost:8333}
     path-style-access: true
-    public-base-url: ${S3_PUBLIC_BASE_URL:http://localhost:4566/mmv-photos}
+    public-base-url: ${S3_PUBLIC_BASE_URL:http://localhost:8333/mmv-photos}
 
 logging:
   level:
