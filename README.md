@@ -37,6 +37,10 @@ and a per-IP rate limit.
 
 ## Run it locally
 
+> Full walkthrough with explanations and Windows notes: [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
+> Production: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+
 Prereqs: Node 24 (or ≥ 22.22.3), Java 21, Docker.
 
 ```bash

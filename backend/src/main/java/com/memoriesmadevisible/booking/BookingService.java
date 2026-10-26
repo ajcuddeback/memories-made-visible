@@ -1,7 +1,9 @@
 package com.memoriesmadevisible.booking;
 
 import com.memoriesmadevisible.common.NotFoundException;
+import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import com.memoriesmadevisible.notification.BookingNotificationService;
+import com.memoriesmadevisible.config.AppProperties;
 import com.memoriesmadevisible.pricing.PricingService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,11 +17,14 @@ public class BookingService {
     private final BookingRepository bookings;
     private final PricingService pricing;
     private final BookingNotificationService notifications;
+    private final String siteUrl;
 
-    public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications) {
+    public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
+                          AppProperties props) {
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
+        this.siteUrl = props.notifications().siteUrl();
     }
 
     @Transactional
@@ -50,11 +55,52 @@ public class BookingService {
         return bookings.findAllByOrderByDateAscTimeAsc().stream().map(this::toResponse).toList();
     }
 
-    @Transactional
-    public BookingDtos.Response setStatus(Long id, BookingStatus status) {
+    /** What the studio would send for this action, pre-filled, for the admin to edit. */
+    @Transactional(readOnly = true)
+    public BookingDtos.EmailDraft draft(Long id, BookingEmailDrafts.Action action) {
         var b = find(id);
+        var d = BookingEmailDrafts.draft(action, b, typeName(b), siteUrl);
+        return new BookingDtos.EmailDraft(d.subject(), d.body(), b.getEmail());
+    }
+
+    /**
+     * Change status and, when it's a real transition the customer should hear about, email
+     * them — using the admin's edited subject/body if given, the default draft otherwise.
+     */
+    @Transactional
+    public BookingDtos.Response setStatus(Long id, BookingStatus status, BookingDtos.EmailRequest email) {
+        var b = find(id);
+        var previous = b.getStatus();
         b.setStatus(status);
-        return toResponse(bookings.save(b));
+        b = bookings.save(b);
+        var action = previous == status ? null : BookingEmailDrafts.actionFor(previous, status);
+        if (action != null && (email == null || email.shouldSend())) {
+            String typeName = typeName(b);
+            var dflt = BookingEmailDrafts.draft(action, b, typeName, siteUrl);
+            String subject = email != null && notBlank(email.subject()) ? email.subject().strip() : dflt.subject();
+            String body = email != null && notBlank(email.body()) ? email.body().strip() : dflt.body();
+            notifications.sendCustomerEmail(b, typeName, subject, body, action == BookingEmailDrafts.Action.APPROVE);
+        }
+        return toResponse(b);
+    }
+
+    /** A free-form email to the customer about this booking; no status change. */
+    @Transactional(readOnly = true)
+    public void message(Long id, BookingDtos.EmailRequest email) {
+        if (email == null || !notBlank(email.subject()) || !notBlank(email.body())) {
+            throw new IllegalArgumentException("A subject and a message are needed.");
+        }
+        var b = find(id);
+        notifications.sendCustomerEmail(b, typeName(b), email.subject().strip(), email.body().strip(),
+                b.getStatus() == BookingStatus.CONFIRMED);
+    }
+
+    private String typeName(Booking b) {
+        return pricing.findType(b.getSessionTypeKey()).map(t -> t.getName()).orElse(b.getSessionTypeKey());
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     @Transactional

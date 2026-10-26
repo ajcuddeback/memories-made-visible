@@ -5,39 +5,71 @@
   }
 </div>
 
+@if (notice(); as n) {
+  <p class="notice" role="status" aria-live="polite">{{ n }}</p>
+}
+
 @if (requests().length === 0) {
   <p class="empty">Nothing here right now.</p>
 }
 
 <div class="list">
   @for (r of requests(); track r.id) {
-    <article class="req">
-      <div class="req-main">
-        <div class="req-head">
-          <h3 class="req-name">{{ r.name }}</h3>
-          <span class="tag tag-accent req-type">{{ r.sessionTypeName }}</span>
+    <article class="req" [class.is-composing]="compose()?.bookingId === r.id">
+      <div class="req-row">
+        <div class="req-main">
+          <div class="req-head">
+            <h3 class="req-name">{{ r.name }}</h3>
+            <span class="tag tag-accent req-type">{{ r.sessionTypeName }}</span>
+          </div>
+          <div class="req-when">{{ r.when }}</div>
+          <div class="req-meta">{{ r.location || 'Location not given' }}</div>
+          <div class="req-meta"><a [href]="'mailto:' + r.email">{{ r.email }}</a>@if (r.phone) { · <a [href]="'tel:' + r.phone">{{ r.phone }}</a> }</div>
+          @if (r.notes) { <p class="req-notes">{{ r.notes }}</p> }
         </div>
-        <div class="req-when">{{ r.when }}</div>
-        <div class="req-meta">{{ r.location || 'Location not given' }}</div>
-        <div class="req-meta"><a [href]="'mailto:' + r.email">{{ r.email }}</a>@if (r.phone) { · <a [href]="'tel:' + r.phone">{{ r.phone }}</a> }</div>
-        @if (r.notes) { <p class="req-notes">{{ r.notes }}</p> }
+        <div class="req-actions">
+          @switch (r.status) {
+            @case ('PENDING') {
+              <label class="field field--sm">Quote ($)<input class="input quote" type="number" min="0" step="1" [value]="r.quote ?? 0" (change)="quoteChanged(r.id, $event)" /></label>
+              <button type="button" class="btn btn-primary act" (click)="open(r.id, 'approve')">Approve…</button>
+              <button type="button" class="btn btn-secondary act" (click)="open(r.id, 'decline')">Decline…</button>
+            }
+            @case ('CONFIRMED') {
+              <div class="price">{{ r.priceLabel }}</div>
+              <button type="button" class="btn btn-ghost cancel" (click)="open(r.id, 'cancel')">Cancel session…</button>
+            }
+            @case ('DECLINED') {
+              <button type="button" class="btn btn-secondary act" (click)="restore(r.id)">Move back to pending</button>
+            }
+          }
+          <button type="button" class="btn btn-ghost msg" (click)="open(r.id, 'message')">Email customer…</button>
+        </div>
       </div>
-      <div class="req-actions">
-        @switch (r.status) {
-          @case ('PENDING') {
-            <label class="field field--sm">Quote ($)<input class="input quote" type="number" min="0" step="1" [value]="r.quote ?? 0" (change)="quoteChanged(r.id, $event)" /></label>
-            <button type="button" class="btn btn-primary act" (click)="approve(r.id)">Approve</button>
-            <button type="button" class="btn btn-secondary act" (click)="decline(r.id)">Decline</button>
-          }
-          @case ('CONFIRMED') {
-            <div class="price">{{ r.priceLabel }}</div>
-            <button type="button" class="btn btn-ghost cancel" (click)="decline(r.id)">Cancel session</button>
-          }
-          @case ('DECLINED') {
-            <button type="button" class="btn btn-secondary act" (click)="restore(r.id)">Move back to pending</button>
-          }
+
+      @if (compose(); as c) {
+        @if (c.bookingId === r.id) {
+          <form class="compose" (submit)="$event.preventDefault(); submit()">
+            <div class="compose-head">
+              <h4 class="compose-title">{{ labelFor(c.action).title }}</h4>
+              <span class="compose-to">To: {{ c.to }}</span>
+            </div>
+            @if (c.action !== 'message') {
+              <label class="send-toggle"><input type="checkbox" [checked]="c.sendEmail" (change)="setSend($event)" /> Email the customer</label>
+            }
+            @if (c.loading) {
+              <p class="compose-hint">Loading draft…</p>
+            }
+            <label class="field field--sm">Subject<input class="input" [value]="c.subject" (input)="setSubject($event)" [disabled]="!c.sendEmail" /></label>
+            <label class="field field--sm">Message<textarea class="input compose-body" [value]="c.body" (input)="setBody($event)" [disabled]="!c.sendEmail" rows="10"></textarea></label>
+            <p class="compose-hint">Sent as a branded email from the studio with the session details attached underneath. Blank lines start a new paragraph. A copy goes to the studio inbox.</p>
+            @if (c.error) { <p class="compose-error" role="alert">{{ c.error }}</p> }
+            <div class="compose-actions">
+              <button type="submit" class="btn btn-primary act" [disabled]="c.busy || c.loading">{{ c.busy ? 'Sending…' : (c.sendEmail || c.action === 'message' ? labelFor(c.action).button : labelFor(c.action).button.replace(' & send', ' without email')) }}</button>
+              <button type="button" class="btn btn-secondary act" (click)="close()" [disabled]="c.busy">Back</button>
+            </div>
+          </form>
         }
-      </div>
+      }
     </article>
   }
 </div>
