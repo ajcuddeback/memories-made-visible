@@ -49,6 +49,12 @@ export class PricingAdminSection {
   readonly open = signal<Set<string>>(new Set());
   readonly addOpen = signal(false);
   isOpen(key: string): boolean { return this.open().has(key); }
+  /** One package editor open per category at a time. */
+  readonly openPkg = signal<Map<string, number>>(new Map());
+  isPkgOpen(key: string, ti: number): boolean { return this.openPkg().get(key) === ti; }
+  togglePkg(key: string, ti: number): void {
+    this.openPkg.update((m) => { const n = new Map(m); if (n.get(key) === ti) n.delete(key); else n.set(key, ti); return n; });
+  }
   toggleOpen(key: string): void { this.open.update((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; }); }
   /** "$1,800 · 6 hrs" / "$150/hr · 2–8 hrs · 1 add-on" */
   pkgSummary(t: DraftTier): string {
@@ -129,7 +135,12 @@ export class PricingAdminSection {
   setTier(i: number, ti: number, field: 'name' | 'detail' | 'price' | 'includesText', e: Event): void {
     const v = this.val(e); this.edit((d) => { d[i].tiers[ti][field] = v; });
   }
-  addTier(i: number): void { this.edit((d) => { d[i].tiers.push({ name: 'New package', detail: '', price: '$', durationMinutes: 60, hourly: false, minHours: 2, maxHours: 8, addons: [], includesText: '' }); }); }
+  addTier(i: number): void {
+    const key = this.draft()[i].key;
+    const idx = this.draft()[i].tiers.length;
+    this.edit((d) => { d[i].tiers.push({ name: '', detail: '', price: '', durationMinutes: 60, hourly: false, minHours: 2, maxHours: 8, addons: [], includesText: '' }); });
+    this.openPkg.update((m) => new Map(m).set(key, idx));
+  }
   setHourly(i: number, ti: number, e: Event): void {
     const v = (e.target as HTMLSelectElement).value === 'HOURLY'; this.edit((d) => { d[i].tiers[ti].hourly = v; });
   }
@@ -147,7 +158,13 @@ export class PricingAdminSection {
   setTierDuration(i: number, ti: number, e: Event): void {
     const v = Number((e.target as HTMLSelectElement).value); this.edit((d) => { d[i].tiers[ti].durationMinutes = v; });
   }
-  removeTier(i: number, ti: number): void { this.edit((d) => { d[i].tiers.splice(ti, 1); }); }
+  removeTier(i: number, ti: number): void {
+    const t = this.draft()[i].tiers[ti];
+    if ((t.name || t.price) && !confirm(`Remove the "${t.name || 'untitled'}" package?`)) return;
+    const key = this.draft()[i].key;
+    this.edit((d) => { d[i].tiers.splice(ti, 1); });
+    this.openPkg.update((m) => { const n = new Map(m); n.delete(key); return n; });
+  }
 
   setNc(field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
     const v = this.val(e); this.nc.update((n) => ({ ...n, [field]: v }));
