@@ -4,10 +4,14 @@
   <span class="msg" aria-live="polite">{{ msg() }}</span>
 </div>
 
-<p class="explain">Changes here are saved as a draft and go live when you press <strong>Publish</strong> at the top of the page. Categories drive the <strong>Pricing</strong> page and, when switched on, the <strong>Portfolio</strong> page too: each category shown there gets a filter chip and three photo slots under Photos.</p>
+<div class="intro">
+  <p class="explain">Each category is summarised below — press <strong>Edit</strong> to change its details and packages. Changes are saved as a draft and go live when you press <strong>Publish</strong> at the top of the page. Categories shown in the Portfolio also get a filter chip and three photo slots under Photos.</p>
+  @if (!addOpen()) { <button type="button" class="btn btn-secondary sm" (click)="addOpen.set(true)">+ Add a category</button> }
+</div>
 
+@if (addOpen()) {
 <form class="add" (submit)="$event.preventDefault(); addCategory()">
-  <h2 class="add-title">Add a category</h2>
+  <div class="add-head"><h2 class="add-title">Add a category</h2><button type="button" class="btn btn-ghost sm" (click)="addOpen.set(false)">Close</button></div>
   <div class="add-grid">
     <label class="field field--sm">Name<input class="input md" [value]="nc().name" (input)="setNc('name', $event)" placeholder="Pets & animals" required /></label>
     <label class="field field--sm">From price<input class="input md" [value]="nc().from" (input)="setNc('from', $event)" placeholder="$120" required /></label>
@@ -22,17 +26,37 @@
     <button type="submit" class="btn btn-primary add-btn" [disabled]="cantAdd() || busy()">Add category</button>
   </div>
 </form>
+}
 
 <div class="grid">
   @for (pc of draft(); track pc.key; let i = $index; let first = $first; let last = $last) {
-    <div class="plan">
-      <div class="plan-head">
-        <div class="order">
-          <button type="button" class="btn btn-ghost btn-icon ord" (click)="move(i, -1)" [disabled]="first" aria-label="Move up">↑</button>
-          <button type="button" class="btn btn-ghost btn-icon ord" (click)="move(i, 1)" [disabled]="last" aria-label="Move down">↓</button>
+    <div class="plan" [class.is-open]="isOpen(pc.key)">
+      <div class="sum">
+        <div class="sum-main">
+          <div class="sum-head">
+            <h2 class="sum-name">{{ pc.name || 'Untitled category' }}</h2>
+            <span class="sum-from">from {{ pc.from || '—' }}</span>
+            @if (pc.showInPortfolio) { <span class="tag tag-accent sum-tag">Portfolio{{ pc.shortName ? ' · ' + pc.shortName : '' }}</span> } @else { <span class="tag tag-neutral sum-tag">Not in portfolio</span> }
+          </div>
+          @if (pc.description) { <p class="sum-desc">{{ pc.description }}</p> }
+          <ul class="sum-pkgs">
+            @for (t of pc.tiers; track $index) {
+              <li><span class="sum-pkg-name">{{ t.name }}</span> <span class="sum-pkg-meta">{{ pkgSummary(t) }}</span></li>
+            }
+            @if (!pc.tiers.length) { <li class="sum-none">No packages yet — customers can still request this category.</li> }
+          </ul>
         </div>
-        <button type="button" class="btn btn-ghost remove-cat" (click)="removeCategory(i)" [disabled]="busy()">Remove category</button>
+        <div class="sum-actions">
+          <div class="order">
+            <button type="button" class="btn btn-ghost btn-icon ord" (click)="move(i, -1)" [disabled]="first" aria-label="Move up">↑</button>
+            <button type="button" class="btn btn-ghost btn-icon ord" (click)="move(i, 1)" [disabled]="last" aria-label="Move down">↓</button>
+          </div>
+          <button type="button" class="btn sm" [class.btn-primary]="!isOpen(pc.key)" [class.btn-secondary]="isOpen(pc.key)" (click)="toggleOpen(pc.key)" [attr.aria-expanded]="isOpen(pc.key)">{{ isOpen(pc.key) ? 'Done' : 'Edit' }}</button>
+        </div>
       </div>
+
+      @if (isOpen(pc.key)) {
+        <div class="editor">
       <div class="cat-fields">
         <label class="field field--sm cat-name">Name<input class="input" [value]="pc.name" (input)="setCat(i, 'name', $event)" /></label>
         <label class="field field--sm">From<input class="input" [value]="pc.from" (input)="setCat(i, 'from', $event)" /></label>
@@ -91,6 +115,12 @@
         }
       </div>
       <button type="button" class="btn btn-ghost add-tier" (click)="addTier(i)">+ Add package</button>
+          <div class="editor-foot">
+            <button type="button" class="btn btn-secondary sm" (click)="toggleOpen(pc.key)">Done editing</button>
+            <button type="button" class="btn btn-ghost remove-cat" (click)="removeCategory(i)" [disabled]="busy()">Remove category…</button>
+          </div>
+        </div>
+      }
     </div>
   }
 </div>

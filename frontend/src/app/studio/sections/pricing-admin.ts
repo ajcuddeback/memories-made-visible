@@ -45,6 +45,18 @@ export class PricingAdminSection {
   readonly msg = signal('');
   readonly busy = signal(false);
   readonly dirty = signal(false);
+  /** Categories whose editor is expanded; the rest show a summary. */
+  readonly open = signal<Set<string>>(new Set());
+  readonly addOpen = signal(false);
+  isOpen(key: string): boolean { return this.open().has(key); }
+  toggleOpen(key: string): void { this.open.update((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; }); }
+  /** "$1,800 · 6 hrs" / "$150/hr · 2–8 hrs · 1 add-on" */
+  pkgSummary(t: DraftTier): string {
+    const parts = [t.price || '—', t.hourly ? `${t.minHours}–${t.maxHours} hrs` : fmtDuration(t.durationMinutes || 60)];
+    const n = t.addons.filter((a) => a.name.trim()).length;
+    if (n) parts.push(`${n} add-on${n === 1 ? '' : 's'}`);
+    return parts.join(' · ');
+  }
 
   // "Add a category" form
   readonly nc = signal({ name: '', shortName: '', description: '', from: '', showInPortfolio: true, durationMinutes: 60 });
@@ -152,7 +164,8 @@ export class PricingAdminSection {
         this.busy.set(false);
         this.nc.set({ name: '', shortName: '', description: '', from: '', showInPortfolio: true, durationMinutes: 60 });
         const added = list.find((s) => !this.draft().some((d) => d.key === s.key));
-        if (added) this.draft.update((d) => [...d, ...this.toDraft([added])]);
+        if (added) { this.draft.update((d) => [...d, ...this.toDraft([added])]); this.open.update((s) => new Set(s).add(added.key)); }
+        this.addOpen.set(false);
         this.store.applyPricing(list);
         this.msg.set(`Added "${n.name.trim()}" to the draft${n.showInPortfolio ? ' (three Portfolio photo slots are waiting under Photos)' : ''}. Publish to make it live.`);
       },
