@@ -4,6 +4,8 @@ export interface PricingTier {
   price: string;
   /** "What's included" bullets, shown behind a toggle on the pricing page. */
   includes: string[];
+  /** How long this package blocks the calendar (minutes). */
+  durationMinutes: number;
 }
 
 export interface SessionType {
@@ -73,6 +75,7 @@ export interface Booking {
   id: number;
   sessionType: string;
   sessionTypeName: string;
+  packageName: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -92,6 +95,8 @@ export interface Booking {
 
 export interface BookingRequest {
   sessionType: string;
+  /** Package (tier) name; required when the session type has packages. */
+  packageName: string | null;
   name: string;
   email: string;
   phone: string;

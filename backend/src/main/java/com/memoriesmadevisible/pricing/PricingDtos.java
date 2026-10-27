@@ -12,7 +12,9 @@ public final class PricingDtos {
     private PricingDtos() {}
 
     public record Tier(@NotBlank @Size(max = 80) String name, @Size(max = 200) String detail,
-                       @NotBlank @Size(max = 20) String price, List<@Size(max = 200) String> includes) {}
+                       @NotBlank @Size(max = 20) String price, List<@Size(max = 200) String> includes,
+                       /** Minutes; 0/null on old snapshots means "use the category default". */
+                       Integer durationMinutes) {}
 
     public record SessionTypeView(String key, String name, String shortName, String description, String from,
                                   boolean showInPortfolio, int durationMinutes, List<Tier> tiers) {}
@@ -28,6 +30,6 @@ public final class PricingDtos {
 
     public static SessionTypeView toView(SessionType t) {
         return new SessionTypeView(t.getKey(), t.getName(), t.displayShortName(), t.getDescription(), t.getFromPrice(),
-                t.isShowInPortfolio(), t.getDurationMinutes(), t.getTiers().stream().map(x -> new Tier(x.getName(), x.getDetail(), x.getPrice(), x.getIncludes())).toList());
+                t.isShowInPortfolio(), t.getDurationMinutes(), t.getTiers().stream().map(x -> new Tier(x.getName(), x.getDetail(), x.getPrice(), x.getIncludes(), x.getDurationMinutes())).toList());
     }
 }

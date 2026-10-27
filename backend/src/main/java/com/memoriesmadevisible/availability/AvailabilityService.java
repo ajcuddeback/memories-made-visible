@@ -103,17 +103,28 @@ public class AvailabilityService {
     // ── slots ──
 
     public int durationFor(String typeKey) {
-        return pricing.findType(typeKey).map(t -> t.getDurationMinutes()).filter(d -> d > 0).orElse(DEFAULT_DURATION);
+        return durationFor(typeKey, null);
+    }
+
+    /** The package's length when one is named, else the category's default. */
+    public int durationFor(String typeKey, String packageName) {
+        var type = pricing.findType(typeKey).orElse(null);
+        if (type == null) return DEFAULT_DURATION;
+        if (packageName != null && !packageName.isBlank()) {
+            var pkg = type.getTiers().stream().filter(t -> t.getName().equalsIgnoreCase(packageName.strip())).findFirst();
+            if (pkg.isPresent() && pkg.get().getDurationMinutes() > 0) return pkg.get().getDurationMinutes();
+        }
+        return type.getDurationMinutes() > 0 ? type.getDurationMinutes() : DEFAULT_DURATION;
     }
 
     /** Bookable start times per day in [from, to] for a session of the given type. Days with none are left out. */
     @Transactional(readOnly = true)
-    public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey) {
+    public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey, String packageName) {
         LocalDate today = LocalDate.now();
         if (from.isBefore(today)) from = today;
         if (to.isBefore(from)) return List.of();
         if (to.isAfter(from.plusDays(MAX_RANGE_DAYS))) to = from.plusDays(MAX_RANGE_DAYS);
-        int minutes = durationFor(typeKey);
+        int minutes = durationFor(typeKey, packageName);
         var hoursByDay = hours.findAll().stream().collect(Collectors.toMap(AvailabilityHours::getWeekday, Function.identity()));
         var blockList = blocks.findAllByEndDateGreaterThanEqualAndStartDateLessThanEqualOrderByStartDateAscStartTimeAsc(from, to);
         var booked = bookings.findAllByDateBetweenAndStatusNot(from, to, BookingStatus.DECLINED);

@@ -28,6 +28,8 @@
 .t-name { flex: 1 1 120px; }
 .t-detail { flex: 2 1 180px; order: 1; }
 .t-price { flex: 0 0 88px; width: 88px !important; order: 2; }
+.t-length { flex: 0 0 96px; width: 96px !important; order: 2; }
+.pk-title .hint { text-transform: none; letter-spacing: 0; font-weight: 500; }
 .t-remove { order: 3; width: 32px; height: 32px; color: var(--color-accent-700); }
 .t-includes-label { font-size: 12.5px; }
 .t-includes-label .hint { font-weight: 500; color: var(--ink-65); }

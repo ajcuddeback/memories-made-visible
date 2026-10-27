@@ -53,6 +53,7 @@ export class RequestsSection {
       .map((b) => ({
         ...b,
         when: `${fmtDate(b.date)} · ${b.startTime ? fmtRange(b.startTime, b.endTime) : b.time}`,
+        typeLabel: b.packageName ? `${this.store.typeName().get(b.sessionType) ?? b.sessionTypeName} · ${b.packageName}` : (this.store.typeName().get(b.sessionType) ?? b.sessionTypeName),
         priceLabel: money(b.quote),
       })),
   );

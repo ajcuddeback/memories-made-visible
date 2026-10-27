@@ -38,6 +38,7 @@ export class BookingPage {
 
   // Form state
   readonly type = signal<string | null>(null);
+  readonly pkg = signal<string | null>(null);
   readonly date = signal<Date | null>(null);
   readonly time = signal<string | null>(null);
   readonly name = signal('');
@@ -77,13 +78,19 @@ export class BookingPage {
   readonly monthHasSlots = computed(() => this.days().some((d) => d.date && !d.off));
 
   readonly typeName = computed(() => this.data.typeByKey().get(this.type() ?? '')?.name ?? null);
-  readonly duration = computed(() => fmtDuration(this.data.typeByKey().get(this.type() ?? '')?.durationMinutes ?? 60));
+  /** Packages of the chosen session type, with a length label. */
+  readonly packages = computed(() => (this.data.typeByKey().get(this.type() ?? '')?.tiers ?? [])
+    .map((t) => ({ ...t, length: fmtDuration(t.durationMinutes || 60) })));
+  readonly needsPackage = computed(() => this.packages().length > 0);
+  readonly chosenPackage = computed(() => this.packages().find((p) => p.name === this.pkg()) ?? null);
+  readonly duration = computed(() => this.chosenPackage()?.length ?? fmtDuration(this.data.typeByKey().get(this.type() ?? '')?.durationMinutes ?? 60));
   readonly dateLabel = computed(() => (this.date() ? fmtLongDate(this.date()!) : null));
   readonly timeLabel = computed(() => (this.time() ? fmtTime(this.time()) : null));
 
   readonly missing = computed(() => {
     const m: string[] = [];
     if (!this.type()) m.push('a session type');
+    else if (this.needsPackage() && !this.chosenPackage()) m.push('a package');
     if (!this.date()) m.push('a date');
     if (!this.time()) m.push('a time');
     if (!this.name().trim()) m.push('your name');
@@ -98,19 +105,28 @@ export class BookingPage {
     this.data.loadPricing();
     const preset = this.route.snapshot.queryParamMap.get('type');
     if (preset) this.type.set(preset);
+    const presetPkg = this.route.snapshot.queryParamMap.get('package');
+    if (presetPkg) this.pkg.set(presetPkg);
     // Refetch what's open whenever the visible month or the session type (its length) changes.
     effect(() => {
-      const y = this.vy(), m = this.vm(), type = this.type();
-      untracked(() => this.fetchAvailability(y, m, type));
+      const y = this.vy(), m = this.vm(), type = this.type(), pkg = this.pkg();
+      untracked(() => this.fetchAvailability(y, m, type, pkg));
     });
   }
 
-  private fetchAvailability(y: number, m: number, type: string | null): void {
+  pickType(key: string): void {
+    if (this.type() === key) return;
+    this.type.set(key);
+    const tiers = this.data.typeByKey().get(key)?.tiers ?? [];
+    this.pkg.set(tiers.length === 1 ? tiers[0].name : null);
+  }
+
+  private fetchAvailability(y: number, m: number, type: string | null, pkg: string | null): void {
     const from = toISO(new Date(y, m, 1));
     const to = toISO(new Date(y, m + 1, 0));
     this.availLoading.set(true);
     this.availError.set(false);
-    this.data.availability(from, to, type).subscribe({
+    this.data.availability(from, to, type, pkg).subscribe({
       next: (days) => {
         this.openByDay.set(new Map(days.map((d) => [d.date, d.slots])));
         this.availLoading.set(false);
@@ -149,6 +165,7 @@ export class BookingPage {
     this.error.set(null);
     this.data.submitBooking({
       sessionType: this.type()!,
+      packageName: this.chosenPackage()?.name ?? null,
       name: this.name().trim(),
       email: this.email().trim(),
       phone: this.phone().trim(),
@@ -166,13 +183,13 @@ export class BookingPage {
       error: (err) => {
         this.submitting.set(false);
         this.error.set(err?.error?.message ?? 'We couldn’t send your request just now. Please try again in a moment.');
-        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type()); }
+        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type(), this.pkg()); }
       },
     });
   }
 
   reset(): void {
-    this.type.set(null); this.date.set(null); this.time.set(null);
+    this.type.set(null); this.pkg.set(null); this.date.set(null); this.time.set(null);
     this.name.set(''); this.email.set(''); this.phone.set(''); this.location.set(''); this.notes.set('');
     this.submitted.set(false);
     this.error.set(null);

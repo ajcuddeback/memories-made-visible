@@ -3,7 +3,7 @@
     <div class="done">
       <div class="done-check"><app-icon name="check" [size]="30" /></div>
       <h1 class="done-title">Request sent</h1>
-      <p class="done-text">Thank you, {{ name() }}. We've received your request for a <strong>{{ typeName() }}</strong> session on <strong>{{ dateLabel() }}</strong> at <strong>{{ timeLabel() }}</strong>.</p>
+      <p class="done-text">Thank you, {{ name() }}. We've received your request for a <strong>{{ typeName() }}</strong> session{{ chosenPackage() ? ' (' + chosenPackage()!.name + ' package)' : '' }} on <strong>{{ dateLabel() }}</strong> at <strong>{{ timeLabel() }}</strong>.</p>
       <p class="done-text muted">Erica will reach out at {{ email() }} to confirm your date and plan the session.</p>
       <button type="button" class="btn btn-secondary btn-md" (click)="reset()">Make another request</button>
     </div>
@@ -23,7 +23,7 @@
               @for (i of skeletons; track i) { <div class="type type--skeleton" aria-hidden="true"><span class="type-dot"></span><span class="sk"></span></div> }
             }
             @for (t of types(); track t.key) {
-              <button type="button" class="type" [class.is-on]="type() === t.key" role="radio" [attr.aria-checked]="type() === t.key" (click)="type.set(t.key)">
+              <button type="button" class="type" [class.is-on]="type() === t.key" role="radio" [attr.aria-checked]="type() === t.key" (click)="pickType(t.key)">
                 <span class="type-dot" aria-hidden="true"></span>
                 <span class="type-name">{{ t.name }}</span>
               </button>
@@ -31,9 +31,27 @@
           </div>
         </div>
 
+        @if (needsPackage()) {
+          <div>
+            <h2 class="step-title">2. Package</h2>
+            <div class="packages" role="radiogroup" aria-label="Package">
+              @for (p of packages(); track p.name) {
+                <button type="button" class="pkg" [class.is-on]="pkg() === p.name" role="radio" [attr.aria-checked]="pkg() === p.name" (click)="pkg.set(p.name); time.set(null)">
+                  <span class="type-dot" aria-hidden="true"></span>
+                  <span class="pkg-text">
+                    <span class="pkg-name">{{ p.name }} <span class="pkg-length">· {{ p.length }}</span></span>
+                    <span class="pkg-detail">{{ p.detail }}</span>
+                  </span>
+                  <span class="pkg-price">{{ p.price }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
         <div>
-          <h2 class="step-title">2. Date &amp; time</h2>
-          <p class="hint step-hint">Only open times are shown{{ typeName() ? ' — a ' + typeName() + ' session is ' + duration() : '' }}. Pick the session type first if you haven’t.</p>
+          <h2 class="step-title">{{ needsPackage() ? '3' : '2' }}. Date &amp; time</h2>
+          <p class="hint step-hint">Only open times are shown{{ chosenPackage() ? ' — the ' + chosenPackage()!.name + ' package is ' + duration() : (typeName() ? ' — pick a package to see times for its length' : '') }}.</p>
           <div class="calendar" [class.is-loading]="availLoading()">
             <div class="cal-head">
               <button type="button" class="btn btn-ghost btn-icon cal-nav" (click)="prevMonth()" [disabled]="prevDisabled()" aria-label="Previous month"><app-icon name="prev" /></button>
@@ -74,7 +92,7 @@
         </div>
 
         <div>
-          <h2 class="step-title">3. Your details</h2>
+          <h2 class="step-title">{{ needsPackage() ? '4' : '3' }}. Your details</h2>
           <div class="details">
             <label class="field">Full name<input class="input lg" [value]="name()" (input)="name.set(value($event))" placeholder="Jane Smith" autocomplete="name" /></label>
             <label class="field">Email<input class="input lg" type="email" [value]="email()" (input)="email.set(value($event))" placeholder="you@example.com" autocomplete="email" /></label>
@@ -91,6 +109,7 @@
         <h2 class="summary-title">Your request</h2>
         <dl class="summary-list">
           <div><dt>Session</dt><dd>{{ typeName() ?? '—' }}</dd></div>
+          @if (needsPackage()) { <div><dt>Package</dt><dd>{{ chosenPackage() ? chosenPackage()!.name + ' · ' + chosenPackage()!.price : '—' }}</dd></div> }
           <div><dt>Date</dt><dd>{{ dateLabel() ?? '—' }}</dd></div>
           <div><dt>Time</dt><dd>{{ timeLabel() ?? '—' }}</dd></div>
         </dl>

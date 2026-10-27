@@ -90,6 +90,7 @@ class BookingFlowTest {
     void publicRequestCreatesPendingBookingAndEmailsTheStudio() throws Exception {
         var body = Map.of(
                 "sessionType", "weddings",
+                "packageName", "Intimate",
                 "name", "Taylor Reyes",
                 "email", "taylor@example.com",
                 "phone", "(863) 555-0100",
@@ -102,6 +103,9 @@ class BookingFlowTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.sessionTypeName").value("Weddings"))
+                .andExpect(jsonPath("$.packageName").value("Intimate"))
+                .andExpect(jsonPath("$.startTime").value("14:00"))
+                .andExpect(jsonPath("$.endTime").value("16:00")) // the Intimate package is 2 hours
                 .andExpect(jsonPath("$.quote").value(800));
 
         assertThat(bookings.countByStatus(BookingStatus.PENDING)).isEqualTo(1);
@@ -127,7 +131,7 @@ class BookingFlowTest {
     @Test
     void honeypotSubmissionsAreSilentlyDropped() throws Exception {
         var body = Map.of(
-                "sessionType", "families", "name", "Bot", "email", "bot@example.com",
+                "sessionType", "families", "packageName", "Solo", "name", "Bot", "email", "bot@example.com",
                 "date", LocalDate.now().plusDays(3).toString(), "time", "09:00", "website", "http://spam");
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
                 .andExpect(status().isCreated());
@@ -150,7 +154,7 @@ class BookingFlowTest {
         var auth = "Bearer " + token;
 
         var created = mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of(
-                        "sessionType", "seniors", "name", "Ava", "email", "ava@example.com",
+                        "sessionType", "seniors", "packageName", "Mini", "name", "Ava", "email", "ava@example.com",
                         "date", LocalDate.now().plusDays(10).toString(), "time", "16:30"))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long id = json.readTree(created).get("id").asLong();
@@ -340,23 +344,29 @@ class BookingFlowTest {
         while (day.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || day.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) day = day.plusDays(1);
         String d = day.toString();
 
-        // Default hours 07:00–18:00 → a 60-minute family session can start every 30 min from 7:00 to 17:00 (21 slots).
-        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+        // Default hours 07:00–18:00 → the 1-hour "Family" package can start every 30 min from 7:00 to 17:00 (21 slots).
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].date").value(d))
                 .andExpect(jsonPath("$[0].slots.length()").value(21))
                 .andExpect(jsonPath("$[0].slots[0].start").value("07:00"))
                 .andExpect(jsonPath("$[0].slots[0].label").value("7:00 AM"))
                 .andExpect(jsonPath("$[0].slots[-1].start").value("17:00"));
-        // A 4-hour wedding has fewer starts (7:00 … 14:00 = 15).
-        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "weddings"))
-                .andExpect(jsonPath("$[0].slots.length()").value(15));
+        // The 30-minute "Solo" package gets one more start (17:30); the 8-hour "Full day" wedding only 7:00 … 10:00 (7).
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Solo"))
+                .andExpect(jsonPath("$[0].slots.length()").value(22));
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "weddings").param("package", "Full day"))
+                .andExpect(jsonPath("$[0].slots.length()").value(7));
+        // A package that isn't on the price list is refused.
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "families", "packageName", "Deluxe", "name", "X", "email", "x@example.com", "date", d, "time", "09:00"))))
+                .andExpect(status().isBadRequest());
 
         // Block 12:00–14:00 (a private note the public never sees) → the 10:30–13:30 starts disappear for a 1-hour session.
         mvc.perform(post("/api/admin/availability/blocks").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"startDate\":\"" + d + "\",\"startTime\":\"12:00\",\"endTime\":\"14:00\",\"note\":\"Dentist\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.note").value("Dentist"));
-        var slots = json.readTree(mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+        var slots = json.readTree(mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
                 .andReturn().getResponse().getContentAsString()).get(0).get("slots");
         var starts = new java.util.ArrayList<String>();
         slots.forEach(sl -> starts.add(sl.get("start").asText()));
@@ -364,27 +374,27 @@ class BookingFlowTest {
         assertThat(slots.toString()).doesNotContain("Dentist");
 
         // Book 09:00; the slot (and the overlapping 08:30/09:30 starts) go away while the request is pending.
-        var body = Map.of("sessionType", "families", "name", "Noah Bell", "email", "noah@example.com", "date", d, "time", "09:00");
+        var body = Map.of("sessionType", "families", "packageName", "Family", "name", "Noah Bell", "email", "noah@example.com", "date", d, "time", "09:00");
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.time").value("9:00 AM"))
                 .andExpect(jsonPath("$.startTime").value("09:00"))
                 .andExpect(jsonPath("$.endTime").value("10:00"));
-        slots = json.readTree(mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+        slots = json.readTree(mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
                 .andReturn().getResponse().getContentAsString()).get(0).get("slots");
         starts.clear();
         slots.forEach(sl -> starts.add(sl.get("start").asText()));
         assertThat(starts).contains("08:00", "10:00").doesNotContain("08:30", "09:00", "09:30");
 
         // A second request for the same time is refused (409), as is one outside hours or in the block.
-        var again = Map.of("sessionType", "couples", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "09:30");
+        var again = Map.of("sessionType", "couples", "packageName", "Mini", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "09:30");
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(again)))
                 .andExpect(status().isConflict());
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("sessionType", "couples", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "19:00"))))
+                        .content(json.writeValueAsString(Map.of("sessionType", "couples", "packageName", "Mini", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "19:00"))))
                 .andExpect(status().isConflict());
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("sessionType", "couples", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "12:30"))))
+                        .content(json.writeValueAsString(Map.of("sessionType", "couples", "packageName", "Mini", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "12:30"))))
                 .andExpect(status().isConflict());
 
         // Closing that weekday removes every slot; reopening 09:00–12:00 narrows them.
@@ -393,13 +403,13 @@ class BookingFlowTest {
                         .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content("[{\"weekday\":" + wd + ",\"open\":false,\"start\":\"07:00\",\"end\":\"18:00\"}]"))
                 .andExpect(status().isOk());
-        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
                 .andExpect(jsonPath("$.length()").value(0));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/availability/hours")
                         .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content("[{\"weekday\":" + wd + ",\"open\":true,\"start\":\"09:00\",\"end\":\"12:00\"}]"))
                 .andExpect(status().isOk());
-        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
                 .andExpect(jsonPath("$[0].slots[0].start").value("10:00"))   // 09:00 is Noah's
                 .andExpect(jsonPath("$[0].slots[-1].start").value("11:00"));
 

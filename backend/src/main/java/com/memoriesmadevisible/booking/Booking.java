@@ -46,6 +46,10 @@ public class Booking {
     private LocalDate date;
 
     /** Display label ("9:00 AM"); kept for emails and old rows. */
+    /** The package the customer picked (its name at the time); null on older rows. */
+    @Column(name = "package_name", length = 80)
+    private String packageName;
+
     @Column(name = "session_time", nullable = false, length = 40)
     private String time;
 
@@ -86,6 +90,8 @@ public class Booking {
     public void setNotes(String v) { this.notes = v; }
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate v) { this.date = v; }
+    public String getPackageName() { return packageName; }
+    public void setPackageName(String v) { this.packageName = v; }
     public String getTime() { return time; }
     public void setTime(String v) { this.time = v; }
     public LocalTime getStartTime() { return startTime; }

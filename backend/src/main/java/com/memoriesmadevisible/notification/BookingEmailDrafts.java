@@ -127,7 +127,7 @@ public final class BookingEmailDrafts {
     /** Details card rows for an email about this booking. */
     public static List<EmailTemplates.Detail> details(Booking b, String sessionTypeName, boolean includePrice) {
         List<EmailTemplates.Detail> d = new ArrayList<>();
-        d.add(new EmailTemplates.Detail("Session", sessionTypeName));
+        d.add(new EmailTemplates.Detail("Session", b.getPackageName() == null ? sessionTypeName : sessionTypeName + " · " + b.getPackageName()));
         d.add(new EmailTemplates.Detail("Date", LONG_DATE.format(b.getDate())));
         d.add(new EmailTemplates.Detail("Time", b.getTime()));
         if (b.getLocation() != null && !b.getLocation().isBlank()) d.add(new EmailTemplates.Detail("Location", b.getLocation()));

@@ -8,6 +8,7 @@ interface DraftTier {
   name: string;
   detail: string;
   price: string;
+  durationMinutes: number;
   /** Edited as one item per line; split on save. */
   includesText: string;
 }
@@ -24,7 +25,7 @@ interface Draft {
 }
 
 /** 30-minute steps up to 8 hours, for the "session length" picker. */
-export const DURATIONS = Array.from({ length: 16 }, (_, i) => (i + 1) * 30);
+export const DURATIONS = [15, 30, 45, ...Array.from({ length: 23 }, (_, i) => (i + 2) * 30)];
 
 @Component({
   selector: 'app-pricing-admin',
@@ -66,7 +67,7 @@ export class PricingAdminSection {
       key: s.key, name: s.name, shortName: s.shortName === s.name ? '' : s.shortName, description: s.description, from: s.from,
       showInPortfolio: s.showInPortfolio,
       durationMinutes: s.durationMinutes || 60,
-      tiers: s.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, includesText: (t.includes ?? []).join('\n') })),
+      tiers: s.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, durationMinutes: t.durationMinutes || 60, includesText: (t.includes ?? []).join('\n') })),
     }));
   }
 
@@ -75,7 +76,7 @@ export class PricingAdminSection {
       key: c.key, name: c.name, shortName: c.shortName, description: c.description, from: c.from,
       showInPortfolio: c.showInPortfolio,
       durationMinutes: c.durationMinutes,
-      tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price,
+      tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, durationMinutes: t.durationMinutes,
         includes: t.includesText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
     }));
   }
@@ -101,10 +102,13 @@ export class PricingAdminSection {
     this.edit((d) => { const j = i + dir; if (j < 0 || j >= d.length) return; [d[i], d[j]] = [d[j], d[i]]; });
   }
   // package fields
-  setTier(i: number, ti: number, field: keyof DraftTier, e: Event): void {
+  setTier(i: number, ti: number, field: 'name' | 'detail' | 'price' | 'includesText', e: Event): void {
     const v = this.val(e); this.edit((d) => { d[i].tiers[ti][field] = v; });
   }
-  addTier(i: number): void { this.edit((d) => { d[i].tiers.push({ name: 'New package', detail: '', price: '$', includesText: '' }); }); }
+  addTier(i: number): void { this.edit((d) => { d[i].tiers.push({ name: 'New package', detail: '', price: '$', durationMinutes: 60, includesText: '' }); }); }
+  setTierDuration(i: number, ti: number, e: Event): void {
+    const v = Number((e.target as HTMLSelectElement).value); this.edit((d) => { d[i].tiers[ti].durationMinutes = v; });
+  }
   removeTier(i: number, ti: number): void { this.edit((d) => { d[i].tiers.splice(ti, 1); }); }
 
   setNc(field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {

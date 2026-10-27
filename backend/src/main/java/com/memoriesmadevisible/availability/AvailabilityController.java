@@ -23,7 +23,8 @@ public class AvailabilityController {
     @GetMapping
     public List<AvailabilityDtos.DaySlots> slots(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                                  @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-                                                 @RequestParam(required = false) String type) {
-        return availability.slots(from, to, type);
+                                                 @RequestParam(required = false) String type,
+                                                 @RequestParam(name = "package", required = false) String packageName) {
+        return availability.slots(from, to, type, packageName);
     }
 }

@@ -11,11 +11,6 @@
   <div class="add-grid">
     <label class="field field--sm">Name<input class="input md" [value]="nc().name" (input)="setNc('name', $event)" placeholder="Pets & animals" required /></label>
     <label class="field field--sm">From price<input class="input md" [value]="nc().from" (input)="setNc('from', $event)" placeholder="$120" required /></label>
-    <label class="field field--sm">Session length <span class="hint">(blocks the calendar)</span>
-      <select class="input md" [value]="nc().durationMinutes" (change)="setNcDuration($event)">
-        @for (d of durations; track d) { <option [value]="d" [selected]="d === nc().durationMinutes">{{ fmtDuration(d) }}</option> }
-      </select>
-    </label>
     <label class="field field--sm add-desc">Short description<input class="input md" [value]="nc().description" (input)="setNc('description', $event)" placeholder="One line shown on the pricing and home pages" /></label>
     <label class="toggle add-toggle">
       <input type="checkbox" [checked]="nc().showInPortfolio" (change)="setNcPortfolio($any($event.target).checked)" />
@@ -41,11 +36,6 @@
       <div class="cat-fields">
         <label class="field field--sm cat-name">Name<input class="input" [value]="pc.name" (input)="setCat(i, 'name', $event)" /></label>
         <label class="field field--sm">From<input class="input" [value]="pc.from" (input)="setCat(i, 'from', $event)" /></label>
-        <label class="field field--sm">Session length <span class="hint">(booking slots &amp; calendar)</span>
-          <select class="input" [value]="pc.durationMinutes" (change)="setDuration(i, $event)">
-            @for (d of durations; track d) { <option [value]="d" [selected]="d === pc.durationMinutes">{{ fmtDuration(d) }}</option> }
-          </select>
-        </label>
         <label class="field field--sm cat-desc">Description<input class="input" [value]="pc.description" (input)="setCat(i, 'description', $event)" /></label>
         <div class="portfolio-row">
           <label class="toggle">
@@ -60,7 +50,7 @@
         </div>
       </div>
 
-      <h3 class="pk-title">Packages</h3>
+      <h3 class="pk-title">Packages <span class="hint">· each has a length — customers pick a package when booking, and the calendar is blocked for that long</span></h3>
       <div class="tiers">
         @for (t of pc.tiers; track ti; let ti = $index) {
           <div class="tier">
@@ -68,6 +58,9 @@
               <input class="input t-name" [value]="t.name" (input)="setTier(i, ti, 'name', $event)" aria-label="Package name" placeholder="Package" />
               <input class="input t-detail" [value]="t.detail" (input)="setTier(i, ti, 'detail', $event)" aria-label="One-line summary" placeholder="One-line summary" />
               <input class="input t-price" [value]="t.price" (input)="setTier(i, ti, 'price', $event)" aria-label="Price" placeholder="$0" />
+              <select class="input t-length" [value]="t.durationMinutes" (change)="setTierDuration(i, ti, $event)" aria-label="Session length (blocks the calendar)" title="Session length — how long this package blocks the calendar">
+                @for (d of durations; track d) { <option [value]="d" [selected]="d === t.durationMinutes">{{ fmtDuration(d) }}</option> }
+              </select>
               <button type="button" class="btn btn-ghost btn-icon t-remove" (click)="removeTier(i, ti)" aria-label="Remove package"><app-icon name="close" [size]="16" /></button>
             </div>
             <label class="field field--sm t-includes-label">What's included <span class="hint">(one item per line — shown under “See what’s included”)</span>

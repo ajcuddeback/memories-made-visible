@@ -6,6 +6,7 @@ import com.memoriesmadevisible.common.NotFoundException;
 import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import com.memoriesmadevisible.notification.BookingNotificationService;
 import com.memoriesmadevisible.config.AppProperties;
+import com.memoriesmadevisible.pricing.PricingDtos;
 import com.memoriesmadevisible.pricing.PricingService;
 import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.stereotype.Service;
@@ -41,8 +42,21 @@ public class BookingService {
         var type = publish.publishedType(req.sessionType())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown session type: " + req.sessionType()));
 
+        // The package decides how long the slot is and the starting quote; it's optional for categories without one.
+        PricingDtos.Tier pkg = null;
+        if (req.packageName() != null && !req.packageName().isBlank()) {
+            String want = req.packageName().strip();
+            pkg = type.tiers().stream().filter(t -> t.name().equalsIgnoreCase(want)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("That package isn't offered for " + type.name() + "."));
+        } else if (!type.tiers().isEmpty()) {
+            throw new IllegalArgumentException("Please choose a package.");
+        }
+        int minutes = pkg != null && pkg.durationMinutes() != null && pkg.durationMinutes() > 0
+                ? pkg.durationMinutes() : availability.durationFor(type.key());
+
         var b = new Booking();
         b.setSessionTypeKey(type.key());
+        b.setPackageName(pkg == null ? null : pkg.name());
         b.setName(req.name().trim());
         b.setEmail(req.email().trim());
         b.setPhone(blankToNull(req.phone()));
@@ -51,13 +65,13 @@ public class BookingService {
         b.setDate(req.date());
         // Lock the day, make sure the slot is still open (a pending request holds its slot), then write.
         LocalTime start = AvailabilityDtos.parse(req.time());
-        LocalTime end = availability.reserve(req.date(), start, availability.durationFor(type.key()), null, true, true);
+        LocalTime end = availability.reserve(req.date(), start, minutes, null, true, true);
         b.setStartTime(start);
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
         b.setStatus(BookingStatus.PENDING);
         // Starting quote is the session type's "from" price; the admin tunes it before approving.
-        b.setQuote(PricingService.parseAmount(type.from()));
+        b.setQuote(PricingService.parseAmount(pkg == null ? type.from() : pkg.price()));
         b = bookings.save(b);
 
         notifications.notifyNewRequest(b, type.name());
@@ -186,7 +200,7 @@ public class BookingService {
 
     public BookingDtos.Response toResponse(Booking b) {
         String typeName = pricing.findType(b.getSessionTypeKey()).map(t -> t.getName()).orElse(b.getSessionTypeKey());
-        return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getName(), b.getEmail(),
+        return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getPackageName(), b.getName(), b.getEmail(),
                 b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(),
                 AvailabilityDtos.hm(b.getStartTime()), AvailabilityDtos.hm(b.getEndTime()), b.getStatus(), b.getQuote(),
                 b.getCreatedAt());

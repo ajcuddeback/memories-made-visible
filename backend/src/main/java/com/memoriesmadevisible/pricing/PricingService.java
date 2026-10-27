@@ -31,7 +31,8 @@ public class PricingService {
             t.setShowInPortfolio(v.showInPortfolio());
             if (v.durationMinutes() > 0) t.setDurationMinutes(v.durationMinutes());
             t.replaceTiers(v.tiers().stream()
-                    .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes())).toList());
+                    .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes(),
+                            x.durationMinutes() == null ? v.durationMinutes() : x.durationMinutes())).toList());
             rows.add(t);
         }
         types.saveAll(rows);
@@ -92,7 +93,7 @@ public class PricingService {
             t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
                     .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),
-                            x.price().strip(), x.includes()))
+                            x.price().strip(), x.includes(), x.durationMinutes() == null ? t.getDurationMinutes() : x.durationMinutes()))
                     .toList());
             types.save(t);
         }

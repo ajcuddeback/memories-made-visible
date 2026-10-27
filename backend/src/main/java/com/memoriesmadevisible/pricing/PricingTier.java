@@ -42,6 +42,10 @@ public class PricingTier {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /** How long this package blocks the calendar; the booking page offers slots of this length. */
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes = 60;
+
     protected PricingTier() {}
 
     public PricingTier(String name, String detail, String price) {
@@ -49,11 +53,19 @@ public class PricingTier {
     }
 
     public PricingTier(String name, String detail, String price, List<String> includes) {
+        this(name, detail, price, includes, 60);
+    }
+
+    public PricingTier(String name, String detail, String price, List<String> includes, int durationMinutes) {
         this.name = name;
         this.detail = detail;
         this.price = price;
         setIncludes(includes);
+        setDurationMinutes(durationMinutes);
     }
+
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int v) { this.durationMinutes = v <= 0 ? 60 : Math.max(15, Math.min(12 * 60, v)); }
 
     public Long getId() { return id; }
     public SessionType getSessionType() { return sessionType; }
