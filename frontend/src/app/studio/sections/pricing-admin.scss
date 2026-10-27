@@ -1,4 +1,8 @@
-.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+.toolbar {
+  position: sticky; top: 0; z-index: 4; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin: 0 0 20px; padding: 10px 14px; border-radius: 18px; background: var(--color-surface); box-shadow: var(--shadow-md);
+}
+.toolbar.is-dirty { outline: 2px solid var(--color-accent); }
 .tb { font-size: 14px; padding: 10px 20px; }
 .msg { font-size: 14px; font-weight: 600; color: var(--color-accent-700); }
 

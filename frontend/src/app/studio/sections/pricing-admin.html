@@ -1,4 +1,4 @@
-<div class="toolbar">
+<div class="toolbar" [class.is-dirty]="dirty()">
   <button type="button" class="btn btn-primary tb" [disabled]="busy()" (click)="save()">{{ busy() ? 'Working…' : 'Save changes' }}</button>
   <button type="button" class="btn btn-secondary tb" [disabled]="busy()" (click)="reset()">Reset to defaults</button>
   <span class="msg" aria-live="polite">{{ msg() }}</span>
