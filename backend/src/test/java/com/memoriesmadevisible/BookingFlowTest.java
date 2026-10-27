@@ -357,23 +357,20 @@ class BookingFlowTest {
                 .andExpect(jsonPath("$[0].slots.length()").value(22));
         mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "weddings").param("package", "Full day"))
                 .andExpect(jsonPath("$[0].slots.length()").value(7));
-        // Changing a package's length in the (unpublished) draft applies to new bookings straight away:
-        // make "Full day" 8h → 10h, and the booking blocks 10 hours even though the live price list still says 8.
+        // A package's length is published like a price: edit "Full day" 8h → 10h in the draft, Publish, and new bookings block 10 hours.
         var wedding = json.readTree(mvc.perform(get("/api/admin/pricing").header("Authorization", auth))
                 .andReturn().getResponse().getContentAsString());
-        boolean pricingDirtyBefore = json.readTree(mvc.perform(get("/api/admin/publish").header("Authorization", auth))
-                .andReturn().getResponse().getContentAsString()).get("changes").get("pricing").asBoolean();
         com.fasterxml.jackson.databind.node.ObjectNode wNode = null;
         for (var n : wedding) if (n.get("key").asText().equals("weddings")) wNode = (com.fasterxml.jackson.databind.node.ObjectNode) n;
         for (var tier : wNode.get("tiers")) if (tier.get("name").asText().equals("Full day")) ((com.fasterxml.jackson.databind.node.ObjectNode) tier).put("durationMinutes", 600);
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
                         .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content("[" + wNode + "]"))
                 .andExpect(status().isOk());
-        // The public price list shows the new length right away, and it doesn't count as an unpublished change.
+        mvc.perform(get("/api/admin/publish").header("Authorization", auth))
+                .andExpect(jsonPath("$.changes.pricing").value(true));
+        mvc.perform(post("/api/admin/publish").header("Authorization", auth)).andExpect(status().isOk());
         mvc.perform(get("/api/pricing"))
                 .andExpect(jsonPath("$[?(@.key=='weddings')].tiers[?(@.name=='Full day')].durationMinutes").value(600));
-        mvc.perform(get("/api/admin/publish").header("Authorization", auth))
-                .andExpect(jsonPath("$.changes.pricing").value(pricingDirtyBefore)); // unchanged by a length edit
         LocalDate wDay = day.plusDays(1);
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("sessionType", "weddings", "packageName", "Full day", "name", "Kai Moss", "email", "kai@example.com", "date", wDay.toString(), "time", "07:00"))))

@@ -5,7 +5,7 @@ import com.memoriesmadevisible.booking.BookingRepository;
 import com.memoriesmadevisible.booking.BookingStatus;
 import com.memoriesmadevisible.common.ConflictException;
 import com.memoriesmadevisible.common.NotFoundException;
-import com.memoriesmadevisible.pricing.PricingService;
+import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,15 +37,15 @@ public class AvailabilityService {
     private final TimeBlockRepository blocks;
     private final BookingRepository bookings;
     private final CalendarDayRepository days;
-    private final PricingService pricing;
+    private final PublishService publish;
 
     public AvailabilityService(AvailabilityHoursRepository hours, TimeBlockRepository blocks, BookingRepository bookings,
-                               CalendarDayRepository days, PricingService pricing) {
+                               CalendarDayRepository days, PublishService publish) {
         this.hours = hours;
         this.blocks = blocks;
         this.bookings = bookings;
         this.days = days;
-        this.pricing = pricing;
+        this.publish = publish;
     }
 
     // ── hours ──
@@ -106,15 +106,18 @@ public class AvailabilityService {
         return durationFor(typeKey, null);
     }
 
-    /** The package's length when one is named, else the category's default. */
+    /**
+     * The package's length from the *published* price list (what the customer was shown), else the
+     * category's default. A length edited in the admin applies once it's published, like a price.
+     */
     public int durationFor(String typeKey, String packageName) {
-        var type = pricing.findType(typeKey).orElse(null);
+        var type = publish.publishedType(typeKey).orElse(null);
         if (type == null) return DEFAULT_DURATION;
         if (packageName != null && !packageName.isBlank()) {
-            var pkg = type.getTiers().stream().filter(t -> t.getName().equalsIgnoreCase(packageName.strip())).findFirst();
-            if (pkg.isPresent() && pkg.get().getDurationMinutes() > 0) return pkg.get().getDurationMinutes();
+            var pkg = type.tiers().stream().filter(t -> t.name().equalsIgnoreCase(packageName.strip())).findFirst();
+            if (pkg.isPresent() && pkg.get().durationMinutes() != null && pkg.get().durationMinutes() > 0) return pkg.get().durationMinutes();
         }
-        return type.getDurationMinutes() > 0 ? type.getDurationMinutes() : DEFAULT_DURATION;
+        return type.durationMinutes() > 0 ? type.durationMinutes() : DEFAULT_DURATION;
     }
 
     /** Bookable start times per day in [from, to] for a session of the given type. Days with none are left out. */

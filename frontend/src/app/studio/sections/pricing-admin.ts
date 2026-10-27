@@ -160,7 +160,7 @@ export class PricingAdminSection {
     }
     this.busy.set(true);
     this.store.savePricing(this.toPayload(this.draft())).subscribe({
-      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved to the draft. Press Publish (top of the page) when you want it live.'); },
+      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved to the draft. Press Publish in the bar above to make it live — prices, lengths, everything on this page.'); },
       error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t save. Please try again.'); },
     });
   }
