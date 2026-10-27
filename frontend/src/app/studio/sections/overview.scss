@@ -14,12 +14,12 @@
 .range { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink-7); }
 .range-btn { border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; color: var(--ink-70); cursor: pointer; }
 .range-btn.is-on { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.12)); }
-.chart { display: flex; align-items: flex-end; gap: 12px; height: 220px; }
+.chart { display: flex; align-items: flex-end; gap: 12px; height: 340px; padding-top: 120px; box-sizing: border-box; }
 .chart.is-dense { gap: 6px; }
 .chart.is-dense .bar-label { font-size: 10.5px; }
 .chart.is-dense .bar-mon { font-size: 10.5px; }
 @media (max-width: 560px) {
-  .chart.is-dense { overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; }
+  .chart.is-dense { overflow-x: auto; overflow-y: hidden; justify-content: flex-start; padding-bottom: 4px; }
   .chart.is-dense .bar-col { flex: 0 0 52px; }
 }
 .bar-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; }
@@ -58,16 +58,16 @@
 .bar-col { position: relative; outline: 0; border-radius: 12px; }
 .bar-col:hover, .bar-col:focus-visible { background: var(--ink-4); }
 .tip {
-  position: absolute; bottom: calc(100% - 4px); left: 50%; transform: translate(-50%, 4px); z-index: 20; min-width: 190px;
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -4px); z-index: 20; min-width: 190px;
   padding: 10px 12px; border-radius: 14px; background: var(--color-text); color: var(--color-bg); font-size: 12.5px; line-height: 1.5;
   box-shadow: var(--shadow-md); opacity: 0; pointer-events: none; transition: opacity 0.12s, transform 0.12s; text-align: left;
 }
 .tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--color-text); }
 .bar-col:hover .tip, .bar-col:focus-visible .tip { opacity: 1; transform: translate(-50%, 0); }
-.bar-col:first-child .tip { left: 0; transform: translate(0, 4px); }
+.bar-col:first-child .tip { left: 0; transform: translate(0, -4px); }
 .bar-col:first-child:hover .tip, .bar-col:first-child:focus-visible .tip { transform: none; }
 .bar-col:first-child .tip::after { left: 24px; }
-.bar-col:last-child .tip { left: auto; right: 0; transform: translate(0, 4px); }
+.bar-col:last-child .tip { left: auto; right: 0; transform: translate(0, -4px); }
 .bar-col:last-child:hover .tip, .bar-col:last-child:focus-visible .tip { transform: none; }
 .bar-col:last-child .tip::after { left: auto; right: 24px; }
 .tip-title { font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 8px; }

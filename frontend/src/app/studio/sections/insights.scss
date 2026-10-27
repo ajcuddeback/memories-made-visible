@@ -20,7 +20,7 @@
 .panel-title { font-size: 22px; margin: 0 0 4px; }
 .panel-sub { font-size: 13.5px; margin: 0 0 18px; color: var(--ink-68); }
 
-.chart { display: flex; align-items: flex-end; gap: 4px; height: 180px; overflow-x: auto; padding-bottom: 4px; }
+.chart { display: flex; align-items: flex-end; gap: 4px; height: 290px; padding: 110px 0 4px; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; }
 .bar-col { flex: 1 0 22px; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
 .bar { width: 100%; max-width: 40px; min-height: 3px; border-radius: 8px 8px 3px 3px; background: var(--color-accent); opacity: 0.85; transition: height 0.3s; }
 .bar-x { font-size: 10px; font-weight: 600; color: var(--ink-55); white-space: nowrap; }
@@ -47,16 +47,16 @@
 .bar-col { position: relative; outline: 0; border-radius: 8px; }
 .bar-col:hover, .bar-col:focus-visible { background: var(--ink-4); }
 .tip {
-  position: absolute; bottom: calc(100% - 4px); left: 50%; transform: translate(-50%, 4px); z-index: 20; min-width: 130px;
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -4px); z-index: 20; min-width: 130px;
   padding: 10px 12px; border-radius: 14px; background: var(--color-text); color: var(--color-bg); font-size: 12.5px; line-height: 1.5;
   box-shadow: var(--shadow-md); opacity: 0; pointer-events: none; transition: opacity 0.12s, transform 0.12s; text-align: left;
 }
 .tip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--color-text); }
 .bar-col:hover .tip, .bar-col:focus-visible .tip { opacity: 1; transform: translate(-50%, 0); }
-.bar-col:first-child .tip { left: 0; transform: translate(0, 4px); }
+.bar-col:first-child .tip { left: 0; transform: translate(0, -4px); }
 .bar-col:first-child:hover .tip, .bar-col:first-child:focus-visible .tip { transform: none; }
 .bar-col:first-child .tip::after { left: 24px; }
-.bar-col:last-child .tip { left: auto; right: 0; transform: translate(0, 4px); }
+.bar-col:last-child .tip { left: auto; right: 0; transform: translate(0, -4px); }
 .bar-col:last-child:hover .tip, .bar-col:last-child:focus-visible .tip { transform: none; }
 .bar-col:last-child .tip::after { left: auto; right: 24px; }
 .tip-title { font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 8px; }
