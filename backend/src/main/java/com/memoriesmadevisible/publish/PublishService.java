@@ -169,6 +169,7 @@ public class PublishService {
             e.setTitle(v.title());
             e.setTheme(v.theme());
             e.setVenue(v.venue());
+            e.setAddress(v.address());
             e.setTime(v.time());
             e = events.save(e);
             keep.add(e.getId());

@@ -140,6 +140,8 @@ export interface PublicPopupEvent {
   title: string;
   theme: string;
   venue: string;
+  /** Street address, optional; linked to a map on the Events page. */
+  address: string | null;
   time: string;
 }
 
@@ -153,6 +155,7 @@ export interface PopupEventUpsert {
   title: string;
   theme: string;
   venue: string;
+  address: string;
   time: string;
 }
 

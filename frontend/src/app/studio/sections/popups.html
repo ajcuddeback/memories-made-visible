@@ -5,6 +5,7 @@
     <label class="field field--sm">Name<input class="input md" [value]="ne().title" (input)="set('title', $event)" placeholder="Spring Pop-Up" required /></label>
     <label class="field field--sm">Theme<input class="input md" [value]="ne().theme" (input)="set('theme', $event)" placeholder="Wildflower set" /></label>
     <label class="field field--sm">Venue<input class="input md" [value]="ne().venue" (input)="set('venue', $event)" placeholder="Market · City" /></label>
+    <label class="field field--sm add-address">Address <span class="hint">(optional — shown with a map link)</span><input class="input md" [value]="ne().address" (input)="set('address', $event)" placeholder="123 Main St, Lakeland, FL 33801" autocomplete="street-address" /></label>
     <label class="field field--sm">Hours<input class="input md" [value]="ne().time" (input)="set('time', $event)" placeholder="9:00 AM – 1:00 PM" /></label>
     <button type="submit" class="btn btn-primary add-btn" [disabled]="cantAdd()">Add pop-up</button>
   </div>
@@ -23,6 +24,7 @@
           <span class="tag pop-status" [class.tag-neutral]="e.past" [class.tag-accent-2]="!e.past">{{ e.status }}</span>
         </div>
         <div class="pop-meta">{{ e.theme }} · {{ e.venue }} · {{ e.time }}</div>
+        @if (e.address) { <div class="pop-meta"><a [href]="mapUrl(e.address)" target="_blank" rel="noopener">{{ e.address }}</a></div> }
       </div>
       <div class="pop-sales">
         <div>

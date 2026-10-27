@@ -12,6 +12,7 @@ import { PhotoSlot } from '../../shared/photo-slot';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EventsPage {
+  mapUrl(address: string): string { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address); }
   private readonly data = inject(SiteDataService);
   private readonly router = inject(Router);
 

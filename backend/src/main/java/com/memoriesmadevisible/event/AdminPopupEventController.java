@@ -70,6 +70,7 @@ public class AdminPopupEventController {
         e.setTitle(b.title().trim());
         e.setTheme(orDefault(b.theme(), "Themed set"));
         e.setVenue(orDefault(b.venue(), "Polk County"));
+        e.setAddress(b.address() == null || b.address().isBlank() ? null : b.address().strip());
         e.setTime(orDefault(b.time(), "Hours TBA"));
     }
 
