@@ -51,8 +51,9 @@ public class BookingService {
         } else if (!type.tiers().isEmpty()) {
             throw new IllegalArgumentException("Please choose a package.");
         }
-        int minutes = pkg != null && pkg.durationMinutes() != null && pkg.durationMinutes() > 0
-                ? pkg.durationMinutes() : availability.durationFor(type.key());
+        // Length comes from the current price list (same source as the slots the form offered), never
+        // from the published snapshot — scheduling config isn't something that waits for Publish.
+        int minutes = availability.durationFor(type.key(), pkg == null ? null : pkg.name());
 
         var b = new Booking();
         b.setSessionTypeKey(type.key());

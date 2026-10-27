@@ -357,6 +357,29 @@ class BookingFlowTest {
                 .andExpect(jsonPath("$[0].slots.length()").value(22));
         mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "weddings").param("package", "Full day"))
                 .andExpect(jsonPath("$[0].slots.length()").value(7));
+        // Changing a package's length in the (unpublished) draft applies to new bookings straight away:
+        // make "Full day" 8h → 10h, and the booking blocks 10 hours even though the live price list still says 8.
+        var wedding = json.readTree(mvc.perform(get("/api/admin/pricing").header("Authorization", auth))
+                .andReturn().getResponse().getContentAsString());
+        com.fasterxml.jackson.databind.node.ObjectNode wNode = null;
+        for (var n : wedding) if (n.get("key").asText().equals("weddings")) wNode = (com.fasterxml.jackson.databind.node.ObjectNode) n;
+        for (var tier : wNode.get("tiers")) if (tier.get("name").asText().equals("Full day")) ((com.fasterxml.jackson.databind.node.ObjectNode) tier).put("durationMinutes", 600);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content("[" + wNode + "]"))
+                .andExpect(status().isOk());
+        LocalDate wDay = day.plusDays(1);
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "weddings", "packageName", "Full day", "name", "Kai Moss", "email", "kai@example.com", "date", wDay.toString(), "time", "07:00"))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.startTime").value("07:00"))
+                .andExpect(jsonPath("$.endTime").value("17:00"));
+        // …and the whole day is gone for everyone else.
+        mvc.perform(get("/api/availability").param("from", wDay.toString()).param("to", wDay.toString()).param("type", "families").param("package", "Solo"))
+                .andExpect(jsonPath("$[0].slots[*].start").value(org.hamcrest.Matchers.contains("17:00", "17:30"))); // only after the wedding
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "families", "packageName", "Solo", "name", "Jo", "email", "jo@example.com", "date", wDay.toString(), "time", "12:00"))))
+                .andExpect(status().isConflict());
+
         // A package that isn't on the price list is refused.
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("sessionType", "families", "packageName", "Deluxe", "name", "X", "email", "x@example.com", "date", d, "time", "09:00"))))
