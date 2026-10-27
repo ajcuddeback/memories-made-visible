@@ -44,6 +44,7 @@ public class AdminBookingController {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Unknown action: " + action);
         }
+        if (a == BookingEmailDrafts.Action.DELIVER) throw new IllegalArgumentException("Deliver from the gallery, not the booking.");
         return service.draft(id, a);
     }
 

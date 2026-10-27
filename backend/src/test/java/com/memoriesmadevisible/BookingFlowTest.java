@@ -41,6 +41,7 @@ class BookingFlowTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired BookingRepository bookings;
+    @Autowired com.memoriesmadevisible.gallery.GalleryRepository galleries;
 
     @MockitoBean JavaMailSender mailSender;
     @MockitoBean S3Client s3Client;
@@ -211,6 +212,28 @@ class BookingFlowTest {
         mvc.perform(post("/api/admin/galleries").header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"bookingId\":" + id + "}"))
                 .andExpect(status().isBadRequest());
+
+        // Deliver it: the drafted email, then link + final price → stage 3, quote updated, client emailed.
+        var galleryId = galleries.findAll().stream().filter(g -> g.getBookingId().equals(id)).findFirst().orElseThrow().getId();
+        mvc.perform(get("/api/admin/galleries/" + galleryId + "/draft").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject").value(org.hamcrest.Matchers.endsWith("photos are ready!")))
+                .andExpect(jsonPath("$.to").value("ava@example.com"));
+        mvc.perform(post("/api/admin/galleries/" + galleryId + "/deliver").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"link\":\"not a url\",\"finalPrice\":1250}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/galleries/" + galleryId + "/deliver").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"link\":\"https://photos.example.com/ava\",\"finalPrice\":1250,\"subject\":\"Ava, your photos are here\",\"body\":\"Hi Ava,\\n\\nEnjoy!\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gallery.stage").value(3))
+                .andExpect(jsonPath("$.gallery.link").value("https://photos.example.com/ava"))
+                .andExpect(jsonPath("$.gallery.deliveredAt").exists())
+                .andExpect(jsonPath("$.booking.quote").value(1250));
+        verify(mailSender, timeout(5000).times(6)).send(sent.capture());
+        var delivered = bodies(bySubject(sent, "Ava, your photos are here"));
+        assertThat(delivered[1]).contains("https://photos.example.com/ava").contains("View your photos");
+        assertThat(delivered[0]).contains("https://photos.example.com/ava");
     }
 
     @Test

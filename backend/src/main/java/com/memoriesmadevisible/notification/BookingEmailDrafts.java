@@ -19,7 +19,7 @@ public final class BookingEmailDrafts {
 
     private BookingEmailDrafts() {}
 
-    public enum Action { APPROVE, DECLINE, CANCEL, MESSAGE }
+    public enum Action { APPROVE, DECLINE, CANCEL, MESSAGE, DELIVER }
 
     public record Draft(String subject, String body) {}
 
@@ -71,6 +71,17 @@ public final class BookingEmailDrafts {
 
                     Erica & Austin
                     """.formatted(first, sessionTypeName, when, site).strip());
+            case DELIVER -> new Draft(
+                    "Your " + sessionTypeName + " photos are ready!",
+                    """
+                    Hi %s,
+
+                    Your photos from your %s session on %s are ready — and we loved every minute of it. Tap the button below to view and download your gallery.
+
+                    Feel free to share the link with family and friends. If you'd like prints, or have any questions at all, just reply to this email.
+
+                    Erica & Austin
+                    """.formatted(first, sessionTypeName, date).strip());
             case MESSAGE -> new Draft(
                     "A note about your " + sessionTypeName + " session",
                     """

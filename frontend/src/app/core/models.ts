@@ -83,7 +83,20 @@ export interface PopupEventUpsert {
 export interface Gallery {
   id: number;
   bookingId: number;
+  /** 0 Shot → 1 Editing → 2 Proofing → 3 Delivered */
   stage: number;
+  /** Where the client views their photos; set when delivered. */
+  link: string | null;
+  deliveredAt: string | null;
+}
+
+export interface DeliverRequest {
+  link: string;
+  /** What the client actually paid; null keeps the current quote. */
+  finalPrice: number | null;
+  sendEmail: boolean;
+  subject: string;
+  body: string;
 }
 
 export interface PhotoSlotView {

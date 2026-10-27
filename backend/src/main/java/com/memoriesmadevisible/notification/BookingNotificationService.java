@@ -91,10 +91,17 @@ public class BookingNotificationService {
      */
     @Async
     public void sendCustomerEmail(Booking b, String sessionTypeName, String subject, String body, boolean includePrice) {
+        sendCustomerEmail(b, sessionTypeName, subject, body, includePrice, null, null);
+    }
+
+    /** Same, with a button (e.g. "View your photos" → the gallery link). */
+    @Async
+    public void sendCustomerEmail(Booking b, String sessionTypeName, String subject, String body, boolean includePrice,
+                                  String ctaLabel, String ctaUrl) {
         try {
             var r = EmailTemplates.render(siteUrl(), subject, body,
                     BookingEmailDrafts.details(b, sessionTypeName, includePrice),
-                    null, null, null);
+                    ctaLabel, ctaUrl, ctaUrl == null ? null : "If the button doesn't work, copy this link: " + ctaUrl);
             send(customerSender(), new String[]{b.getEmail()}, studioInbox()[0], studioInbox()[0], subject, r);
             log.info("Email \"{}\" sent to {} for booking #{}", subject, b.getEmail(), b.getId());
         } catch (Exception e) {

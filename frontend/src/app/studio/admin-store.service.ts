@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap } from 'rxjs';
-import { Booking, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
+import { Booking, DeliverRequest, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -130,6 +130,19 @@ export class AdminStore {
   setStage(id: number, stage: number): void {
     this.http.patch<Gallery>(`/api/admin/galleries/${id}/stage`, { stage }).subscribe((g) =>
       this.galleries.update((list) => list.map((x) => (x.id === g.id ? g : x))),
+    );
+  }
+  /** The "your photos are ready" email, pre-filled. */
+  galleryDraft(id: number) {
+    return this.http.get<EmailDraft>(`/api/admin/galleries/${id}/draft`);
+  }
+  /** Mark delivered with the link and final price; the booking comes back with its updated quote (revenue follows). */
+  deliverGallery(id: number, body: DeliverRequest) {
+    return this.http.post<{ gallery: Gallery; booking: Booking }>(`/api/admin/galleries/${id}/deliver`, body).pipe(
+      tap((r) => {
+        this.galleries.update((list) => list.map((x) => (x.id === r.gallery.id ? r.gallery : x)));
+        this.replaceBooking(r.booking);
+      }),
     );
   }
 

@@ -50,7 +50,7 @@ export class OverviewSection {
     const prints = this.store.events().reduce((a, e) => a + e.prints, 0);
     const printRev = this.store.events().reduce((a, e) => a + e.prints * num(e.printPrice), 0);
     return [
-      { label: 'Revenue · ' + MONTHS[this.today.getMonth()], value: money(this.monthRevenue(y, this.today.getMonth())), sub: 'Sessions + prints', accent: true },
+      { label: 'Revenue · ' + MONTHS[this.today.getMonth()], value: money(this.monthRevenue(y, this.today.getMonth())), sub: 'Confirmed sessions (final price once delivered) + prints', accent: true },
       { label: 'Year to date', value: money(ytd), sub: y + ' booked revenue', accent: false },
       { label: 'Pending requests', value: String(pending.length), sub: money(pending.reduce((a, b) => a + num(b.quote), 0)) + ' in quotes', accent: false },
       { label: 'Pop-up prints sold', value: String(prints), sub: money(printRev) + ' from pop-ups', accent: false },
