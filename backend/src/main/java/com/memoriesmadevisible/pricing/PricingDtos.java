@@ -15,18 +15,19 @@ public final class PricingDtos {
                        @NotBlank @Size(max = 20) String price, List<@Size(max = 200) String> includes) {}
 
     public record SessionTypeView(String key, String name, String shortName, String description, String from,
-                                  List<Tier> tiers) {}
+                                  boolean showInPortfolio, List<Tier> tiers) {}
 
     /** Admin save: the whole category, in the order the list arrives. */
     public record TypeUpdate(@NotBlank String key, @NotBlank @Size(max = 80) String name, @Size(max = 40) String shortName,
                              @Size(max = 300) String description, @NotBlank @Size(max = 20) String from,
-                             @NotNull @Valid List<Tier> tiers) {}
+                             boolean showInPortfolio, @NotNull @Valid List<Tier> tiers) {}
 
     public record TypeCreate(@NotBlank @Size(max = 80) String name, @Size(max = 40) String shortName,
-                             @Size(max = 300) String description, @NotBlank @Size(max = 20) String from) {}
+                             @Size(max = 300) String description, @NotBlank @Size(max = 20) String from,
+                             Boolean showInPortfolio) {}
 
-    static SessionTypeView toView(SessionType t) {
+    public static SessionTypeView toView(SessionType t) {
         return new SessionTypeView(t.getKey(), t.getName(), t.displayShortName(), t.getDescription(), t.getFromPrice(),
-                t.getTiers().stream().map(x -> new Tier(x.getName(), x.getDetail(), x.getPrice(), x.getIncludes())).toList());
+                t.isShowInPortfolio(), t.getTiers().stream().map(x -> new Tier(x.getName(), x.getDetail(), x.getPrice(), x.getIncludes())).toList());
     }
 }

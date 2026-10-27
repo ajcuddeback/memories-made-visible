@@ -1,8 +1,10 @@
 package com.memoriesmadevisible.gallery;
 
+import com.memoriesmadevisible.booking.BookingDtos;
 import com.memoriesmadevisible.booking.BookingRepository;
 import com.memoriesmadevisible.booking.BookingStatus;
 import com.memoriesmadevisible.common.NotFoundException;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,24 +26,25 @@ public class AdminGalleryController {
 
     private final GalleryRepository galleries;
     private final BookingRepository bookings;
+    private final GalleryService service;
 
-    public AdminGalleryController(GalleryRepository galleries, BookingRepository bookings) {
+    public AdminGalleryController(GalleryRepository galleries, BookingRepository bookings, GalleryService service) {
         this.galleries = galleries;
         this.bookings = bookings;
+        this.service = service;
     }
 
-    public record Response(Long id, Long bookingId, int stage) {}
     public record CreateRequest(@NotNull Long bookingId) {}
     public record StageUpdate(@NotNull Integer stage) {}
 
     @GetMapping
-    public List<Response> list() {
-        return galleries.findAllByOrderByIdAsc().stream().map(AdminGalleryController::toResponse).toList();
+    public List<GalleryDtos.Response> list() {
+        return galleries.findAllByOrderByIdAsc().stream().map(GalleryDtos::toResponse).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Response create(@RequestBody CreateRequest body) {
+    public GalleryDtos.Response create(@RequestBody CreateRequest body) {
         var booking = bookings.findById(body.bookingId())
                 .orElseThrow(() -> new NotFoundException("Booking " + body.bookingId() + " not found"));
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
@@ -52,14 +55,14 @@ public class AdminGalleryController {
         }
         var g = new Gallery();
         g.setBookingId(booking.getId());
-        return toResponse(galleries.save(g));
+        return GalleryDtos.toResponse(galleries.save(g));
     }
 
     @PatchMapping("/{id}/stage")
-    public Response stage(@PathVariable Long id, @RequestBody StageUpdate body) {
+    public GalleryDtos.Response stage(@PathVariable Long id, @RequestBody StageUpdate body) {
         var g = galleries.findById(id).orElseThrow(() -> new NotFoundException("Gallery " + id + " not found"));
         g.setStage(body.stage());
-        return toResponse(galleries.save(g));
+        return GalleryDtos.toResponse(galleries.save(g));
     }
 
     @DeleteMapping("/{id}")
@@ -69,7 +72,15 @@ public class AdminGalleryController {
         return ResponseEntity.noContent().build();
     }
 
-    private static Response toResponse(Gallery g) {
-        return new Response(g.getId(), g.getBookingId(), g.getStage());
+    /** The "photos are ready" email, pre-filled for the admin to edit before delivering. */
+    @GetMapping("/{id}/draft")
+    public BookingDtos.EmailDraft draft(@PathVariable Long id) {
+        return service.draft(id);
+    }
+
+    /** Mark delivered: record the link + final price and email the client (unless sendEmail=false). */
+    @PostMapping("/{id}/deliver")
+    public GalleryDtos.Delivered deliver(@PathVariable Long id, @Valid @RequestBody GalleryDtos.DeliverRequest body) {
+        return service.deliver(id, body);
     }
 }

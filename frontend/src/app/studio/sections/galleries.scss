@@ -24,3 +24,20 @@
 .step-label.is-current { color: var(--color-text); }
 .gal-actions { display: flex; gap: 8px; }
 .act { font-size: 13px; padding: 8px 14px; }
+
+.notice { font-size: 14px; font-weight: 600; color: var(--color-accent-700); margin: 0 0 12px; }
+.gal-delivered { flex: 1 1 100%; font-size: 13px; color: var(--ink-65); margin-top: -8px; }
+.compose { flex: 1 1 100%; margin-top: 8px; padding-top: 18px; border-top: 1px solid var(--color-divider); display: flex; flex-direction: column; gap: 12px; }
+.compose-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.compose-title { font-size: 18px; margin: 0; }
+.compose-to { font-size: 13px; color: var(--ink-70); }
+.deliver-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.deliver-link { min-width: 0; }
+.hint { font-weight: 500; color: var(--ink-65); }
+.send-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.send-toggle input { width: 18px; height: 18px; accent-color: var(--color-accent); }
+.compose-body { font-size: 15px; line-height: 1.55; min-height: 180px; border-radius: 20px; }
+.compose-hint { font-size: 13px; line-height: 1.5; margin: 0; color: var(--ink-65); }
+.compose-error { font-size: 14px; font-weight: 600; margin: 0; color: var(--color-accent-700); }
+.compose-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 560px) { .deliver-grid { grid-template-columns: 1fr; } }

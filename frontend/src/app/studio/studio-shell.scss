@@ -68,3 +68,16 @@
   display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-weight: 600; color: var(--color-accent-700);
   background: var(--color-accent-100); border-radius: 18px; padding: 12px 16px; margin-bottom: 24px;
 }
+
+.publish-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 18px; padding: 10px 16px;
+  border-radius: 18px; background: var(--ink-4); font-size: 14px;
+}
+.publish-bar.is-dirty { background: var(--color-accent-100); color: var(--color-accent-800); }
+.publish-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-accent); flex: 0 0 auto; }
+.publish-text { flex: 1 1 260px; min-width: 0; font-weight: 600; }
+.publish-text.muted { font-weight: 500; color: var(--ink-65); }
+.publish-when { font-weight: 500; }
+.publish-actions { display: flex; gap: 6px; margin-left: auto; }
+.publish-btn { min-width: 96px; }
+.publish-msg { margin: -8px 0 16px; font-size: 14px; font-weight: 600; color: var(--color-accent-700); }

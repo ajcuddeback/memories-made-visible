@@ -2,6 +2,7 @@ package com.memoriesmadevisible.photo;
 
 import com.memoriesmadevisible.common.NotFoundException;
 import com.memoriesmadevisible.pricing.PricingService;
+import com.memoriesmadevisible.publish.PublishService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,19 +28,22 @@ public class PhotoService {
     private final PhotoStorage storage;
     private final ImageProcessor images;
     private final PricingService pricing;
+    private final PublishService publish;
 
-    public PhotoService(SitePhotoRepository photos, PhotoStorage storage, ImageProcessor images, PricingService pricing) {
+    public PhotoService(SitePhotoRepository photos, PhotoStorage storage, ImageProcessor images, PricingService pricing,
+                        PublishService publish) {
         this.photos = photos;
         this.storage = storage;
         this.images = images;
         this.pricing = pricing;
+        this.publish = publish;
     }
 
     public record PhotoView(String slotId, String url, String contentType) {}
     public record GroupView(String title, List<SlotView> slots) {}
     public record SlotView(String id, String label, String url) {}
 
-    /** slotId → URL for every filled slot. Public pages fetch this once and look up by slot id. */
+    /** slotId → URL for every filled slot in the draft (the admin grid). */
     @Transactional(readOnly = true)
     public Map<String, String> urlsBySlot() {
         Map<String, String> out = new LinkedHashMap<>();
@@ -95,8 +99,8 @@ public class PhotoService {
             existing.setContentType(contentType);
         }
         photos.save(existing);
-        if (oldKey != null) {
-            safeDelete(oldKey);
+        if (oldKey != null && !publish.publishedPhotoKeys().contains(oldKey)) {
+            safeDelete(oldKey); // a draft-only object; a live one is cleaned up on Publish
         }
         return new PhotoView(slotId, storage.urlFor(key), contentType);
     }
@@ -105,7 +109,9 @@ public class PhotoService {
     public void clear(String slotId) {
         var existing = photos.findById(slotId).orElseThrow(() -> new NotFoundException("No photo in slot " + slotId));
         photos.delete(existing);
-        safeDelete(existing.getS3Key());
+        if (!publish.publishedPhotoKeys().contains(existing.getS3Key())) {
+            safeDelete(existing.getS3Key());
+        }
     }
 
     private void safeDelete(String key) {

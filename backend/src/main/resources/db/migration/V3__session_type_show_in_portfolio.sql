@@ -1,0 +1,1 @@
+ALTER TABLE session_type ADD COLUMN show_in_portfolio BOOLEAN NOT NULL DEFAULT TRUE;

@@ -18,6 +18,24 @@ public class PricingService {
         this.types = types;
     }
 
+    /** Rewrite the draft from a published snapshot (Discard changes). Keys are kept so bookings still resolve. */
+    @Transactional
+    public void restore(List<PricingDtos.SessionTypeView> live) {
+        types.deleteAll();
+        types.flush();
+        List<SessionType> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < live.size(); i++) {
+            var v = live.get(i);
+            var t = new SessionType(v.key(), v.name(), v.shortName().equals(v.name()) ? null : v.shortName(),
+                    v.description(), v.from(), i);
+            t.setShowInPortfolio(v.showInPortfolio());
+            t.replaceTiers(v.tiers().stream()
+                    .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes())).toList());
+            rows.add(t);
+        }
+        types.saveAll(rows);
+    }
+
     /** First boot seeds the price list; after that the admin owns it. */
     @PostConstruct
     @Transactional
@@ -49,8 +67,10 @@ public class PricingService {
         String key = base;
         for (int i = 2; types.existsById(key); i++) key = base + "-" + i;
         int order = (int) types.count();
-        types.save(new SessionType(key, c.name().strip(), blankToNull(c.shortName()),
-                c.description() == null ? "" : c.description().strip(), c.from().strip(), order));
+        var t = new SessionType(key, c.name().strip(), blankToNull(c.shortName()),
+                c.description() == null ? "" : c.description().strip(), c.from().strip(), order);
+        t.setShowInPortfolio(c.showInPortfolio() == null || c.showInPortfolio());
+        types.save(t);
         return list();
     }
 
@@ -65,6 +85,7 @@ public class PricingService {
             t.setShortName(blankToNull(u.shortName()));
             t.setDescription(u.description() == null ? "" : u.description().strip());
             t.setFromPrice(u.from().strip());
+            t.setShowInPortfolio(u.showInPortfolio());
             t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
                     .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),

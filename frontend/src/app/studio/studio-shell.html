@@ -59,6 +59,21 @@
         <div class="greeting">{{ greeting() }}</div>
         <h1 class="main-title">{{ sectionTitle() }}</h1>
       </div>
+      @if (store.publishStatus(); as ps) {
+        <div class="publish-bar" [class.is-dirty]="ps.dirty" role="status">
+          @if (ps.dirty) {
+            <span class="publish-dot" aria-hidden="true"></span>
+            <span class="publish-text">{{ unpublishedLabel() }}. The site still shows the last published version.</span>
+            <span class="publish-actions">
+              <button type="button" class="btn btn-ghost sm" [disabled]="store.publishing()" (click)="discard()">Discard</button>
+              <button type="button" class="btn btn-primary sm publish-btn" [disabled]="store.publishing()" (click)="publish()">{{ store.publishing() ? 'Publishing…' : 'Publish' }}</button>
+            </span>
+          } @else {
+            <span class="publish-text muted">{{ publishMsg() || 'Everything is live.' }}@if (ps.publishedAt) { <span class="publish-when"> Last published {{ ps.publishedAt | date: 'MMM d, h:mm a' }}.</span> }</span>
+          }
+        </div>
+        @if (ps.dirty && publishMsg()) { <p class="publish-msg">{{ publishMsg() }}</p> }
+      }
       @if (store.loadError(); as err) {
         <p class="load-error">{{ err }} <button type="button" class="btn btn-secondary sm" (click)="store.load()">Retry</button></p>
       }

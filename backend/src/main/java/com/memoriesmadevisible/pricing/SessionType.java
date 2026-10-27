@@ -44,6 +44,10 @@ public class SessionType {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /** Whether the Portfolio page shows a filter chip and three photo slots for this category. */
+    @Column(name = "show_in_portfolio", nullable = false)
+    private boolean showInPortfolio = true;
+
     @OneToMany(mappedBy = "sessionType", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("sortOrder ASC, id ASC")
     private List<PricingTier> tiers = new ArrayList<>();
@@ -70,6 +74,8 @@ public class SessionType {
     public void setDescription(String v) { this.description = v; }
     public String getFromPrice() { return fromPrice; }
     public void setFromPrice(String v) { this.fromPrice = v; }
+    public boolean isShowInPortfolio() { return showInPortfolio; }
+    public void setShowInPortfolio(boolean v) { this.showInPortfolio = v; }
     public int getSortOrder() { return sortOrder; }
     public void setSortOrder(int v) { this.sortOrder = v; }
     public List<PricingTier> getTiers() { return tiers; }

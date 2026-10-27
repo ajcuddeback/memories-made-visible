@@ -95,9 +95,10 @@ Dev-only values (passwords, JWT secret, SMTP target, S3 endpoint) live in
 1. Open `/book`, pick a session type/date/time, fill in details, send.
 2. Open Mailpit — you should see the notification to `bookings@…` and the customer acknowledgement.
 3. Open `/studio`, sign in as Erica — the request is in **Requests** with a badge. Set a quote, approve it.
-4. **Calendar** and **Overview** now include it.
-5. **Pricing** — change a price, Save; the public `/pricing` page updates. You can also add or remove whole categories (each category gets three portfolio photo slots automatically) and fill in a "What's included" list per package — one item per line — which shows up behind a "See what's included" toggle on the pricing page.
-6. **Photos** — drop an image onto a slot; it's resized, stored in SeaweedFS, and appears on the site.
+4. **Calendar** and **Overview** now include it. Once the session date has passed, start its gallery under **Galleries**; the last step, **Deliver & email link**, takes the client's gallery link and the final price (which replaces the quote, so Overview revenue shows what was actually paid) and emails the client a drafted note you can edit first.
+5. **Publish** — pricing, pop-ups and website photos are saved as a *draft*. The public site keeps serving the last published version until you press **Publish** in the bar at the top of the studio (or **Discard** to throw the draft away). Bookings and galleries are operational data and take effect immediately.
+6. **Pricing** — change a price, Save, Publish; the public `/pricing` page updates. You can also add or remove whole categories. Each category has a "Show in Portfolio" toggle: when on, the Portfolio page gets a filter chip for it (using the optional Portfolio label) and three photo slots appear under Photos and fill in a "What's included" list per package — one item per line — which shows up behind a "See what's included" toggle on the pricing page.
+7. **Photos** — drop an image onto a slot; it's resized, stored in SeaweedFS, and appears on the site once you Publish.
 
 ## Demo data
 

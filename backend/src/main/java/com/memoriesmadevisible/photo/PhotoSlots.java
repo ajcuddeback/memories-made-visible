@@ -40,6 +40,7 @@ public final class PhotoSlots {
         List<Group> groups = new ArrayList<>();
         groups.add(FIXED);
         for (var c : categories) {
+            if (!c.showInPortfolio()) continue;
             List<Slot> slots = new ArrayList<>();
             for (int n = 1; n <= PER_CATEGORY; n++) {
                 slots.add(new Slot("pf-" + c.key() + "-" + n, c.shortName() + " " + n));
@@ -49,7 +50,7 @@ public final class PhotoSlots {
         return groups;
     }
 
-    /** A slot is valid if it's a fixed one or a portfolio slot of an existing category. */
+    /** A slot is valid if it's a fixed one or a portfolio slot of an existing category (hidden ones keep their photos). */
     public static boolean isValid(String slotId, java.util.function.Predicate<String> categoryExists) {
         if (slotId == null) return false;
         if (FIXED_IDS.contains(slotId)) return true;

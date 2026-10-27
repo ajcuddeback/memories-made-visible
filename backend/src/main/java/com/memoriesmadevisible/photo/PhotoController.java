@@ -1,5 +1,6 @@
 package com.memoriesmadevisible.photo;
 
+import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,14 +12,15 @@ import java.util.Map;
 @RequestMapping("/api/photos")
 public class PhotoController {
 
-    private final PhotoService photos;
+    private final PublishService publish;
 
-    public PhotoController(PhotoService photos) {
-        this.photos = photos;
+    public PhotoController(PublishService publish) {
+        this.publish = publish;
     }
 
+    /** Published slot → URL map. */
     @GetMapping
     public Map<String, String> all() {
-        return photos.urlsBySlot();
+        return publish.publishedPhotoUrls();
     }
 }

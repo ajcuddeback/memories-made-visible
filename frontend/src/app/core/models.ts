@@ -13,6 +13,8 @@ export interface SessionType {
   shortName: string;
   description: string;
   from: string;
+  /** Portfolio page: show a filter chip and three photo slots for this category. */
+  showInPortfolio: boolean;
   tiers: PricingTier[];
 }
 
@@ -21,6 +23,7 @@ export interface SessionTypeCreate {
   shortName: string;
   description: string;
   from: string;
+  showInPortfolio: boolean;
 }
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED';
@@ -80,7 +83,20 @@ export interface PopupEventUpsert {
 export interface Gallery {
   id: number;
   bookingId: number;
+  /** 0 Shot → 1 Editing → 2 Proofing → 3 Delivered */
   stage: number;
+  /** Where the client views their photos; set when delivered. */
+  link: string | null;
+  deliveredAt: string | null;
+}
+
+export interface DeliverRequest {
+  link: string;
+  /** What the client actually paid; null keeps the current quote. */
+  finalPrice: number | null;
+  sendEmail: boolean;
+  subject: string;
+  body: string;
 }
 
 export interface PhotoSlotView {
@@ -95,6 +111,13 @@ export interface PhotoGroup {
 }
 
 export type EmailAction = 'approve' | 'decline' | 'cancel' | 'message';
+
+/** Draft vs. live: which kinds of site content have unpublished changes. */
+export interface PublishStatus {
+  dirty: boolean;
+  changes: { pricing: boolean; events: boolean; photos: boolean };
+  publishedAt: string | null;
+}
 
 export interface EmailDraft {
   subject: string;

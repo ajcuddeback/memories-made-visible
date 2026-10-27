@@ -1,10 +1,10 @@
 package com.memoriesmadevisible.event;
 
+import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /** Public: "Upcoming pop-ups" on the Events page. */
@@ -12,15 +12,15 @@ import java.util.List;
 @RequestMapping("/api/events")
 public class PopupEventController {
 
-    private final PopupEventRepository events;
+    private final PublishService publish;
 
-    public PopupEventController(PopupEventRepository events) {
-        this.events = events;
+    public PopupEventController(PublishService publish) {
+        this.publish = publish;
     }
 
+    /** Published pop-ups from today on. */
     @GetMapping("/upcoming")
     public List<PopupEventDtos.PublicResponse> upcoming() {
-        return events.findAllByDateGreaterThanEqualOrderByDateAsc(LocalDate.now()).stream()
-                .map(PopupEventDtos::toPublic).toList();
+        return publish.publishedUpcoming();
     }
 }
