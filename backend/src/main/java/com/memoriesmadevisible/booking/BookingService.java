@@ -51,12 +51,38 @@ public class BookingService {
         } else if (!type.tiers().isEmpty()) {
             throw new IllegalArgumentException("Please choose a package.");
         }
-        // Length comes from the published price list — the same list the form showed and built its slots from.
-        int minutes = availability.durationFor(type.key(), pkg == null ? null : pkg.name());
+        // Length and price come from the published price list — the same list the form showed and built its slots from.
+        Integer hours = null;
+        if (pkg != null && pkg.hourly()) {
+            int lo = pkg.minHours() == null ? 1 : pkg.minHours(), hi = pkg.maxHours() == null ? 12 : pkg.maxHours();
+            if (req.hours() == null) throw new IllegalArgumentException("Please choose how many hours you'd like (" + lo + "–" + hi + ").");
+            if (req.hours() < lo || req.hours() > hi) throw new IllegalArgumentException(pkg.name() + " is booked for " + lo + " to " + hi + " hours.");
+            hours = req.hours();
+        }
+        int minutes = availability.durationFor(type.key(), pkg == null ? null : pkg.name(), hours);
+        List<String> addons = new java.util.ArrayList<>();
+        java.math.BigDecimal quote = PricingService.parseAmount(pkg == null ? type.from() : pkg.price());
+        if (hours != null) quote = quote.multiply(java.math.BigDecimal.valueOf(hours));
+        if (req.addons() != null && pkg != null) {
+            int billableHours = hours != null ? hours : (int) Math.ceil(minutes / 60.0);
+            for (String want : req.addons()) {
+                if (want == null || want.isBlank()) continue;
+                final PricingDtos.Tier chosen = pkg;
+                var a = chosen.addonsOrEmpty().stream().filter(x -> x.name().equalsIgnoreCase(want.strip())).findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("\"" + want + "\" isn't an add-on for " + chosen.name() + "."));
+                if (addons.contains(a.name())) continue;
+                addons.add(a.name());
+                quote = quote.add(a.perHour() ? a.price().multiply(java.math.BigDecimal.valueOf(billableHours)) : a.price());
+            }
+        } else if (req.addons() != null && !req.addons().isEmpty()) {
+            throw new IllegalArgumentException("Add-ons need a package.");
+        }
 
         var b = new Booking();
         b.setSessionTypeKey(type.key());
         b.setPackageName(pkg == null ? null : pkg.name());
+        b.setHours(hours);
+        b.setAddons(addons);
         b.setName(req.name().trim());
         b.setEmail(req.email().trim());
         b.setPhone(blankToNull(req.phone()));
@@ -71,7 +97,7 @@ public class BookingService {
         b.setTime(AvailabilityDtos.label(start));
         b.setStatus(BookingStatus.PENDING);
         // Starting quote is the session type's "from" price; the admin tunes it before approving.
-        b.setQuote(PricingService.parseAmount(pkg == null ? type.from() : pkg.price()));
+        b.setQuote(quote);
         b = bookings.save(b);
 
         notifications.notifyNewRequest(b, type.name());
@@ -200,7 +226,8 @@ public class BookingService {
 
     public BookingDtos.Response toResponse(Booking b) {
         String typeName = pricing.findType(b.getSessionTypeKey()).map(t -> t.getName()).orElse(b.getSessionTypeKey());
-        return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getPackageName(), b.getName(), b.getEmail(),
+        return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getPackageName(), b.getHours(), b.getAddons(),
+                b.getName(), b.getEmail(),
                 b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(),
                 AvailabilityDtos.hm(b.getStartTime()), AvailabilityDtos.hm(b.getEndTime()), b.getStatus(), b.getQuote(),
                 b.getCreatedAt());

@@ -47,7 +47,7 @@ public class BookingNotificationService {
 
                     Review it in the studio admin to set a quote and approve or decline — the customer will get an email either way.
                     """.formatted(b.getName(), sessionTypeName).strip(),
-                    List.of(new EmailTemplates.Detail("Session", b.getPackageName() == null ? sessionTypeName : sessionTypeName + " · " + b.getPackageName()),
+                    List.of(new EmailTemplates.Detail("Session", b.getPackageName() == null ? sessionTypeName : sessionTypeName + " · " + b.packageSummary()),
                             new EmailTemplates.Detail("Date", BookingEmailDrafts.LONG_DATE.format(b.getDate())),
                             new EmailTemplates.Detail("Time", b.getTime()),
                             new EmailTemplates.Detail("Location", b.getLocation()),

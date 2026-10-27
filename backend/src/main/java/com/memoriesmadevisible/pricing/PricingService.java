@@ -30,12 +30,26 @@ public class PricingService {
                     v.description(), v.from(), i);
             t.setShowInPortfolio(v.showInPortfolio());
             if (v.durationMinutes() > 0) t.setDurationMinutes(v.durationMinutes());
-            t.replaceTiers(v.tiers().stream()
-                    .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes(),
-                            x.durationMinutes() == null ? v.durationMinutes() : x.durationMinutes())).toList());
+            t.replaceTiers(v.tiers().stream().map(x -> tierFrom(x, v.durationMinutes())).toList());
             rows.add(t);
         }
         types.saveAll(rows);
+    }
+
+    /** A tier entity from its DTO (admin save or snapshot restore). */
+    static PricingTier tierFrom(PricingDtos.Tier x, int defaultMinutes) {
+        var t = new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(), x.price().strip(), x.includes(),
+                x.durationMinutes() == null ? defaultMinutes : x.durationMinutes());
+        t.setPricingModel(x.hourly() ? PricingTier.PricingModel.HOURLY : PricingTier.PricingModel.FLAT);
+        t.setHourRange(x.minHours(), x.maxHours());
+        t.setAddOns(x.addonsOrEmpty().stream().map(a -> new PricingTier.AddOn(a.name(), a.price(), a.perHour())).toList());
+        var seen = new java.util.HashSet<String>();
+        for (var a : t.getAddOns()) {
+            if (!seen.add(a.name().toLowerCase(java.util.Locale.ROOT))) {
+                throw new IllegalArgumentException("\"" + x.name() + "\" has two add-ons called \"" + a.name() + "\".");
+            }
+        }
+        return t;
     }
 
     /** First boot seeds the price list; after that the admin owns it. */
@@ -102,8 +116,7 @@ public class PricingService {
             }
             if (reorder) t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
-                    .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),
-                            x.price().strip(), x.includes(), x.durationMinutes() == null ? t.getDurationMinutes() : x.durationMinutes()))
+                    .map(x -> tierFrom(x, t.getDurationMinutes()))
                     .toList());
             types.save(t);
         }

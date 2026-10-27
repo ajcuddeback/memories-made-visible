@@ -36,16 +36,41 @@
             <h2 class="step-title">2. Package</h2>
             <div class="packages" role="radiogroup" aria-label="Package">
               @for (p of packages(); track p.name) {
-                <button type="button" class="pkg" [class.is-on]="pkg() === p.name" role="radio" [attr.aria-checked]="pkg() === p.name" (click)="pkg.set(p.name); time.set(null)">
+                <button type="button" class="pkg" [class.is-on]="pkg() === p.name" role="radio" [attr.aria-checked]="pkg() === p.name" (click)="pickPackage(p.name)">
                   <span class="type-dot" aria-hidden="true"></span>
                   <span class="pkg-text">
                     <span class="pkg-name">{{ p.name }} <span class="pkg-length">· {{ p.length }}</span></span>
                     <span class="pkg-detail">{{ p.detail }}</span>
                   </span>
-                  <span class="pkg-price">{{ p.price }}</span>
+                  <span class="pkg-price">{{ p.priceLabel }}</span>
                 </button>
               }
             </div>
+            @if (chosenPackage(); as cp) {
+              @if (cp.hourly || cp.addons.length) {
+                <div class="pkg-options">
+                  @if (cp.hourly) {
+                    <label class="field pkg-hours">How many hours? <span class="hint">({{ cp.minHours }}-hour minimum)</span>
+                      <select class="input lg" [value]="hours()" (change)="pickHours($event)">
+                        @for (h of hourOptions(); track h) { <option [value]="h" [selected]="h === hours()">{{ h }} {{ h === 1 ? 'hour' : 'hours' }} · {{ money(num(cp.price) * h) }}</option> }
+                      </select>
+                    </label>
+                  }
+                  @if (cp.addons.length) {
+                    <fieldset class="addons">
+                      <legend class="addons-title">Add-ons</legend>
+                      @for (a of cp.addons; track a.name) {
+                        <label class="addon">
+                          <input type="checkbox" [checked]="addons().has(a.name)" (change)="toggleAddon(a.name)" />
+                          <span class="addon-name">{{ a.name }}</span>
+                          <span class="addon-price">{{ addonLabel(a) }}</span>
+                        </label>
+                      }
+                    </fieldset>
+                  }
+                </div>
+              }
+            }
           </div>
         }
 
@@ -109,7 +134,11 @@
         <h2 class="summary-title">Your request</h2>
         <dl class="summary-list">
           <div><dt>Session</dt><dd>{{ typeName() ?? '—' }}</dd></div>
-          @if (needsPackage()) { <div><dt>Package</dt><dd>{{ chosenPackage() ? chosenPackage()!.name + ' · ' + chosenPackage()!.price : '—' }}</dd></div> }
+          @if (needsPackage()) {
+            <div><dt>Package</dt><dd>{{ chosenPackage() ? chosenPackage()!.name + (chosenPackage()!.hourly && hours() ? ' · ' + hours() + ' hrs' : '') : '—' }}</dd></div>
+            @if (addons().size) { <div><dt>Add-ons</dt><dd>{{ [...addons()].join(', ') }}</dd></div> }
+            @if (estimate()) { <div><dt>Starting quote</dt><dd>{{ estimate() }}</dd></div> }
+          }
           <div><dt>Date</dt><dd>{{ dateLabel() ?? '—' }}</dd></div>
           <div><dt>Time</dt><dd>{{ timeLabel() ?? '—' }}</dd></div>
         </dl>

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { MONTHS, fmtDuration, fmtLongDate, fmtTime, toISO, today } from '../../core/dates';
+import { MONTHS, fmtDuration, fmtLongDate, fmtTime, money, num, toISO, today } from '../../core/dates';
 import { Slot } from '../../core/models';
 import { SiteDataService } from '../../core/site-data.service';
 import { Icon } from '../../shared/icons';
@@ -40,6 +40,8 @@ export class BookingPage {
   // Form state
   readonly type = signal<string | null>(null);
   readonly pkg = signal<string | null>(null);
+  readonly hours = signal<number | null>(null);
+  readonly addons = signal<Set<string>>(new Set());
   readonly date = signal<Date | null>(null);
   readonly time = signal<string | null>(null);
   readonly name = signal('');
@@ -80,11 +82,53 @@ export class BookingPage {
 
   readonly typeName = computed(() => this.data.typeByKey().get(this.type() ?? '')?.name ?? null);
   /** Packages of the chosen session type, with a length label. */
-  readonly packages = computed(() => (this.data.typeByKey().get(this.type() ?? '')?.tiers ?? [])
-    .map((t) => ({ ...t, length: fmtDuration(t.durationMinutes || 60) })));
+  readonly packages = computed(() => (this.data.typeByKey().get(this.type() ?? '')?.tiers ?? []).map((t) => ({
+    ...t,
+    hourly: t.pricingModel === 'HOURLY',
+    length: t.pricingModel === 'HOURLY' ? `${t.minHours}–${t.maxHours} hrs` : fmtDuration(t.durationMinutes || 60),
+    priceLabel: t.pricingModel === 'HOURLY' ? `${money(num(t.price))}/hr` : t.price,
+  })));
   readonly needsPackage = computed(() => this.packages().length > 0);
   readonly chosenPackage = computed(() => this.packages().find((p) => p.name === this.pkg()) ?? null);
-  readonly duration = computed(() => this.chosenPackage()?.length ?? fmtDuration(this.data.typeByKey().get(this.type() ?? '')?.durationMinutes ?? 60));
+  readonly hourOptions = computed(() => {
+    const p = this.chosenPackage();
+    if (!p?.hourly) return [] as number[];
+    return Array.from({ length: p.maxHours - p.minHours + 1 }, (_, i) => p.minHours + i);
+  });
+  /** Hours the session runs (chosen for hourly, fixed for flat). */
+  private readonly sessionHours = computed(() => {
+    const p = this.chosenPackage();
+    if (!p) return 1;
+    return p.hourly ? (this.hours() ?? p.minHours) : Math.ceil((p.durationMinutes || 60) / 60);
+  });
+  readonly duration = computed(() => {
+    const p = this.chosenPackage();
+    if (p?.hourly) return this.hours() ? fmtDuration(this.hours()! * 60) : `${p.minHours}–${p.maxHours} hrs`;
+    return p?.length ?? fmtDuration(this.data.typeByKey().get(this.type() ?? '')?.durationMinutes ?? 60);
+  });
+  /** Starting quote from what's chosen; the studio confirms the final figure. */
+  readonly estimate = computed(() => {
+    const p = this.chosenPackage();
+    if (!p) return null;
+    const h = this.sessionHours();
+    let total = p.hourly ? num(p.price) * h : num(p.price);
+    for (const a of p.addons) if (this.addons().has(a.name)) total += a.perHour ? a.price * h : a.price;
+    return money(total);
+  });
+  readonly money = money;
+  readonly num = num;
+  addonLabel(a: { price: number; perHour: boolean }): string { return `+${money(a.price)}${a.perHour ? '/hr' : ''}`; }
+  toggleAddon(name: string): void {
+    this.addons.update((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  }
+  pickPackage(name: string): void {
+    this.pkg.set(name);
+    this.time.set(null);
+    this.addons.set(new Set());
+    const p = this.packages().find((x) => x.name === name);
+    this.hours.set(p?.hourly ? p.minHours : null);
+  }
+  pickHours(e: Event): void { this.hours.set(Number((e.target as HTMLSelectElement).value)); this.time.set(null); }
   readonly dateLabel = computed(() => (this.date() ? fmtLongDate(this.date()!) : null));
   readonly timeLabel = computed(() => (this.time() ? fmtTime(this.time()) : null));
 
@@ -92,6 +136,7 @@ export class BookingPage {
     const m: string[] = [];
     if (!this.type()) m.push('a session type');
     else if (this.needsPackage() && !this.chosenPackage()) m.push('a package');
+    else if (this.chosenPackage()?.hourly && !this.hours()) m.push('how many hours');
     if (!this.date()) m.push('a date');
     if (!this.time()) m.push('a time');
     if (!this.name().trim()) m.push('your name');
@@ -107,11 +152,11 @@ export class BookingPage {
     const preset = this.route.snapshot.queryParamMap.get('type');
     if (preset) this.type.set(preset);
     const presetPkg = this.route.snapshot.queryParamMap.get('package');
-    if (presetPkg) this.pkg.set(presetPkg);
+    if (presetPkg) this.pkg.set(presetPkg); // hours/add-ons are chosen on the page
     // Refetch what's open whenever the visible month or the session type (its length) changes.
     effect(() => {
-      const y = this.vy(), m = this.vm(), type = this.type(), pkg = this.pkg();
-      untracked(() => this.fetchAvailability(y, m, type, pkg));
+      const y = this.vy(), m = this.vm(), type = this.type(), pkg = this.pkg(), hours = this.hours();
+      untracked(() => this.fetchAvailability(y, m, type, pkg, hours));
     });
   }
 
@@ -119,15 +164,16 @@ export class BookingPage {
     if (this.type() === key) return;
     this.type.set(key);
     const tiers = this.data.typeByKey().get(key)?.tiers ?? [];
-    this.pkg.set(tiers.length === 1 ? tiers[0].name : null);
+    this.pkg.set(null); this.hours.set(null); this.addons.set(new Set()); this.time.set(null);
+    if (tiers.length === 1) this.pickPackage(tiers[0].name);
   }
 
-  private fetchAvailability(y: number, m: number, type: string | null, pkg: string | null): void {
+  private fetchAvailability(y: number, m: number, type: string | null, pkg: string | null, hours: number | null): void {
     const from = toISO(new Date(y, m, 1));
     const to = toISO(new Date(y, m + 1, 0));
     this.availLoading.set(true);
     this.availError.set(false);
-    this.data.availability(from, to, type, pkg).subscribe({
+    this.data.availability(from, to, type, pkg, hours).subscribe({
       next: (days) => {
         this.openByDay.set(new Map(days.map((d) => [d.date, d.slots])));
         this.availLoading.set(false);
@@ -167,6 +213,8 @@ export class BookingPage {
     this.data.submitBooking({
       sessionType: this.type()!,
       packageName: this.chosenPackage()?.name ?? null,
+      hours: this.chosenPackage()?.hourly ? this.hours() : null,
+      addons: [...this.addons()],
       name: this.name().trim(),
       email: this.email().trim(),
       phone: this.phone().trim(),
@@ -184,13 +232,13 @@ export class BookingPage {
       error: (err) => {
         this.submitting.set(false);
         this.error.set(err?.error?.message ?? 'We couldn’t send your request just now. Please try again in a moment.');
-        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type(), this.pkg()); }
+        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type(), this.pkg(), this.hours()); }
       },
     });
   }
 
   reset(): void {
-    this.type.set(null); this.pkg.set(null); this.date.set(null); this.time.set(null);
+    this.type.set(null); this.pkg.set(null); this.hours.set(null); this.addons.set(new Set()); this.date.set(null); this.time.set(null);
     this.name.set(''); this.email.set(''); this.phone.set(''); this.location.set(''); this.notes.set('');
     this.submitted.set(false);
     this.error.set(null);

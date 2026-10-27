@@ -63,7 +63,7 @@ public class AvailabilityService {
             try {
                 LocalTime start = LocalTime.parse(b.getTime().strip().toUpperCase(java.util.Locale.US), fmt);
                 b.setStartTime(start);
-                b.setEndTime(start.plusMinutes(durationFor(b.getSessionTypeKey(), b.getPackageName())));
+                b.setEndTime(start.plusMinutes(durationFor(b.getSessionTypeKey(), b.getPackageName(), b.getHours())));
                 bookings.save(b);
             } catch (Exception ignored) {
                 // "Golden hour" and friends: leave as-is; the admin can Move it to a real time.
@@ -134,23 +134,35 @@ public class AvailabilityService {
      * category's default. A length edited in the admin applies once it's published, like a price.
      */
     public int durationFor(String typeKey, String packageName) {
+        return durationFor(typeKey, packageName, null);
+    }
+
+    /** Hourly packages run {@code hours} (clamped to the package's range, default its minimum). */
+    public int durationFor(String typeKey, String packageName, Integer hours) {
         var type = publish.publishedType(typeKey).orElse(null);
         if (type == null) return DEFAULT_DURATION;
         if (packageName != null && !packageName.isBlank()) {
-            var pkg = type.tiers().stream().filter(t -> t.name().equalsIgnoreCase(packageName.strip())).findFirst();
-            if (pkg.isPresent() && pkg.get().durationMinutes() != null && pkg.get().durationMinutes() > 0) return pkg.get().durationMinutes();
+            var pkg = type.tiers().stream().filter(t -> t.name().equalsIgnoreCase(packageName.strip())).findFirst().orElse(null);
+            if (pkg != null) {
+                if (pkg.hourly()) {
+                    int lo = pkg.minHours() == null ? 1 : pkg.minHours(), hi = pkg.maxHours() == null ? 12 : pkg.maxHours();
+                    int h = hours == null ? lo : Math.max(lo, Math.min(hi, hours));
+                    return h * 60;
+                }
+                if (pkg.durationMinutes() != null && pkg.durationMinutes() > 0) return pkg.durationMinutes();
+            }
         }
         return type.durationMinutes() > 0 ? type.durationMinutes() : DEFAULT_DURATION;
     }
 
     /** Bookable start times per day in [from, to] for a session of the given type. Days with none are left out. */
     @Transactional(readOnly = true)
-    public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey, String packageName) {
+    public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey, String packageName, Integer bookedHours) {
         LocalDate today = clock.today();
         if (from.isBefore(today)) from = today;
         if (to.isBefore(from)) return List.of();
         if (to.isAfter(from.plusDays(MAX_RANGE_DAYS))) to = from.plusDays(MAX_RANGE_DAYS);
-        int minutes = durationFor(typeKey, packageName);
+        int minutes = durationFor(typeKey, packageName, bookedHours);
         var hoursByDay = hours.findAll().stream().collect(Collectors.toMap(AvailabilityHours::getWeekday, Function.identity()));
         var blockList = blocks.findAllByEndDateGreaterThanEqualAndStartDateLessThanEqualOrderByStartDateAscStartTimeAsc(from, to);
         var booked = bookings.findAllByDateBetweenAndStatusNot(from, to, BookingStatus.DECLINED);

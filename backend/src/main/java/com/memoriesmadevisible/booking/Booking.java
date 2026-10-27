@@ -50,6 +50,14 @@ public class Booking {
     @Column(name = "package_name", length = 80)
     private String packageName;
 
+    /** Hours booked for an hourly package; null for flat packages. */
+    @Column
+    private Integer hours;
+
+    /** Chosen add-on names, comma-separated; null when none. */
+    @Column(name = "addons_text", length = 300)
+    private String addonsText;
+
     @Column(name = "session_time", nullable = false, length = 40)
     private String time;
 
@@ -90,6 +98,22 @@ public class Booking {
     public void setNotes(String v) { this.notes = v; }
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate v) { this.date = v; }
+    public Integer getHours() { return hours; }
+    public void setHours(Integer v) { this.hours = v; }
+    public java.util.List<String> getAddons() {
+        return addonsText == null || addonsText.isBlank() ? java.util.List.of()
+                : java.util.Arrays.stream(addonsText.split(",")).map(String::strip).filter(s -> !s.isEmpty()).toList();
+    }
+    public void setAddons(java.util.List<String> names) { this.addonsText = names == null || names.isEmpty() ? null : String.join(", ", names); }
+    /** "Event coverage · 3 hrs + Second photographer" — what the customer actually chose. */
+    public String packageSummary() {
+        if (packageName == null) return null;
+        StringBuilder sb = new StringBuilder(packageName);
+        if (hours != null) sb.append(" · ").append(hours).append(hours == 1 ? " hr" : " hrs");
+        var a = getAddons();
+        if (!a.isEmpty()) sb.append(" + ").append(String.join(" + ", a));
+        return sb.toString();
+    }
     public String getPackageName() { return packageName; }
     public void setPackageName(String v) { this.packageName = v; }
     public String getTime() { return time; }

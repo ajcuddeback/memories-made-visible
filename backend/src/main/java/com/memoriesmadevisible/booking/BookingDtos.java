@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public final class BookingDtos {
 
@@ -20,6 +21,10 @@ public final class BookingDtos {
             @NotBlank @Size(max = 40) String sessionType,
             /** Package (tier) name within the session type; decides the length and starting quote. */
             @Size(max = 80) String packageName,
+            /** For hourly packages: how many hours (within the package's range). */
+            Integer hours,
+            /** Add-on names from the package's list. */
+            List<@Size(max = 80) String> addons,
             @NotBlank @Size(max = 120) String name,
             @NotBlank @Email @Size(max = 200) String email,
             @Size(max = 40) String phone,
@@ -32,7 +37,8 @@ public final class BookingDtos {
     ) {}
 
     public record Response(
-            Long id, String sessionType, String sessionTypeName, String packageName, String name, String email, String phone,
+            Long id, String sessionType, String sessionTypeName, String packageName, Integer hours, List<String> addons,
+            String name, String email, String phone,
             String location, String notes, LocalDate date, String time, String startTime, String endTime,
             BookingStatus status, BigDecimal quote, Instant createdAt
     ) {}

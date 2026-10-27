@@ -53,11 +53,17 @@ public final class PricingDefaults {
                                 "Private online gallery", "Print release"), 360)),
                 type("events", "Events", "Events",
                         "Birthdays, showers, parties and community events across Polk County.", "$150/hr", 5,
-                        new PricingTier("Event coverage", "2-hour minimum", "$150/hr", List.of(
-                                "2-hour minimum", "Candid and group photos", "Private online gallery", "Print release"), 120),
-                        new PricingTier("Second photographer", "Added coverage", "+$75/hr", List.of(
-                                "Second angle for larger events", "Added per hour of coverage"), 120))
+                        hourly(new PricingTier("Event coverage", "By the hour · 2-hour minimum", "$150/hr", List.of(
+                                "Candid and group photos", "Private online gallery", "Print release"), 120), 2, 8,
+                                new PricingTier.AddOn("Second photographer", new java.math.BigDecimal("75"), true)))
         );
+    }
+
+    private static PricingTier hourly(PricingTier t, int minHours, int maxHours, PricingTier.AddOn... addOns) {
+        t.setPricingModel(PricingTier.PricingModel.HOURLY);
+        t.setHourRange(minHours, maxHours);
+        t.setAddOns(List.of(addOns));
+        return t;
     }
 
     private static final java.util.Map<String, Integer> DURATION = java.util.Map.of(

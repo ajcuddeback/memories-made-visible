@@ -11,6 +11,10 @@
 .tiers { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 8px 0 6px; }
 .tier { display: flex; flex-direction: column; gap: 6px; }
 .tier-row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; }
+.tier-min { display: block; font-size: 11px; font-weight: 600; color: var(--ink-65); text-align: right; }
+.tier-addons { font-size: 13px; color: var(--ink-70); }
+.tier-addons span::before { content: 'Add-on: '; color: var(--ink-55); }
+.tier-addons span:not(:first-child)::before { content: ''; }
 .tier-more {
   align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 2px 0;
   font-size: 13px; font-weight: 600; color: var(--color-accent-700); cursor: pointer;

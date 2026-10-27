@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -322,7 +323,12 @@ class BookingFlowTest {
                 .andExpect(jsonPath("$[2].key").value("weddings"))
                 .andExpect(jsonPath("$[2].from").value("$800"))
                 .andExpect(jsonPath("$[2].tiers.length()").value(3))
-                .andExpect(jsonPath("$[2].tiers[1].includes.length()").value(5));
+                .andExpect(jsonPath("$[2].tiers[1].includes.length()").value(5))
+                .andExpect(jsonPath("$[5].tiers.length()").value(1))
+                .andExpect(jsonPath("$[5].tiers[0].pricingModel").value("HOURLY"))
+                .andExpect(jsonPath("$[5].tiers[0].minHours").value(2))
+                .andExpect(jsonPath("$[5].tiers[0].addons[0].name").value("Second photographer"))
+                .andExpect(jsonPath("$[5].tiers[0].addons[0].perHour").value(true));
     }
 
     private String login(String name, String password) throws Exception {
@@ -411,6 +417,30 @@ class BookingFlowTest {
                         .content("[{\"key\":\"couples\",\"name\":\"Couples\",\"description\":\"\",\"from\":\"$150\",\"showInPortfolio\":true,"
                                 + "\"tiers\":[{\"name\":\"Mini\",\"detail\":\"\",\"price\":\"$150\",\"includes\":[]},{\"name\":\"mini\",\"detail\":\"\",\"price\":\"$200\",\"includes\":[]}]}]"))
                 .andExpect(status().isBadRequest());
+
+        // Hourly package: Event coverage is $150/hr, 2–8 hours, with a per-hour add-on. 3 hours + second photographer
+        // blocks 3 hours and quotes 3×150 + 3×75 = 675. Hours outside the range, or a made-up add-on, are refused.
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "events").param("package", "Event coverage").param("hours", "3"))
+                .andExpect(jsonPath("$[0].slots[-1].start").value("15:00")); // last 3-hour start that ends by 18:00
+        var ev = new java.util.HashMap<String, Object>(Map.of("sessionType", "events", "packageName", "Event coverage", "hours", 3,
+                "addons", List.of("Second photographer"), "name", "Party Host", "email", "host@example.com", "time", "14:00"));
+        ev.put("date", day.plusDays(2).toString());
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(ev)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.hours").value(3))
+                .andExpect(jsonPath("$.addons[0]").value("Second photographer"))
+                .andExpect(jsonPath("$.startTime").value("14:00"))
+                .andExpect(jsonPath("$.endTime").value("17:00"))
+                .andExpect(jsonPath("$.quote").value(675));
+        ev.put("hours", 1);
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(ev)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("2 to 8 hours")));
+        ev.put("hours", 2); ev.put("addons", List.of("Drone"));
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(ev)))
+                .andExpect(status().isBadRequest());
+        ev.remove("hours"); ev.put("addons", List.of());
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(ev)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("how many hours")));
 
         // A package that isn't on the price list is refused.
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)

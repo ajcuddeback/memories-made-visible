@@ -58,7 +58,7 @@ class BookingConcurrencyTest {
                 ready.countDown();
                 go.await();
                 try {
-                    service.create(new BookingDtos.CreateRequest("families", "Family", "Racer " + who, "racer" + who + "@example.com",
+                    service.create(new BookingDtos.CreateRequest("families", "Family", null, java.util.List.of(), "Racer " + who, "racer" + who + "@example.com",
                             null, null, null, d, "10:00", null));
                     return "ok";
                 } catch (ConflictException e) {

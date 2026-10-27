@@ -67,10 +67,11 @@ export class SiteDataService {
   }
 
   /** Open start times per day in [from, to] for a session type (not cached: it changes as people book). */
-  availability(from: string, to: string, type: string | null, pkg: string | null) {
+  availability(from: string, to: string, type: string | null, pkg: string | null, hours: number | null) {
     const params: Record<string, string> = { from, to };
     if (type) params['type'] = type;
     if (pkg) params['package'] = pkg;
+    if (hours) params['hours'] = String(hours);
     return this.http.get<DaySlots[]>('/api/availability', { params });
   }
 

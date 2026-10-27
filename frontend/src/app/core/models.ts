@@ -4,8 +4,20 @@ export interface PricingTier {
   price: string;
   /** "What's included" bullets, shown behind a toggle on the pricing page. */
   includes: string[];
-  /** How long this package blocks the calendar (minutes). */
+  /** How long this package blocks the calendar (minutes). FLAT packages only. */
   durationMinutes: number;
+  /** FLAT: fixed length for `price`. HOURLY: `price` is per hour and the customer picks minHours…maxHours. */
+  pricingModel: 'FLAT' | 'HOURLY';
+  minHours: number;
+  maxHours: number;
+  addons: PricingAddOn[];
+}
+
+export interface PricingAddOn {
+  name: string;
+  price: number;
+  /** Charged per hour of the session instead of once. */
+  perHour: boolean;
 }
 
 export interface SessionType {
@@ -84,6 +96,8 @@ export interface Booking {
   sessionType: string;
   sessionTypeName: string;
   packageName: string | null;
+  hours: number | null;
+  addons: string[];
   name: string;
   email: string;
   phone: string | null;
@@ -105,6 +119,10 @@ export interface BookingRequest {
   sessionType: string;
   /** Package (tier) name; required when the session type has packages. */
   packageName: string | null;
+  /** Hourly packages: how many hours. */
+  hours: number | null;
+  /** Chosen add-on names. */
+  addons: string[];
   name: string;
   email: string;
   phone: string;

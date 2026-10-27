@@ -50,3 +50,16 @@
 .pf-off { font-size: 13px; color: var(--ink-65); align-self: center; }
 .hint { font-weight: 500; color: var(--ink-65); }
 @media (max-width: 560px) { .portfolio-row { grid-template-columns: 1fr; } }
+
+.t-model { flex: 0 0 92px; width: 92px !important; order: 2; }
+.t-hours { order: 2; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--ink-70); }
+.t-hr { width: 56px !important; min-height: 38px; font-size: 13.5px; padding: 6px 8px; }
+.t-hint { font-size: 12.5px; color: var(--ink-65); margin: 0; }
+.t-addons { display: grid; gap: 6px; }
+.t-addons-head { font-size: 12.5px; font-weight: 600; }
+.t-addons-head .hint { font-weight: 500; color: var(--ink-65); }
+.t-addon { display: grid; grid-template-columns: 1fr 80px auto 32px; gap: 6px; align-items: center; }
+.t-addon .input { font-size: 13.5px; min-height: 36px; }
+.t-addon-ph { font-size: 12.5px; min-height: 0; }
+.add-addon { font-size: 12.5px; justify-self: start; color: var(--color-accent-700); padding: 4px 8px; }
+@media (max-width: 560px) { .t-addon { grid-template-columns: 1fr 70px; } .t-addon-ph { grid-column: 1; } .t-addon .t-remove { grid-column: 2; justify-self: end; } }

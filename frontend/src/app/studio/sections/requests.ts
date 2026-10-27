@@ -53,7 +53,7 @@ export class RequestsSection {
       .map((b) => ({
         ...b,
         when: `${fmtDate(b.date)} · ${b.startTime ? fmtRange(b.startTime, b.endTime) : b.time}`,
-        typeLabel: b.packageName ? `${this.store.typeName().get(b.sessionType) ?? b.sessionTypeName} · ${b.packageName}` : (this.store.typeName().get(b.sessionType) ?? b.sessionTypeName),
+        typeLabel: [this.store.typeName().get(b.sessionType) ?? b.sessionTypeName, b.packageName ? b.packageName + (b.hours ? ` · ${b.hours} hrs` : '') + (b.addons?.length ? ' + ' + b.addons.join(' + ') : '') : null].filter(Boolean).join(' · '),
         priceLabel: money(b.quote),
       })),
   );
