@@ -13,7 +13,7 @@
 
 <div class="list">
   @for (g of rows(); track g.id) {
-    <article class="gal">
+    <article class="gal" [class.is-delivered]="g.stage === 3">
       <div class="gal-main">
         <h3 class="gal-client">{{ g.client }}</h3>
         <div class="gal-meta">{{ g.session }} · {{ g.date }}</div>
@@ -23,7 +23,7 @@
           @for (sp of g.steps; track sp.label) {
             <div>
               <div class="step-bar" [class.is-done]="sp.done" [class.is-delivered]="sp.done && sp.delivered"></div>
-              <div class="step-label" [class.is-current]="sp.current">{{ sp.label }}</div>
+              <div class="step-label" [class.is-current]="sp.current" [class.is-delivered]="sp.current && sp.delivered">{{ sp.label }}</div>
             </div>
           }
         </div>
