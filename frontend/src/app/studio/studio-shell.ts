@@ -31,10 +31,9 @@ export class StudioShell {
 
   readonly nav: NavItem[] = [
     { path: '/studio', label: 'Overview', title: 'Overview', exact: true },
-    { path: '/studio/requests', label: 'Requests', title: 'Booking requests', exact: false },
+    { path: '/studio/sessions', label: 'Sessions', title: 'Sessions', exact: false },
     { path: '/studio/calendar', label: 'Calendar', title: 'Calendar', exact: false },
     { path: '/studio/popups', label: 'Pop-ups', title: 'Pop-up events', exact: false },
-    { path: '/studio/galleries', label: 'Galleries', title: 'Client galleries', exact: false },
     { path: '/studio/pricing', label: 'Pricing', title: 'Pricing', exact: false },
     { path: '/studio/photos', label: 'Photos', title: 'Website photos', exact: false },
   ];

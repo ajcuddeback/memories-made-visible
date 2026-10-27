@@ -56,7 +56,7 @@ public class BookingNotificationService {
                             new EmailTemplates.Detail("Phone", b.getPhone()),
                             new EmailTemplates.Detail("Starting quote", b.getQuote() == null ? null : BookingEmailDrafts.money(b.getQuote())),
                             new EmailTemplates.Detail("Notes", b.getNotes())),
-                    "Open in studio admin", siteUrl() + "/studio/requests",
+                    "Open in studio admin", siteUrl() + "/studio/sessions",
                     "Replying to this email goes straight to " + b.getEmail() + ".");
             send(cfg.from(), studioInbox(), b.getEmail(), null,
                     "New session request: " + sessionTypeName + " · " + b.getName(), r);

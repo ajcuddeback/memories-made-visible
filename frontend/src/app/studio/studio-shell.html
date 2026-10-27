@@ -22,7 +22,7 @@
           @for (n of nav; track n.path) {
             <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="topnav-link">
               <span>{{ n.label }}</span>
-              @if (n.label === 'Requests' && pendingCount() > 0) { <span class="badge">{{ pendingCount() }}</span> }
+              @if (n.label === 'Sessions' && pendingCount() > 0) { <span class="badge">{{ pendingCount() }}</span> }
             </a>
           }
         </nav>
@@ -35,7 +35,7 @@
         @for (n of nav; track n.path) {
           <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="side-link">
             <span>{{ n.label }}</span>
-            @if (n.label === 'Requests' && pendingCount() > 0) { <span class="badge badge--lg">{{ pendingCount() }}</span> }
+            @if (n.label === 'Sessions' && pendingCount() > 0) { <span class="badge badge--lg">{{ pendingCount() }}</span> }
           </a>
         }
         <div class="spacer"></div>

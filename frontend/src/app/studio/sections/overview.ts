@@ -78,6 +78,6 @@ export class OverviewSection {
   readonly galleriesLabel = computed(() => {
     const ids = this.store.bookingById();
     const n = this.store.galleries().filter((g) => g.stage < 3 && ids.has(g.bookingId)).length;
-    return `${n} galler${n === 1 ? 'y' : 'ies'} in progress`;
+    return `${n} session${n === 1 ? '' : 's'} being edited`;
   });
 }

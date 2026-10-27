@@ -38,3 +38,20 @@
 .price { font-family: var(--font-heading); font-size: 26px; color: var(--color-accent-700); }
 .cancel { font-size: 14px; color: var(--color-accent-700); }
 @media (max-width: 819px) { .req { padding: 20px; } .req-actions { flex: 1 1 100%; } }
+
+.tab-hint { font-size: 14px; color: var(--ink-65); margin: -12px 0 18px; max-width: 70ch; }
+.price-note { font-size: 12px; font-family: var(--font-body, inherit); color: var(--ink-65); margin-left: 6px; }
+.pipe { margin-top: 14px; max-width: 460px; }
+.steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.step-bar { height: 8px; border-radius: 999px; background: var(--ink-12); }
+.step-bar.is-done { background: var(--color-accent); }
+.step-bar.is-delivered { background: var(--color-success); }
+.step-label { font-size: 11.5px; font-weight: 600; margin-top: 6px; color: var(--ink-55); }
+.step-label.is-current { color: var(--color-text); }
+.step-label.is-current.is-delivered { color: var(--color-success); }
+.pipe-note { font-size: 13px; color: var(--ink-65); margin-top: 8px; }
+.pipe.is-delivered .pipe-note { color: var(--color-success-800); font-weight: 600; }
+.deliver-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.deliver-link { min-width: 0; }
+.hint { font-weight: 500; color: var(--ink-65); }
+@media (max-width: 560px) { .deliver-grid { grid-template-columns: 1fr; } }

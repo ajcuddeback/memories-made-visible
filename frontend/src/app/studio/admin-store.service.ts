@@ -154,6 +154,9 @@ export class AdminStore {
   addGallery(bookingId: number): void {
     this.http.post<Gallery>('/api/admin/galleries', { bookingId }).subscribe((g) => this.galleries.update((list) => [...list, g]));
   }
+  removeGallery(id: number): void {
+    this.http.delete(`/api/admin/galleries/${id}`).subscribe(() => this.galleries.update((list) => list.filter((g) => g.id !== id)));
+  }
   setStage(id: number, stage: number): void {
     this.http.patch<Gallery>(`/api/admin/galleries/${id}/stage`, { stage }).subscribe((g) =>
       this.galleries.update((list) => list.map((x) => (x.id === g.id ? g : x))),
