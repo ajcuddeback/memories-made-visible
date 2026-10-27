@@ -87,3 +87,10 @@ textarea.input.lg { min-height: 120px; }
 .hint { font-size: 13px; line-height: 1.5; margin: 14px 0 0; color: var(--ink-70); }
 .hint.is-error { color: var(--color-accent-700); font-weight: 600; }
 @media (max-width: 819px) { .summary { position: static; } }
+
+.intro-link { color: var(--color-accent-700); font-weight: 600; }
+.reach { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--color-divider); }
+.reach-title { font-size: 18px; margin: 0 0 8px; }
+.reach-text { font-size: 14px; line-height: 1.55; margin: 0 0 12px; color: var(--ink-70); }
+.reach-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 15px; font-weight: 600; }
+.reach-list a { color: var(--color-accent-700); }

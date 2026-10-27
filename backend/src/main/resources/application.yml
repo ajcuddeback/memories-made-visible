@@ -78,6 +78,12 @@ app:
     customer-from: ${NOTIFY_CUSTOMER_FROM:hello@memoriesmadevisible.com}
     send-customer-confirmation: ${NOTIFY_CUSTOMER:false}
     site-url: ${APP_SITE_URL:http://localhost:4200}
+  # Direct contact details shown on the site (booking page, about page, footer).
+  contact:
+    email: ${CONTACT_EMAIL:hello@memoriesmadevisible.com}
+    phone: ${CONTACT_PHONE:}
+    instagram: ${CONTACT_INSTAGRAM:}
+    location: ${CONTACT_LOCATION:Winter Haven, FL · Serving all of Polk County}
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
     region: ${AWS_REGION:us-east-1}

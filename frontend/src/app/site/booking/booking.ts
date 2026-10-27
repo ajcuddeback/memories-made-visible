@@ -34,6 +34,7 @@ export class BookingPage {
   readonly availLoading = signal(false);
   readonly availError = signal(false);
   readonly types = this.data.sessionTypes;
+  readonly contact = this.data.contact;
   readonly typesError = this.data.pricingError;
 
   // Form state

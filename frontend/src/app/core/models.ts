@@ -57,6 +57,14 @@ export interface TimeBlockCreate {
   note: string;
 }
 
+/** Direct contact details from the API (configured on the server). */
+export interface ContactInfo {
+  email: string | null;
+  phone: string | null;
+  instagram: string | null;
+  location: string | null;
+}
+
 export interface Slot {
   /** "HH:mm" */
   start: string;

@@ -52,8 +52,10 @@
         </div>
         <div class="footer-text">
           <div class="footer-name">Memories Made Visible</div>
-          <address class="footer-address">Winter Haven, FL · Serving all of Polk County</address>
-          <div><a href="mailto:bookings@memoriesmadevisible.com" class="footer-mail">bookings@memoriesmadevisible.com</a></div>
+          <address class="footer-address">{{ contact().location }}</address>
+          @if (contact().email) { <div><a [href]="'mailto:' + contact().email" class="footer-mail">{{ contact().email }}</a></div> }
+          @if (contact().phone) { <div><a [href]="'tel:' + contact().phone" class="footer-mail">{{ contact().phone }}</a></div> }
+          @if (contact().instagram) { <div><a [href]="'https://instagram.com/' + contact().instagram" class="footer-mail" rel="noopener" target="_blank">&#64;{{ contact().instagram }}</a></div> }
           <div>© {{ year }} Memories Made Visible LLC</div>
         </div>
       </div>

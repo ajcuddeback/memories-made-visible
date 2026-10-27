@@ -14,8 +14,12 @@ public record AppProperties(
         Jwt jwt,
         Cors cors,
         Notifications notifications,
-        S3 s3
+        S3 s3,
+        Contact contact
 ) {
+
+    /** How customers reach the studio directly (shown on the booking page, about page and footer). */
+    public record Contact(String email, String phone, String instagram, String location) {}
 
     public record Admin(List<User> users) {
         public record User(String name, String role, String password) {}

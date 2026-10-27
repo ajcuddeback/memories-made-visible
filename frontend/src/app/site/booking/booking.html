@@ -4,12 +4,12 @@
       <div class="done-check"><app-icon name="check" [size]="30" /></div>
       <h1 class="done-title">Request sent</h1>
       <p class="done-text">Thank you, {{ name() }}. We've received your request for a <strong>{{ typeName() }}</strong> session{{ chosenPackage() ? ' (' + chosenPackage()!.name + ' package)' : '' }} on <strong>{{ dateLabel() }}</strong> at <strong>{{ timeLabel() }}</strong>.</p>
-      <p class="done-text muted">Erica will reach out at {{ email() }} to confirm your date and plan the session.</p>
+      <p class="done-text muted">Erica will reach out at {{ email() }} to confirm your date and plan the session.@if (contact().email) { Need to change something in the meantime? Email <a [href]="'mailto:' + contact().email">{{ contact().email }}</a>. }</p>
       <button type="button" class="btn btn-secondary btn-md" (click)="reset()">Make another request</button>
     </div>
   } @else {
     <h1 class="page-title">Book a session</h1>
-    <p class="lede intro">Pick a session type, date and time. This is a request — we'll confirm availability and details with you before anything is final. We're based in Winter Haven and travel throughout Polk County.</p>
+    <p class="lede intro">Pick a session type, date and time. This is a request — we'll confirm availability and details with you before anything is final. We're based in Winter Haven and travel throughout Polk County.@if (contact().email) { Rather talk it through first? Email <a [href]="'mailto:' + contact().email" class="intro-link">{{ contact().email }}</a>. }</p>
 
     <div class="layout">
       <div class="steps">
@@ -117,6 +117,15 @@
           {{ submitting() ? 'Sending…' : 'Send request' }}
         </button>
         <p class="hint" [class.is-error]="error()">{{ error() ?? hint() }}</p>
+        <div class="reach">
+          <h3 class="reach-title">Prefer to talk first?</h3>
+          <p class="reach-text">Not sure which package fits, planning something unusual, or just want to say hi? Reach out directly and we'll figure it out together.</p>
+          <ul class="reach-list">
+            @if (contact().email) { <li><a [href]="'mailto:' + contact().email">{{ contact().email }}</a></li> }
+            @if (contact().phone) { <li><a [href]="'tel:' + contact().phone">{{ contact().phone }}</a></li> }
+            @if (contact().instagram) { <li><a [href]="'https://instagram.com/' + contact().instagram" target="_blank" rel="noopener">&#64;{{ contact().instagram }} on Instagram</a></li> }
+          </ul>
+        </div>
       </aside>
     </div>
   }

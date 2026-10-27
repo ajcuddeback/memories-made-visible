@@ -33,11 +33,13 @@ export class SiteShell {
 
   readonly menuOpen = signal(false);
   readonly year = new Date().getFullYear();
+  readonly contact = this.data.contact;
 
   constructor() {
     // Warm the caches every page shares so navigation feels instant.
     this.data.loadPhotos();
     this.data.loadPricing();
+    this.data.loadContact();
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.menuOpen.set(false));
   }
 

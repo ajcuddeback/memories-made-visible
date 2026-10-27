@@ -27,3 +27,6 @@
   display: flex; justify-content: space-between; align-items: center; gap: 28px; flex-wrap: wrap;
 }
 .cta-title { font-size: clamp(26px, 3vw, 34px); line-height: 1.15; margin: 0; max-width: 22ch; }
+
+.cta-reach { font-size: 16px; margin: -8px 0 24px; color: var(--ink-78); }
+.cta-reach a { color: var(--color-accent-700); font-weight: 600; }

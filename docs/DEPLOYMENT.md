@@ -9,6 +9,8 @@ Both use the same images, the same env vars, real S3 and your Namecheap mailbox.
 
 ---
 
+> `CONTACT_EMAIL`, `CONTACT_PHONE`, `CONTACT_INSTAGRAM` are the direct contact details shown on the booking page, about page and footer for people who'd rather not use the request form. Phone and Instagram are optional and hidden when blank.
+>
 > `APP_TIME_ZONE` (default `America/New_York`) is the studio's zone: "today", the two-hour booking notice and upcoming pop-ups are judged in it, so the container being in UTC doesn't matter.
 
 ## Shared setup (do once)

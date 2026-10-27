@@ -33,6 +33,9 @@ services:
       DATABASE_USERNAME: ${POSTGRES_USER:-mmv}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       APP_TIME_ZONE: ${APP_TIME_ZONE:-America/New_York}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-hello@memoriesmadevisible.com}
+      CONTACT_PHONE: ${CONTACT_PHONE:-}
+      CONTACT_INSTAGRAM: ${CONTACT_INSTAGRAM:-}
     expose:
       - "8080"
 

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { catchError, of } from 'rxjs';
-import { BookingRequest, Booking, DaySlots, PublicPopupEvent, SessionType } from './models';
+import { BookingRequest, Booking, ContactInfo, DaySlots, PublicPopupEvent, SessionType } from './models';
 
 /**
  * Public-site data: price list, upcoming pop-ups and the slot → photo URL map.
@@ -19,6 +19,9 @@ export class SiteDataService {
   readonly pricingError = signal(false);
   readonly upcoming = signal<PublicPopupEvent[]>([]);
   readonly photos = signal<Record<string, string>>({});
+  /** Until the API answers, the prerendered page shows the studio's known address. */
+  readonly contact = signal<ContactInfo>({ email: 'hello@memoriesmadevisible.com', phone: null, instagram: null, location: 'Winter Haven, FL · Serving all of Polk County' });
+  private loadedContact = false;
   readonly typeByKey = computed(() => new Map(this.sessionTypes().map((t) => [t.key, t])));
 
   private loadedPricing = false;
@@ -41,6 +44,12 @@ export class SiteDataService {
     if (!this.isBrowser || this.loadedEvents) return;
     this.loadedEvents = true;
     this.http.get<PublicPopupEvent[]>('/api/events/upcoming').pipe(catchError(() => of([] as PublicPopupEvent[]))).subscribe((list) => this.upcoming.set(list));
+  }
+
+  loadContact(): void {
+    if (!this.isBrowser || this.loadedContact) return;
+    this.loadedContact = true;
+    this.http.get<ContactInfo>('/api/site/contact').pipe(catchError(() => of(null))).subscribe((c) => { if (c) this.contact.set(c); });
   }
 
   loadPhotos(): void {
