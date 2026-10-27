@@ -31,7 +31,7 @@ SEO 100, accessibility 100, best practices 100, CLS 0.
 Sections: Overview (revenue + next up), Sessions (one row per session: request → booked → shot/editing/proofing →
 delivered, with the quote, approval/decline emails and the delivery email), Calendar (status-coloured, block time,
 booking hours), Pop-ups (with print sales), Pricing (categories, packages, lengths, add-ons — Save, then Publish),
-Photos (upload to S3 into named site slots — Publish to go live).
+Photos (upload to S3 into named site slots — Publish to go live), Insights (first-party, anonymous site analytics: visitors, time on site, pages, referrers, booking funnel).
 
 **Booking requests** from `/book` are stored as `PENDING` and immediately emailed to **bookings@memoriesmadevisible.com**
 (`NOTIFY_TO`) from admin@, with an optional acknowledgement to the customer (`NOTIFY_CUSTOMER=true`). The form has a honeypot

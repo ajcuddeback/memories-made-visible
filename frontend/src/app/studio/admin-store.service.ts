@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap } from 'rxjs';
-import { AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
+import { AnalyticsReport, AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -64,6 +64,11 @@ export class AdminStore {
     this.publishStatus.set(null);
     this.hours.set([]); this.blocks.set([]);
     this.loaded.set(false);
+  }
+
+  // ── insights ──
+  analytics(days: number) {
+    return this.http.get<AnalyticsReport>('/api/admin/analytics', { params: { days } });
   }
 
   // ── availability ──

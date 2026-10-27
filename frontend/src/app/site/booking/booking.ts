@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { MONTHS, fmtDuration, fmtLongDate, fmtTime, money, num, toISO, today } from '../../core/dates';
 import { Slot } from '../../core/models';
 import { SiteDataService } from '../../core/site-data.service';
+import { AnalyticsService } from '../../core/analytics.service';
 import { Icon } from '../../shared/icons';
 
 const WEEKDAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -24,6 +25,8 @@ interface Day {
 })
 export class BookingPage {
   private readonly data = inject(SiteDataService);
+  private readonly analytics = inject(AnalyticsService);
+  private trackedDetails = false;
   private readonly route = inject(ActivatedRoute);
   private readonly today = today();
 
@@ -154,6 +157,7 @@ export class BookingPage {
     this.data.loadPricing();
     const preset = this.route.snapshot.queryParamMap.get('type');
     if (preset) this.type.set(preset);
+    this.analytics.track('book_view');
     const presetPkg = this.route.snapshot.queryParamMap.get('package');
     if (presetPkg) this.pkg.set(presetPkg); // hours/add-ons are chosen on the page
     // Refetch what's open whenever the visible month or the session type (its length) changes.
@@ -165,6 +169,7 @@ export class BookingPage {
 
   pickType(key: string): void {
     if (this.type() === key) return;
+    this.analytics.track('book_type');
     this.type.set(key);
     const tiers = this.data.typeByKey().get(key)?.tiers ?? [];
     this.pkg.set(null); this.hours.set(null); this.addons.set(new Set()); this.time.set(null);
@@ -209,6 +214,19 @@ export class BookingPage {
     return (e.target as HTMLInputElement | HTMLTextAreaElement).value;
   }
 
+  contactClick(): void { this.analytics.track('contact_click'); }
+  /** Funnel: a start time was chosen. */
+  pickTime(hm: string): void {
+    this.time.set(hm);
+    this.analytics.track('book_slot');
+  }
+  /** Funnel: name and a valid email are in (fires once). */
+  detailsTyped(): void {
+    if (this.trackedDetails || !this.name().trim() || !/\S+@\S+\.\S+/.test(this.email())) return;
+    this.trackedDetails = true;
+    this.analytics.track('book_details');
+  }
+
   submit(): void {
     if (this.missing().length || this.submitting()) return;
     this.submitting.set(true);
@@ -228,6 +246,7 @@ export class BookingPage {
       website: this.website(),
     }).subscribe({
       next: () => {
+        this.analytics.track('book_submit');
         this.submitting.set(false);
         this.submitted.set(true);
         window.scrollTo(0, 0);

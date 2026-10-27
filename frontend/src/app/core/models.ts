@@ -69,6 +69,18 @@ export interface TimeBlockCreate {
   note: string;
 }
 
+/** Insights report from /api/admin/analytics. */
+export interface AnalyticsReport {
+  days: number;
+  totals: { visitors: number; visits: number; pageviews: number; avgVisitSeconds: number; bounceRate: number };
+  daily: { date: string; visitors: number; visits: number }[];
+  pages: { label: string; count: number }[];
+  referrers: { label: string; count: number }[];
+  devices: { label: string; count: number }[];
+  funnel: { key: string; label: string; visits: number }[];
+  bookingsSubmitted: number;
+}
+
 /** Direct contact details from the API (configured on the server). */
 export interface ContactInfo {
   email: string | null;

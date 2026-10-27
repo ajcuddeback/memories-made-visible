@@ -566,4 +566,49 @@ class BookingFlowTest {
                         .content("[{\"weekday\":" + wd + ",\"open\":true,\"start\":\"07:00\",\"end\":\"18:00\"}]"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void analyticsAreRecordedAnonymouslyAndReported() throws Exception {
+        var res = mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Erica\",\"password\":\"test-pass\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var auth = "Bearer " + json.readTree(res).get("token").asText();
+
+        // Two visitors; one walks the booking funnel to the end, the other bounces. Admin pages and bad kinds are ignored.
+        String batch = """
+            {"events":[
+              {"visitor":"v1","session":"s1","kind":"view","path":"/","referrer":"https://www.instagram.com/p/abc","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"leave","path":"/","device":"mobile","durationMs":12000},
+              {"visitor":"v1","session":"s1","kind":"view","path":"/book?type=weddings","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"book_view","path":"/book","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"book_type","path":"/book","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"book_slot","path":"/book","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"book_details","path":"/book","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"book_submit","path":"/book","device":"mobile"},
+              {"visitor":"v1","session":"s1","kind":"leave","path":"/book","device":"mobile","durationMs":48000},
+              {"visitor":"v2","session":"s2","kind":"view","path":"/pricing","device":"desktop"},
+              {"visitor":"v2","session":"s2","kind":"leave","path":"/pricing","device":"desktop","durationMs":5000},
+              {"visitor":"v3","session":"s3","kind":"view","path":"/studio/sessions","device":"desktop"},
+              {"visitor":"v3","session":"s3","kind":"hack","path":"/","device":"desktop"}
+            ]}""";
+        mvc.perform(post("/api/analytics").contentType(MediaType.APPLICATION_JSON).content(batch)).andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/admin/analytics").param("days", "7").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totals.visitors").value(2))
+                .andExpect(jsonPath("$.totals.visits").value(2))
+                .andExpect(jsonPath("$.totals.pageviews").value(3))
+                .andExpect(jsonPath("$.totals.avgVisitSeconds").value(33))   // (60s + 5s) / 2, rounded
+                .andExpect(jsonPath("$.totals.bounceRate").value(0.5))
+                .andExpect(jsonPath("$.pages[?(@.label=='/book')].count").value(1)) // query string dropped
+                .andExpect(jsonPath("$.referrers[?(@.label=='instagram.com')].count").value(1))
+                .andExpect(jsonPath("$.referrers[?(@.label=='Direct / typed in')].count").value(1))
+                .andExpect(jsonPath("$.devices[?(@.label=='mobile')].count").value(1))
+                .andExpect(jsonPath("$.funnel[0].visits").value(1))
+                .andExpect(jsonPath("$.funnel[4].visits").value(1))
+                .andExpect(jsonPath("$.bookingsSubmitted").value(1))
+                .andExpect(jsonPath("$.daily.length()").value(7));
+        // Public readers can't see the report.
+        mvc.perform(get("/api/admin/analytics")).andExpect(status().isForbidden());
+    }
 }

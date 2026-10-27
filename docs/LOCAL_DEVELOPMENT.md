@@ -100,6 +100,15 @@ Dev-only values (passwords, JWT secret, SMTP target, S3 endpoint) live in
 6. **Pricing** — change a price, Save, Publish; the public `/pricing` page updates. You can also add or remove whole categories. Each category has a "Show in Portfolio" toggle: when on, the Portfolio page gets a filter chip for it (using the optional Portfolio label) and three photo slots appear under Photos and fill in a "What's included" list per package — one item per line — which shows up behind a "See what's included" toggle on the pricing page.
 7. **Photos** — drop an image onto a slot; it's resized, stored in SeaweedFS, and appears on the site once you Publish.
 
+## Site analytics (Insights)
+
+The public site reports anonymous events to its own API (`POST /api/analytics`): page views, time on page and the
+booking-form steps (opened, chose a type, picked a time, filled details, sent). No cookies and nothing identifying —
+a random visitor token in `localStorage`, a visit token in `sessionStorage`, referrer kept as a host name only,
+"Do Not Track" honoured, and nothing recorded on `/studio`. **Insights** in the admin turns it into visitors, visits,
+average visit length, bounce rate, pages, referring sites, mobile share and the booking funnel with drop-off per step.
+Browse the site in another tab (not signed in to the admin) and the numbers appear within a few seconds.
+
 ## Demo data
 
 The `dev` profile seeds sample bookings, pop-ups and galleries (from the design mock-ups) into an **empty** database

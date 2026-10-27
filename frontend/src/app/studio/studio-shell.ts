@@ -36,6 +36,7 @@ export class StudioShell {
     { path: '/studio/popups', label: 'Pop-ups', title: 'Pop-up events', exact: false },
     { path: '/studio/pricing', label: 'Pricing', title: 'Pricing', exact: false },
     { path: '/studio/photos', label: 'Photos', title: 'Website photos', exact: false },
+    { path: '/studio/insights', label: 'Insights', title: 'Site insights', exact: false },
   ];
 
   readonly menuOpen = signal(false);

@@ -56,7 +56,9 @@ export class OverviewSection {
         sessionsH: Math.round((parts[i].sessions / max) * 72),
         popupsH: Math.round((parts[i].popups / max) * 72),
         isNow, future,
-        title: `${MONTHS[m]} ${y} — sessions ${money(parts[i].sessions)}, pop-ups ${money(parts[i].popups)}`,
+        name: `${MONTHS[m]} ${y}`,
+        sessions: money(parts[i].sessions),
+        popups: money(parts[i].popups),
       };
     });
   });

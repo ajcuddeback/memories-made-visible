@@ -107,7 +107,7 @@
             <div class="times" role="radiogroup" aria-label="Start time">
               @for (s of times(); track s.start) {
                 <button type="button" class="btn time" [class.btn-primary]="time() === s.start" [class.btn-secondary]="time() !== s.start"
-                        role="radio" [attr.aria-checked]="time() === s.start" (click)="time.set(s.start)">{{ s.label }}</button>
+                        role="radio" [attr.aria-checked]="time() === s.start" (click)="pickTime(s.start)">{{ s.label }}</button>
               }
               @if (times().length === 0) { <p class="hint">That day just filled up — pick another.</p> }
             </div>
@@ -119,8 +119,8 @@
         <div>
           <h2 class="step-title">{{ needsPackage() ? '4' : '3' }}. Your details</h2>
           <div class="details">
-            <label class="field">Full name<input class="input lg" [value]="name()" (input)="name.set(value($event))" placeholder="Jane Smith" autocomplete="name" /></label>
-            <label class="field">Email<input class="input lg" type="email" [value]="email()" (input)="email.set(value($event))" placeholder="you@example.com" autocomplete="email" /></label>
+            <label class="field">Full name<input class="input lg" [value]="name()" (input)="name.set(value($event)); detailsTyped()" placeholder="Jane Smith" autocomplete="name" /></label>
+            <label class="field">Email<input class="input lg" type="email" [value]="email()" (input)="email.set(value($event)); detailsTyped()" placeholder="you@example.com" autocomplete="email" /></label>
             <label class="field">Phone<input class="input lg" type="tel" [value]="phone()" (input)="phone.set(value($event))" placeholder="(863) 555-0123" autocomplete="tel" /></label>
             <label class="field">Preferred location<input class="input lg" [value]="location()" (input)="location.set(value($event))" placeholder="e.g. Lake Mirror, Lakeland" /></label>
           </div>
@@ -150,8 +150,8 @@
           <h3 class="reach-title">Prefer to talk first?</h3>
           <p class="reach-text">Not sure which package fits, planning something unusual, or just want to say hi? Reach out directly and we'll figure it out together.</p>
           <ul class="reach-list">
-            @if (contact().email) { <li><a [href]="'mailto:' + contact().email">{{ contact().email }}</a></li> }
-            @if (contact().phone) { <li><a [href]="'tel:' + contact().phone">{{ contact().phone }}</a></li> }
+            @if (contact().email) { <li><a [href]="'mailto:' + contact().email" (click)="contactClick()">{{ contact().email }}</a></li> }
+            @if (contact().phone) { <li><a [href]="'tel:' + contact().phone" (click)="contactClick()">{{ contact().phone }}</a></li> }
             @if (contact().instagram) { <li><a [href]="'https://instagram.com/' + contact().instagram" target="_blank" rel="noopener">&#64;{{ contact().instagram }} on Instagram</a></li> }
           </ul>
         </div>
