@@ -8,6 +8,7 @@ test.describe('insights', () => {
     await visitor.goto('/');
     await visitor.getByRole('link', { name: 'Pricing' }).first().click();
     await visitor.waitForURL(/\/pricing/);
+    await visitor.waitForTimeout(3000); // let the tracker's batch timer send the page view before a full navigation
     await visitor.goto('/book');
     await visitor.getByRole('radio', { name: 'Families & solo portraits' }).click();
     await visitor.waitForTimeout(3500); // the tracker batches every 2.5s

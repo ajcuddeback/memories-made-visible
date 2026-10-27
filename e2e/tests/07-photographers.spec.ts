@@ -30,17 +30,17 @@ test.describe('choosing a photographer', () => {
     await who.getByRole('radio', { name: /Erica/ }).click();
     await pickPublicDate(page, day);
     const times = page.getByRole('radiogroup', { name: 'Start time' });
-    await expect(times.getByRole('radio', { name: '8:30 AM' })).toBeVisible();
-    await expect(times.getByRole('radio', { name: '9:00 AM' })).toHaveCount(0);
+    await expect(times.getByRole('radio', { name: '8:30 AM', exact: true })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toHaveCount(0);
     await who.getByRole('radio', { name: /Austin/ }).click();
-    await expect(times.getByRole('radio', { name: '9:00 AM' })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toBeVisible();
     await who.getByRole('radio', { name: /No preference/ }).click();
-    await expect(times.getByRole('radio', { name: '9:00 AM' })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toBeVisible();
     await expect(page.locator('.summary')).toContainText('No preference');
 
     // Book Austin at 9:00; the request is assigned to him
     await who.getByRole('radio', { name: /Austin/ }).click();
-    await times.getByRole('radio', { name: '9:00 AM' }).click();
+    await times.getByRole('radio', { name: '9:00 AM', exact: true }).click();
     await page.getByLabel('Full name').fill('Pat Lee');
     await page.getByLabel('Email').fill('pat@example.com');
     await page.getByRole('button', { name: 'Send request' }).click();
@@ -55,7 +55,7 @@ test.describe('choosing a photographer', () => {
     const list = await (await api(page.request, 'get', '/api/admin/bookings')).json();
     const pat = list.find((b: { name: string }) => b.name === 'Pat Lee');
     // Erica is blocked 9–12 that day → can't take Pat's 9:00
-    const res = await api(page.request, 'put', `/api/admin/bookings/${pat.id}/assignees`, { names: ['Erica'] });
+    const res = await api(page.request, 'put', `/api/admin/bookings/${pat.id}/assignees`, { lead: 'Erica' });
     expect(res.status()).toBe(409);
     expect((await res.json()).message).toContain("Erica isn't free then");
 

@@ -1,7 +1,8 @@
 import { devices, expect, test } from '@playwright/test';
 import { signIn } from './helpers';
 
-test.use({ ...devices['iPhone 13'] });
+const iphone = devices['iPhone 13'];
+test.use({ viewport: iphone.viewport, userAgent: iphone.userAgent, deviceScaleFactor: iphone.deviceScaleFactor, isMobile: true, hasTouch: true });
 
 async function noHorizontalScroll(page: import('@playwright/test').Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

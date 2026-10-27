@@ -593,13 +593,18 @@ class BookingFlowTest {
               {"visitor":"v3","session":"s3","kind":"hack","path":"/","device":"desktop"}
             ]}""";
         mvc.perform(post("/api/analytics").contentType(MediaType.APPLICATION_JSON).content(batch)).andExpect(status().isNoContent());
+        // sendBeacon can only send text/plain; a page-leave beacon must land too (counted once more for v2's leave).
+        mvc.perform(post("/api/analytics").contentType(MediaType.TEXT_PLAIN)
+                        .content("{\"events\":[{\"visitor\":\"v2\",\"session\":\"s2\",\"kind\":\"leave\",\"path\":\"/pricing\",\"device\":\"desktop\",\"durationMs\":1000}]}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/analytics").contentType(MediaType.TEXT_PLAIN).content("not json")).andExpect(status().isNoContent());
 
         mvc.perform(get("/api/admin/analytics").param("days", "7").header("Authorization", auth))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totals.visitors").value(2))
                 .andExpect(jsonPath("$.totals.visits").value(2))
                 .andExpect(jsonPath("$.totals.pageviews").value(3))
-                .andExpect(jsonPath("$.totals.avgVisitSeconds").value(33))   // (60s + 5s) / 2, rounded
+                .andExpect(jsonPath("$.totals.avgVisitSeconds").value(33))   // (60s + 6s) / 2, rounded
                 .andExpect(jsonPath("$.totals.bounceRate").value(0.5))
                 .andExpect(jsonPath("$.pages[?(@.label=='/book')].count").value(1)) // query string dropped
                 .andExpect(jsonPath("$.referrers[?(@.label=='instagram.com')].count").value(1))

@@ -149,3 +149,6 @@ backend/src/main/java/com/memoriesmadevisible
 ├── photo/       slots, S3 storage, upload
 └── seed/        dev-profile demo data
 ```
+
+
+See [docs/TESTING.md](docs/TESTING.md) for the test suites.

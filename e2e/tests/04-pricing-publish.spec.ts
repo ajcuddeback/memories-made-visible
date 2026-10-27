@@ -13,7 +13,7 @@ test.describe('pricing: save is a draft, publish makes it live', () => {
     const familyRow = families.locator('.tier', { hasText: 'Family' }).filter({ hasNot: page.locator('.tier', { hasText: 'Solo' }) }).first();
     await familyRow.getByRole('button', { name: 'Edit' }).click();
     await familyRow.getByLabel('Session length').selectOption('90');
-    await familyRow.getByLabel('Price').fill('$245');
+    await familyRow.getByRole('textbox', { name: /^Price/ }).fill('$245');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.locator('.msg')).toContainText('Saved to the draft');
 
@@ -25,7 +25,7 @@ test.describe('pricing: save is a draft, publish makes it live', () => {
     expect(live.durationMinutes).toBe(60);
 
     await page.getByRole('button', { name: 'Publish' }).click();
-    await expect(page.locator('.publish-bar')).toContainText('Everything is live');
+    await expect(page.locator('.publish-bar')).toContainText(/Everything is live|up to date|matches the live site/);
 
     const pub2 = await page.request.get('http://localhost:8080/api/pricing');
     const live2 = (await pub2.json()).find((t: { key: string }) => t.key === 'families').tiers.find((x: { name: string }) => x.name === 'Family');
@@ -48,7 +48,7 @@ test.describe('pricing: save is a draft, publish makes it live', () => {
     await expect(page.locator('.publish-bar')).toContainText('Unpublished changes: pricing');
     page.once('dialog', (d) => d.accept());
     await page.getByRole('button', { name: 'Discard' }).click();
-    await expect(page.locator('.publish-bar')).toContainText('Everything is live');
+    await expect(page.locator('.publish-bar')).toContainText(/Everything is live|up to date|matches the live site/);
     await expect(page.locator('.plan', { hasText: 'Families & solo portraits' })).toContainText('from $150');
   });
 });

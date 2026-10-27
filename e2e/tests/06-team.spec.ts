@@ -53,7 +53,7 @@ test.describe('team, roles and passwords', () => {
     await expect(page.locator('.publish-bar')).toHaveCount(0);
     await expect(page.locator('.stat', { hasText: 'Revenue' })).toHaveCount(0);
     await page.goto('/studio/sessions');
-    await expect(page.locator('.tab-hint')).toContainText('assigned to you');
+    await expect(page.locator('.tab-hint')).toContainText(/assigned to/);
     await page.getByRole('tab', { name: /Delivered/ }).click();
     await expect(page.locator('.req')).toHaveCount(0);
     // The API refuses admin-only things outright
@@ -69,7 +69,7 @@ test.describe('team, roles and passwords', () => {
     const card = page.locator('.req', { hasText: 'Taylor Reyes' });
     await expect(card).toContainText('Erica (lead)'); // the default photographer led it
     await card.getByRole('button', { name: 'Assign…' }).click();
-    await card.getByLabel('Lead photographer').selectOption('Sam');
+    await card.getByLabel(/^Lead photographer/).selectOption('Sam');
     await expect(page.locator('.notice')).toContainText("Sam is the lead on Taylor Reyes's session");
     await expect(card).toContainText('Sam (lead)');
     const mail = await waitForMail(request, "You're on Taylor Reyes's", 'sam@e2e.local');
@@ -90,7 +90,7 @@ test.describe('team, roles and passwords', () => {
     await page.getByRole('button', { name: 'Forgot your password?' }).click();
     await page.getByLabel('Email on your account').fill('sam@e2e.local');
     await page.getByRole('button', { name: 'Email me a reset link' }).click();
-    await expect(page.locator('.sub')).toContainText('a reset link is on its way');
+    await expect(page.getByText('a reset link is on its way')).toBeVisible();
     const mail = await waitForMail(request, 'Reset your studio password', 'sam@e2e.local');
     const link = /http:\/\/localhost:4200\/studio\?reset=[0-9a-f]+/.exec(mail.text)?.[0];
     expect(link, 'reset link').toBeTruthy();

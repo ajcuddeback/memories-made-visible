@@ -2,7 +2,6 @@ package com.memoriesmadevisible.analytics;
 
 import com.memoriesmadevisible.common.RateLimiter;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,15 +16,24 @@ import java.time.Duration;
 public class AnalyticsController {
 
     private final AnalyticsService analytics;
+    private final com.fasterxml.jackson.databind.ObjectMapper json;
     private final RateLimiter limiter = new RateLimiter(300, Duration.ofMinutes(15));
 
-    public AnalyticsController(AnalyticsService analytics) {
+    public AnalyticsController(AnalyticsService analytics, com.fasterxml.jackson.databind.ObjectMapper json) {
         this.analytics = analytics;
+        this.json = json;
     }
 
+    /** Bodies arrive as application/json (fetch) or text/plain (sendBeacon on page leave); both are the same JSON. */
     @PostMapping(consumes = {"application/json", "text/plain"})
-    public ResponseEntity<Void> record(@Valid @RequestBody AnalyticsDtos.Batch batch, HttpServletRequest http) {
-        if (limiter.tryAcquire(RateLimiter.clientKey(http))) analytics.record(batch);
-        return ResponseEntity.noContent().build(); // never an error the browser would retry
+    public ResponseEntity<Void> record(@RequestBody String raw, HttpServletRequest http) {
+        if (limiter.tryAcquire(RateLimiter.clientKey(http))) {
+            try {
+                analytics.record(json.readValue(raw, AnalyticsDtos.Batch.class));
+            } catch (Exception ignored) {
+                // malformed or oversized: drop it; analytics never surfaces errors to visitors
+            }
+        }
+        return ResponseEntity.noContent().build();
     }
 }

@@ -61,12 +61,20 @@ export function futureWeekday(daysAhead: number): { iso: string; day: number; mo
 
 /** Navigate the public booking calendar to a month and click a day. */
 export async function pickPublicDate(page: Page, target: { day: number; month: number; year: number }): Promise<void> {
-  const label = new Date(target.year, target.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  for (let i = 0; i < 24; i++) {
-    const current = await page.locator('.cal-label').textContent();
-    if (current?.trim() === label) break;
-    await page.getByRole('button', { name: 'Next month' }).click();
-  }
-  await expect(page.locator('.cal-label')).toHaveText(label);
+  await goToMonth(page, page.locator('.cal-label'), page.getByRole('button', { name: 'Next month' }), target);
   await page.locator('.cal-grid').getByRole('button', { name: new RegExp(`^${target.day}, `) }).click();
+}
+
+/** Click "next" until a month label reads the target month, waiting for each change to render. */
+export async function goToMonth(page: Page, label: import('@playwright/test').Locator, next: import('@playwright/test').Locator,
+                                target: { month: number; year: number }): Promise<void> {
+  const want = new Date(target.year, target.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  await expect(label).not.toBeEmpty();
+  for (let i = 0; i < 30; i++) {
+    const current = (await label.textContent())?.trim();
+    if (current === want) break;
+    await next.click();
+    await expect(label).not.toHaveText(current ?? '');
+  }
+  await expect(label).toHaveText(want);
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { futureWeekday, pickPublicDate, signIn } from './helpers';
+import { futureWeekday, goToMonth, pickPublicDate, signIn } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -9,13 +9,10 @@ test.describe('calendar: blocks and booking hours', () => {
   test('blocking a morning removes those start times from the booking page', async ({ page }) => {
     await signIn(page);
     await page.goto('/studio/calendar');
-    await page.getByRole('button', { name: 'Block time' }).click();
+    await page.getByRole('button', { name: 'Block time', exact: true }).click();
     // Pick the date in the styled date field
     await page.getByRole('button', { name: 'Block from' }).click();
-    const label = new Date(day.year, day.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    for (let i = 0; i < 24 && (await page.locator('.pk-cal-title').textContent())?.trim() !== label; i++) {
-      await page.locator('.pk-cal').getByRole('button', { name: 'Next month' }).click();
-    }
+    await goToMonth(page, page.locator('.pk-cal-title'), page.locator('.pk-cal').getByRole('button', { name: 'Next month' }), day);
     await page.locator('.pk-cal').getByRole('button', { name: String(day.day), exact: true }).click();
     await page.getByLabel('All day').uncheck();
     await page.getByRole('button', { name: 'Block start' }).click();
@@ -31,20 +28,17 @@ test.describe('calendar: blocks and booking hours', () => {
     await page.getByRole('radio', { name: /^Solo/ }).click();
     await pickPublicDate(page, day);
     const times = page.getByRole('radiogroup', { name: 'Start time' });
-    await expect(times.getByRole('radio', { name: '8:30 AM' })).toBeVisible();
-    await expect(times.getByRole('radio', { name: '9:00 AM' })).toHaveCount(0);
-    await expect(times.getByRole('radio', { name: '10:30 AM' })).toHaveCount(0);
-    await expect(times.getByRole('radio', { name: '11:00 AM' })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '8:30 AM', exact: true })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toHaveCount(0);
+    await expect(times.getByRole('radio', { name: '10:30 AM', exact: true })).toHaveCount(0);
+    await expect(times.getByRole('radio', { name: '11:00 AM', exact: true })).toBeVisible();
   });
 
   test('the block shows on the day, and can be removed', async ({ page }) => {
     await signIn(page);
     await page.goto('/studio/calendar');
     // Navigate the month grid to the day and select it
-    const label = new Date(day.year, day.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    for (let i = 0; i < 24 && (await page.locator('.cal-title').textContent())?.trim() !== label; i++) {
-      await page.getByRole('button', { name: 'Next month' }).click();
-    }
+    await goToMonth(page, page.locator('.cal-title'), page.getByRole('button', { name: 'Next month' }), day);
     await page.locator('.grid').getByRole('gridcell', { name: new RegExp(`^${day.day}(,|$)`) }).click();
     const item = page.locator('.dayi--block', { hasText: 'Dentist' });
     await expect(item).toContainText('9:00 – 11:00 AM');
@@ -67,10 +61,7 @@ test.describe('calendar: blocks and booking hours', () => {
     await page.goto('/book');
     await page.getByRole('radio', { name: 'Families & solo portraits' }).click();
     await page.getByRole('radio', { name: /^Solo/ }).click();
-    const label = new Date(target.year, target.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    for (let i = 0; i < 24 && (await page.locator('.cal-label').textContent())?.trim() !== label; i++) {
-      await page.getByRole('button', { name: 'Next month' }).click();
-    }
+    await goToMonth(page, page.locator('.cal-label'), page.getByRole('button', { name: 'Next month' }), target);
     await expect(page.locator('.cal-grid').getByRole('button', { name: new RegExp(`^${target.day}, .*unavailable`) })).toBeDisabled();
 
     // Reopen it

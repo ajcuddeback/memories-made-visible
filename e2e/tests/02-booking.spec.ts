@@ -19,10 +19,10 @@ test.describe('booking a session', () => {
     await pickPublicDate(page, when);
     const times = page.getByRole('radiogroup', { name: 'Start time' });
     await expect(times.getByRole('radio').first()).toBeVisible();
-    await expect(times.getByRole('radio', { name: '7:00 AM' })).toBeVisible();
-    await expect(times.getByRole('radio', { name: '5:00 PM' })).toBeVisible();   // last 1-hour start inside 7–6
-    await expect(times.getByRole('radio', { name: '5:30 PM' })).toHaveCount(0);
-    await times.getByRole('radio', { name: '10:00 AM' }).click();
+    await expect(times.getByRole('radio', { name: '7:00 AM', exact: true })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '5:00 PM', exact: true })).toBeVisible();   // last 1-hour start inside 7–6
+    await expect(times.getByRole('radio', { name: '5:30 PM', exact: true })).toHaveCount(0);
+    await times.getByRole('radio', { name: '10:00 AM', exact: true }).click();
 
     await page.getByLabel('Full name').fill('Taylor Reyes');
     await page.getByLabel('Email').fill('taylor@example.com');
@@ -50,10 +50,10 @@ test.describe('booking a session', () => {
     await page.getByRole('radio', { name: /^Family/ }).click();
     await pickPublicDate(page, when);
     const times = page.getByRole('radiogroup', { name: 'Start time' });
-    await expect(times.getByRole('radio', { name: '11:00 AM' })).toBeVisible();
-    await expect(times.getByRole('radio', { name: '10:00 AM' })).toHaveCount(0);
-    await expect(times.getByRole('radio', { name: '9:30 AM' })).toHaveCount(0);   // would overlap 10–11
-    await expect(times.getByRole('radio', { name: '9:00 AM' })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '11:00 AM', exact: true })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '10:00 AM', exact: true })).toHaveCount(0);
+    await expect(times.getByRole('radio', { name: '9:30 AM', exact: true })).toHaveCount(0);   // would overlap 10–11
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toBeVisible();
   });
 
   test('hourly package: hours and add-ons drive the quote and the slot length', async ({ page, request }) => {
@@ -68,9 +68,9 @@ test.describe('booking a session', () => {
     await expect(page.locator('.summary')).toContainText('$675');   // 3×150 + 3×75
     await pickPublicDate(page, day);
     const times = page.getByRole('radiogroup', { name: 'Start time' });
-    await expect(times.getByRole('radio', { name: '3:00 PM' })).toBeVisible();   // 3h ending 6pm
-    await expect(times.getByRole('radio', { name: '3:30 PM' })).toHaveCount(0);
-    await times.getByRole('radio', { name: '2:00 PM' }).click();
+    await expect(times.getByRole('radio', { name: '3:00 PM', exact: true })).toBeVisible();   // 3h ending 6pm
+    await expect(times.getByRole('radio', { name: '3:30 PM', exact: true })).toHaveCount(0);
+    await times.getByRole('radio', { name: '2:00 PM', exact: true }).click();
     await page.getByLabel('Full name').fill('Party Host');
     await page.getByLabel('Email').fill('host@example.com');
     await page.getByRole('button', { name: 'Send request' }).click();
