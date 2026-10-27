@@ -2,7 +2,6 @@ package com.memoriesmadevisible.booking;
 
 import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -26,7 +25,7 @@ public final class BookingDtos {
             @Size(max = 40) String phone,
             @Size(max = 200) String location,
             @Size(max = 4000) String notes,
-            @NotNull @FutureOrPresent LocalDate date,
+            @NotNull LocalDate date,
             /** Start time as "HH:mm", one of the slots /api/availability offered. */
             @NotBlank @Pattern(regexp = "^\\d{1,2}:\\d{2}$", message = "Pick a time from the list.") String time,
             @Size(max = 200) String website

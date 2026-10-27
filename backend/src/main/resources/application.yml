@@ -52,6 +52,8 @@ management:
 
 app:
   seed-demo-data: false
+  # The studio's time zone: "today", booking notice and upcoming pop-ups are judged in it, not the server's.
+  time-zone: ${APP_TIME_ZONE:America/New_York}
   admin:
     users:
       - name: Erica

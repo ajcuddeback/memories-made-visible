@@ -384,6 +384,34 @@ class BookingFlowTest {
                         .content(json.writeValueAsString(Map.of("sessionType", "families", "packageName", "Solo", "name", "Jo", "email", "jo@example.com", "date", wDay.toString(), "time", "12:00"))))
                 .andExpect(status().isConflict());
 
+        // Hand-crafted requests can't do more than the form: off-grid start, in the past, too soon, too far out.
+        var base = new java.util.HashMap<String, Object>(Map.of("sessionType", "families", "packageName", "Solo", "name", "Edge", "email", "edge@example.com"));
+        base.put("date", d); base.put("time", "09:15");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(base)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("half hour")));
+        base.put("date", LocalDate.now().minusDays(1).toString()); base.put("time", "10:00");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(base)))
+                .andExpect(status().isConflict());
+        base.put("date", LocalDate.now().plusYears(3).toString());
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(base)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("18 months")));
+        base.put("date", d); base.put("time", "9:00 AM");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(base)))
+                .andExpect(status().isBadRequest());
+        base.put("time", "17:30"); base.put("packageName", "Family"); // 1 hour from 17:30 ends past 18:00
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(base)))
+                .andExpect(status().isConflict());
+        // A category with packages needs one; a missing package is a 400, not a silent 1-hour booking.
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "families", "name", "X", "email", "x@example.com", "date", d, "time", "08:00"))))
+                .andExpect(status().isBadRequest());
+        // Two packages with the same name in one category are refused (bookings reference packages by name).
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"key\":\"couples\",\"name\":\"Couples\",\"description\":\"\",\"from\":\"$150\",\"showInPortfolio\":true,"
+                                + "\"tiers\":[{\"name\":\"Mini\",\"detail\":\"\",\"price\":\"$150\",\"includes\":[]},{\"name\":\"mini\",\"detail\":\"\",\"price\":\"$200\",\"includes\":[]}]}]"))
+                .andExpect(status().isBadRequest());
+
         // A package that isn't on the price list is refused.
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("sessionType", "families", "packageName", "Deluxe", "name", "X", "email", "x@example.com", "date", d, "time", "09:00"))))

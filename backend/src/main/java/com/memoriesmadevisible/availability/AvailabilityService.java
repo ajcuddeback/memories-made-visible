@@ -4,6 +4,7 @@ import com.memoriesmadevisible.booking.Booking;
 import com.memoriesmadevisible.booking.BookingRepository;
 import com.memoriesmadevisible.booking.BookingStatus;
 import com.memoriesmadevisible.common.ConflictException;
+import com.memoriesmadevisible.common.StudioClock;
 import com.memoriesmadevisible.common.NotFoundException;
 import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.stereotype.Service;
@@ -32,20 +33,42 @@ public class AvailabilityService {
     static final Duration NOTICE = Duration.ofHours(2);
     static final int DEFAULT_DURATION = 60;
     static final int MAX_RANGE_DAYS = 62;
+    /** How far ahead the public form may book. */
+    static final int MAX_AHEAD_MONTHS = 18;
 
     private final AvailabilityHoursRepository hours;
     private final TimeBlockRepository blocks;
     private final BookingRepository bookings;
     private final CalendarDayRepository days;
     private final PublishService publish;
+    private final StudioClock clock;
 
     public AvailabilityService(AvailabilityHoursRepository hours, TimeBlockRepository blocks, BookingRepository bookings,
-                               CalendarDayRepository days, PublishService publish) {
+                               CalendarDayRepository days, PublishService publish, StudioClock clock) {
         this.hours = hours;
         this.blocks = blocks;
         this.bookings = bookings;
         this.days = days;
         this.publish = publish;
+        this.clock = clock;
+    }
+
+    /** Rows from before scheduling existed get a time range from their label so they block the calendar too. */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @Transactional
+    public void backfillLegacyTimes() {
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.US);
+        for (var b : bookings.findAll()) {
+            if (b.getStartTime() != null || b.getTime() == null) continue;
+            try {
+                LocalTime start = LocalTime.parse(b.getTime().strip().toUpperCase(java.util.Locale.US), fmt);
+                b.setStartTime(start);
+                b.setEndTime(start.plusMinutes(durationFor(b.getSessionTypeKey(), b.getPackageName())));
+                bookings.save(b);
+            } catch (Exception ignored) {
+                // "Golden hour" and friends: leave as-is; the admin can Move it to a real time.
+            }
+        }
     }
 
     // ── hours ──
@@ -123,7 +146,7 @@ public class AvailabilityService {
     /** Bookable start times per day in [from, to] for a session of the given type. Days with none are left out. */
     @Transactional(readOnly = true)
     public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey, String packageName) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         if (from.isBefore(today)) from = today;
         if (to.isBefore(from)) return List.of();
         if (to.isAfter(from.plusDays(MAX_RANGE_DAYS))) to = from.plusDays(MAX_RANGE_DAYS);
@@ -149,7 +172,7 @@ public class AvailabilityService {
                                        List<TimeBlock> blockList, List<Booking> sameDay) {
         var h = hoursByDay.get(day.getDayOfWeek().getValue() % 7);
         if (h == null || !h.isOpen()) return List.of();
-        LocalDateTime cutoff = LocalDateTime.now().plus(NOTICE);
+        LocalDateTime cutoff = clock.now().plus(NOTICE);
         List<LocalTime> out = new ArrayList<>();
         for (LocalTime t = h.getStart(); ; t = t.plus(STEP)) {
             LocalTime end = t.plusMinutes(minutes);
@@ -193,10 +216,24 @@ public class AvailabilityService {
         days.ensure(day);
         days.lock(day);
         LocalTime end = start.plusMinutes(minutes);
+        if (!end.isAfter(start)) { // wrapped past midnight (or zero length): never bookable
+            throw new ConflictException("That session would run past midnight. Please pick an earlier start.");
+        }
         if (enforceHours) {
+            // Public requests: inside the day's hours, on the slot grid, with notice, and not absurdly far out —
+            // exactly the rules the slot list was built with, so a hand-crafted request can't do more than the form.
             var h = hours.findById(day.getDayOfWeek().getValue() % 7).orElse(null);
-            if (h == null || !h.isOpen() || start.isBefore(h.getStart()) || end.isAfter(h.getEnd()) || end.isBefore(start)) {
+            if (h == null || !h.isOpen() || start.isBefore(h.getStart()) || end.isAfter(h.getEnd())) {
                 throw new ConflictException("That time isn't within the studio's booking hours. Please pick another.");
+            }
+            if (start.getMinute() % STEP.toMinutes() != 0 || start.getSecond() != 0) {
+                throw new ConflictException("Start times are on the half hour. Please pick a time from the list.");
+            }
+            if (LocalDateTime.of(day, start).isBefore(clock.now().plus(NOTICE))) {
+                throw new ConflictException("That time is too soon — we need at least " + NOTICE.toHours() + " hours' notice. Please pick a later time.");
+            }
+            if (day.isAfter(clock.today().plusMonths(MAX_AHEAD_MONTHS))) {
+                throw new ConflictException("We're only taking bookings up to " + MAX_AHEAD_MONTHS + " months ahead.");
             }
         }
         var blockList = blocks.findAllByEndDateGreaterThanEqualAndStartDateLessThanEqualOrderByStartDateAscStartTimeAsc(day, day);

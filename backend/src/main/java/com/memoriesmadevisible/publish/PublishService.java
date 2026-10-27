@@ -61,9 +61,12 @@ public class PublishService {
     private final PopupEventRepository events;
     private final SitePhotoRepository photos;
     private final PhotoStorage storage;
+    private final com.memoriesmadevisible.common.StudioClock clock;
 
     public PublishService(PublishedSiteRepository snapshots, ObjectMapper json, PricingService pricing,
-                          PopupEventRepository events, SitePhotoRepository photos, PhotoStorage storage) {
+                          PopupEventRepository events, SitePhotoRepository photos, PhotoStorage storage,
+                          com.memoriesmadevisible.common.StudioClock clock) {
+        this.clock = clock;
         this.snapshots = snapshots;
         this.json = json;
         this.pricing = pricing;
@@ -99,7 +102,7 @@ public class PublishService {
 
     @Transactional(readOnly = true)
     public List<PopupEventDtos.PublicResponse> publishedUpcoming() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         return read(EVENTS, EVENTS_T).orElseGet(this::draftEvents).stream()
                 .filter(e -> !e.date().isBefore(today)).toList();
     }

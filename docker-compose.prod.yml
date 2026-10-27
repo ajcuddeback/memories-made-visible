@@ -32,6 +32,7 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-mmv}
       DATABASE_USERNAME: ${POSTGRES_USER:-mmv}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-America/New_York}
     expose:
       - "8080"
 

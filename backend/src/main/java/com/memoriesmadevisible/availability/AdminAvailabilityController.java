@@ -23,9 +23,11 @@ import java.util.List;
 public class AdminAvailabilityController {
 
     private final AvailabilityService availability;
+    private final com.memoriesmadevisible.common.StudioClock clock;
 
-    public AdminAvailabilityController(AvailabilityService availability) {
+    public AdminAvailabilityController(AvailabilityService availability, com.memoriesmadevisible.common.StudioClock clock) {
         this.availability = availability;
+        this.clock = clock;
     }
 
     @GetMapping("/hours")
@@ -43,7 +45,7 @@ public class AdminAvailabilityController {
     public List<AvailabilityDtos.Block> blocks(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         return availability.blocks(from == null ? today.minusYears(1) : from, to == null ? today.plusYears(2) : to);
     }
 

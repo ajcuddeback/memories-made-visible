@@ -94,6 +94,12 @@ public class PricingService {
             t.setFromPrice(u.from().strip());
             t.setShowInPortfolio(u.showInPortfolio());
             if (u.durationMinutes() != null) t.setDurationMinutes(u.durationMinutes());
+            var seen = new java.util.HashSet<String>();
+            for (var x : u.tiers()) {
+                if (!seen.add(x.name().strip().toLowerCase(java.util.Locale.ROOT))) {
+                    throw new IllegalArgumentException("\"" + u.name() + "\" has two packages called \"" + x.name().strip() + "\" — package names need to be unique.");
+                }
+            }
             if (reorder) t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
                     .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),
