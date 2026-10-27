@@ -2,7 +2,7 @@
   <h1 class="page-title">Portfolio</h1>
   <p class="lede intro">A selection of recent sessions from across Polk County.</p>
   <div class="filters" role="group" aria-label="Filter by session type">
-    @for (f of filters; track f.key) {
+    @for (f of filters(); track f.key) {
       <button type="button" class="btn filter" [class.btn-primary]="filter() === f.key" [class.btn-secondary]="filter() !== f.key"
               [attr.aria-pressed]="filter() === f.key" (click)="filter.set(f.key)">{{ f.label }}</button>
     }

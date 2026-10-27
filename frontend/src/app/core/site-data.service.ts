@@ -4,16 +4,6 @@ import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core
 import { catchError, of } from 'rxjs';
 import { BookingRequest, Booking, PublicPopupEvent, SessionType } from './models';
 
-/** Short labels for the portfolio filter chips and captions (UI copy, not data). */
-export const CATEGORY_SHORT: Record<string, string> = {
-  families: 'Families & solo',
-  couples: 'Couples',
-  weddings: 'Weddings',
-  maternity: 'Maternity & newborn',
-  seniors: 'Seniors',
-  events: 'Events',
-};
-
 /**
  * Public-site data: price list, upcoming pop-ups and the slot → photo URL map.
  * Everything comes from the API (which the studio admin edits); each list is
