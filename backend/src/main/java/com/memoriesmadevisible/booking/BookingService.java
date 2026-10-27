@@ -1,5 +1,7 @@
 package com.memoriesmadevisible.booking;
 
+import com.memoriesmadevisible.availability.AvailabilityDtos;
+import com.memoriesmadevisible.availability.AvailabilityService;
 import com.memoriesmadevisible.common.NotFoundException;
 import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import com.memoriesmadevisible.notification.BookingNotificationService;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -19,14 +22,16 @@ public class BookingService {
     private final PricingService pricing;
     private final BookingNotificationService notifications;
     private final PublishService publish;
+    private final AvailabilityService availability;
     private final String siteUrl;
 
     public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
-                          PublishService publish, AppProperties props) {
+                          PublishService publish, AvailabilityService availability, AppProperties props) {
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
         this.publish = publish;
+        this.availability = availability;
         this.siteUrl = props.notifications().siteUrl();
     }
 
@@ -44,7 +49,12 @@ public class BookingService {
         b.setLocation(blankToNull(req.location()));
         b.setNotes(blankToNull(req.notes()));
         b.setDate(req.date());
-        b.setTime(req.time().trim());
+        // Lock the day, make sure the slot is still open (a pending request holds its slot), then write.
+        LocalTime start = AvailabilityDtos.parse(req.time());
+        LocalTime end = availability.reserve(req.date(), start, availability.durationFor(type.key()), null, true, true);
+        b.setStartTime(start);
+        b.setEndTime(end);
+        b.setTime(AvailabilityDtos.label(start));
         b.setStatus(BookingStatus.PENDING);
         // Starting quote is the session type's "from" price; the admin tunes it before approving.
         b.setQuote(PricingService.parseAmount(type.from()));
@@ -75,6 +85,10 @@ public class BookingService {
     public BookingDtos.Response setStatus(Long id, BookingStatus status, BookingDtos.EmailRequest email) {
         var b = find(id);
         var previous = b.getStatus();
+        if (status == BookingStatus.CONFIRMED && previous != BookingStatus.CONFIRMED && b.getStartTime() != null) {
+            // Approving claims the slot for real: it must not overlap a confirmed session or blocked time.
+            availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), false, false);
+        }
         b.setStatus(status);
         b = bookings.save(b);
         var action = previous == status ? null : BookingEmailDrafts.actionFor(previous, status);
@@ -107,6 +121,27 @@ public class BookingService {
         return s != null && !s.isBlank();
     }
 
+    /** Admin moves a session; a confirmed one must land on a free slot, a pending one just moves. */
+    @Transactional
+    public BookingDtos.Response reschedule(Long id, BookingDtos.Reschedule r) {
+        var b = find(id);
+        LocalTime start = AvailabilityDtos.parse(r.time());
+        LocalTime end = availability.reserve(r.date(), start, minutes(b), b.getId(),
+                b.getStatus() != BookingStatus.DECLINED, false);
+        b.setDate(r.date());
+        b.setStartTime(start);
+        b.setEndTime(end);
+        b.setTime(AvailabilityDtos.label(start));
+        return toResponse(bookings.save(b));
+    }
+
+    private int minutes(Booking b) {
+        if (b.getStartTime() != null && b.getEndTime() != null && b.getEndTime().isAfter(b.getStartTime())) {
+            return (int) java.time.Duration.between(b.getStartTime(), b.getEndTime()).toMinutes();
+        }
+        return availability.durationFor(b.getSessionTypeKey());
+    }
+
     @Transactional
     public BookingDtos.Response setQuote(Long id, BigDecimal quote) {
         var b = find(id);
@@ -126,7 +161,8 @@ public class BookingService {
     public BookingDtos.Response toResponse(Booking b) {
         String typeName = pricing.findType(b.getSessionTypeKey()).map(t -> t.getName()).orElse(b.getSessionTypeKey());
         return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getName(), b.getEmail(),
-                b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(), b.getStatus(), b.getQuote(),
+                b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(),
+                AvailabilityDtos.hm(b.getStartTime()), AvailabilityDtos.hm(b.getEndTime()), b.getStatus(), b.getQuote(),
                 b.getCreatedAt());
     }
 

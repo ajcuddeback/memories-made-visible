@@ -44,6 +44,10 @@ public class SessionType {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
+    /** How long a session blocks the calendar for; booking slots are offered at this length. */
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes = 60;
+
     /** Whether the Portfolio page shows a filter chip and three photo slots for this category. */
     @Column(name = "show_in_portfolio", nullable = false)
     private boolean showInPortfolio = true;
@@ -76,6 +80,8 @@ public class SessionType {
     public void setFromPrice(String v) { this.fromPrice = v; }
     public boolean isShowInPortfolio() { return showInPortfolio; }
     public void setShowInPortfolio(boolean v) { this.showInPortfolio = v; }
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int v) { this.durationMinutes = Math.max(30, Math.min(12 * 60, v)); }
     public int getSortOrder() { return sortOrder; }
     public void setSortOrder(int v) { this.sortOrder = v; }
     public List<PricingTier> getTiers() { return tiers; }

@@ -1,42 +1,138 @@
 <div class="cal">
   <div class="cal-head">
-    <h2 class="cal-title">{{ label() }}</h2>
-    <div class="cal-tools">
-      <span class="tag tag-accent legend">Sessions</span>
-      <span class="tag tag-accent-2 legend">Pop-ups</span>
+    <div class="cal-nav">
       <button type="button" class="btn btn-ghost btn-icon nav" (click)="prev()" aria-label="Previous month"><app-icon name="prev" /></button>
+      <h2 class="cal-title">{{ label() }}</h2>
       <button type="button" class="btn btn-ghost btn-icon nav" (click)="next()" aria-label="Next month"><app-icon name="next" /></button>
+      <button type="button" class="btn btn-ghost sm today-btn" (click)="goToday()">Today</button>
+    </div>
+    <div class="cal-tools">
+      <button type="button" class="btn btn-primary sm" (click)="openBlock()">Block time</button>
+      <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">Booking hours</button>
     </div>
   </div>
+  <div class="legend" aria-label="Legend">
+    <span class="lg lg--confirmed">Confirmed</span>
+    <span class="lg lg--pending">Pending</span>
+    <span class="lg lg--popup">Pop-up</span>
+    <span class="lg lg--block">Unavailable</span>
+    <label class="lg-toggle"><input type="checkbox" [checked]="showDeclined()" (change)="showDeclined.set(checked($event))" /> Show declined</label>
+  </div>
+  @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
 
-  @if (!viewport.narrow()) {
-    <div class="grid">
-      @for (w of weekdays; track w) { <div class="wd">{{ w }}</div> }
-      @for (d of days(); track $index) {
-        <div class="day" [class.is-today]="d.isToday" [class.is-blank]="!d.label">
+  @if (hoursOpen()) {
+    <section class="panel hours" aria-label="Booking hours">
+      <h3 class="panel-title">Booking hours</h3>
+      <p class="panel-hint">Customers can only pick start times inside these windows (a session must also finish inside them). Use <em>Block time</em> for one-offs like appointments or holidays.</p>
+      <div class="hours-grid">
+        @for (h of hoursDraft(); track h.weekday) {
+          <div class="hour-row" [class.is-closed]="!h.open">
+            <label class="hour-day"><input type="checkbox" [checked]="h.open" (change)="setHour(h.weekday, 'open', checked($event))" /> {{ weekdays[h.weekday] }}</label>
+            <input class="input hour-time" type="time" step="1800" [value]="h.start" [disabled]="!h.open" (change)="setHour(h.weekday, 'start', val($event))" [attr.aria-label]="weekdays[h.weekday] + ' opens'" />
+            <span class="hour-sep">to</span>
+            <input class="input hour-time" type="time" step="1800" [value]="h.end" [disabled]="!h.open" (change)="setHour(h.weekday, 'end', val($event))" [attr.aria-label]="weekdays[h.weekday] + ' closes'" />
+          </div>
+        }
+      </div>
+      <div class="panel-actions">
+        <button type="button" class="btn btn-primary sm" [disabled]="hoursBusy()" (click)="saveHours()">{{ hoursBusy() ? 'Saving…' : 'Save hours' }}</button>
+        <button type="button" class="btn btn-secondary sm" (click)="toggleHours()">Close</button>
+        <span class="panel-msg" aria-live="polite">{{ hoursMsg() }}</span>
+      </div>
+    </section>
+  }
+
+  @if (block(); as b) {
+    <form class="panel block-form" (submit)="$event.preventDefault(); saveBlock()" aria-label="Block time">
+      <h3 class="panel-title">Block time</h3>
+      <p class="panel-hint">Customers just see the time as unavailable — the note is only for you.</p>
+      <div class="block-grid">
+        <label class="field field--sm">From<input class="input" type="date" [value]="b.startDate" (change)="setBlock('startDate', val($event))" required /></label>
+        <label class="field field--sm">Through <span class="hint">(optional)</span><input class="input" type="date" [value]="b.endDate" [min]="b.startDate" (change)="setBlock('endDate', val($event))" /></label>
+        <label class="toggle"><input type="checkbox" [checked]="b.allDay" (change)="setBlock('allDay', checked($event))" /> All day</label>
+        @if (!b.allDay) {
+          <label class="field field--sm">Start<input class="input" type="time" step="900" [value]="b.startTime" (change)="setBlock('startTime', val($event))" /></label>
+          <label class="field field--sm">End<input class="input" type="time" step="900" [value]="b.endTime" (change)="setBlock('endTime', val($event))" /></label>
+        }
+        <label class="field field--sm block-note">Note <span class="hint">(private)</span><input class="input" [value]="b.note" (input)="setBlock('note', val($event))" placeholder="Dentist, vacation, family day…" maxlength="200" /></label>
+      </div>
+      @if (b.error) { <p class="panel-error" role="alert">{{ b.error }}</p> }
+      <div class="panel-actions">
+        <button type="submit" class="btn btn-primary sm" [disabled]="b.busy">{{ b.busy ? 'Saving…' : 'Block it' }}</button>
+        <button type="button" class="btn btn-secondary sm" (click)="closeBlock()" [disabled]="b.busy">Cancel</button>
+      </div>
+    </form>
+  }
+
+  <div class="grid" role="grid" aria-label="Month">
+    @for (w of weekdays; track w) { <div class="wd" role="columnheader">{{ w }}</div> }
+    @for (d of days(); track $index) {
+      @if (d.iso) {
+        <button type="button" class="day" role="gridcell" [class.is-today]="d.isToday" [class.is-past]="d.isPast" [class.is-closed]="d.closed"
+                [class.is-selected]="selected() === d.iso" (click)="select(d.iso)" [attr.aria-pressed]="selected() === d.iso"
+                [attr.aria-label]="d.label + (d.items.length ? ', ' + d.items.length + ' items' : '')">
           <span class="day-n">{{ d.label }}</span>
-          @for (it of d.items; track it.full) {
-            <span class="item" [class.item--popup]="it.kind === 'popup'" [title]="it.full">{{ it.text }}</span>
-          }
-        </div>
-      }
-    </div>
-  } @else {
-    @if (agenda().length === 0) { <p class="empty">Nothing booked this month.</p> }
-    <div class="agenda">
-      @for (ag of agenda(); track ag.label) {
-        <div class="ag">
-          <div class="ag-date">
-            <div class="ag-wd">{{ ag.wd }}</div>
-            <div class="ag-day">{{ ag.label }}</div>
-          </div>
-          <div class="ag-items">
-            @for (it of ag.items; track it.full) {
-              <div class="ag-item" [class.item--popup]="it.kind === 'popup'">{{ it.full }}</div>
+          @if (viewport.narrow()) {
+            <span class="dots">
+              @for (it of d.items.slice(0, 4); track it.key) { <span class="dot" [class]="'dot dot--' + it.kind"></span> }
+            </span>
+          } @else {
+            @for (it of d.items.slice(0, 3); track it.key) {
+              <span class="item" [class]="'item item--' + it.kind" [title]="it.time + ' · ' + it.title + (it.sub ? ' · ' + it.sub : '')">
+                <span class="item-time">{{ it.kind === 'block' && it.time === 'All day' ? '' : it.time.split(' – ')[0] }}</span> {{ it.title }}
+              </span>
             }
-          </div>
-        </div>
+            @if (d.items.length > 3) { <span class="more">+{{ d.items.length - 3 }} more</span> }
+          }
+        </button>
+      } @else {
+        <span class="day day--blank" aria-hidden="true"></span>
       }
-    </div>
+    }
+  </div>
+
+  @if (selectedDay(); as sd) {
+    <section class="panel dayp" aria-live="polite">
+      <div class="dayp-head">
+        <div>
+          <h3 class="panel-title">{{ sd.title }}</h3>
+          <p class="panel-hint dayp-hours">{{ sd.hours }}</p>
+        </div>
+        <button type="button" class="btn btn-secondary sm" (click)="openBlock(sd.iso)">Block time this day</button>
+      </div>
+      @if (sd.items.length === 0) { <p class="empty">Nothing on this day. Customers can book any open time inside the booking hours.</p> }
+      <ul class="dayl">
+        @for (it of sd.items; track it.key) {
+          <li class="dayi" [class]="'dayi dayi--' + it.kind">
+            <span class="dayi-time">{{ it.time }}</span>
+            <span class="dayi-main">
+              <span class="dayi-title">{{ it.title }}</span>
+              @if (it.sub) { <span class="dayi-sub">{{ it.sub }}</span> }
+            </span>
+            <span class="tag dayi-tag" [class]="'tag dayi-tag tag--' + it.kind">{{ kindLabel[it.kind] }}</span>
+            @if (it.bookingId && it.kind !== 'declined') {
+              <button type="button" class="btn btn-ghost sm dayi-act" (click)="openMove(it.bookingId!)">Move</button>
+            }
+            @if (it.blockId) {
+              <button type="button" class="btn btn-ghost sm dayi-act" (click)="removeBlock(it.blockId!)">Remove</button>
+            }
+            @if (move(); as mv) {
+              @if (mv.bookingId === it.bookingId) {
+                <form class="move" (submit)="$event.preventDefault(); saveMove()">
+                  <label class="field field--sm">Date<input class="input" type="date" [value]="mv.date" (change)="setMove('date', val($event))" /></label>
+                  <label class="field field--sm">Start<input class="input" type="time" step="1800" [value]="mv.time" (change)="setMove('time', val($event))" /></label>
+                  <div class="panel-actions">
+                    <button type="submit" class="btn btn-primary sm" [disabled]="mv.busy">{{ mv.busy ? 'Moving…' : 'Move session' }}</button>
+                    <button type="button" class="btn btn-secondary sm" (click)="closeMove()">Cancel</button>
+                  </div>
+                  @if (mv.error) { <p class="panel-error" role="alert">{{ mv.error }}</p> }
+                  <p class="panel-hint">A confirmed session can only move to a free time; the customer isn’t emailed automatically — send them a note from Requests.</p>
+                </form>
+              }
+            }
+          </li>
+        }
+      </ul>
+    </section>
   }
 </div>

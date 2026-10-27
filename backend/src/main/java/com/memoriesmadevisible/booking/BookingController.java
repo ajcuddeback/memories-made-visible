@@ -19,10 +19,13 @@ import java.util.Map;
 public class BookingController {
 
     private final BookingService service;
-    private final RateLimiter limiter = new RateLimiter(5, Duration.ofMinutes(15));
+    /** Public requests per client per 15 minutes (app.booking-rate-limit; tests raise it). */
+    private final RateLimiter limiter;
 
-    public BookingController(BookingService service) {
+    public BookingController(BookingService service,
+                             @org.springframework.beans.factory.annotation.Value("${app.booking-rate-limit:5}") int rateLimit) {
         this.service = service;
+        this.limiter = new RateLimiter(rateLimit, Duration.ofMinutes(15));
     }
 
     @PostMapping

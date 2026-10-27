@@ -58,6 +58,11 @@ public class AdminBookingController {
         return service.setStatus(id, BookingStatus.DECLINED, email);
     }
 
+    @PostMapping("/{id}/reschedule")
+    public BookingDtos.Response reschedule(@PathVariable Long id, @Valid @RequestBody BookingDtos.Reschedule body) {
+        return service.reschedule(id, body);
+    }
+
     @PostMapping("/{id}/restore")
     public BookingDtos.Response restore(@PathVariable Long id) {
         return service.setStatus(id, BookingStatus.PENDING, null);

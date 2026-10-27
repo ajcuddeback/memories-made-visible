@@ -15,6 +15,8 @@ export interface SessionType {
   from: string;
   /** Portfolio page: show a filter chip and three photo slots for this category. */
   showInPortfolio: boolean;
+  /** How long a session blocks the calendar; booking slots are offered at this length. */
+  durationMinutes: number;
   tiers: PricingTier[];
 }
 
@@ -24,6 +26,45 @@ export interface SessionTypeCreate {
   description: string;
   from: string;
   showInPortfolio: boolean;
+  durationMinutes: number;
+}
+
+/** Booking window for one weekday (0 = Sunday … 6 = Saturday); times "HH:mm". */
+export interface AvailabilityHours {
+  weekday: number;
+  open: boolean;
+  start: string;
+  end: string;
+}
+
+/** Time the studio is unavailable. Times null = whole day(s). The note is private. */
+export interface TimeBlock {
+  id: number;
+  startDate: string;
+  endDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  note: string | null;
+}
+
+export interface TimeBlockCreate {
+  startDate: string;
+  endDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  note: string;
+}
+
+export interface Slot {
+  /** "HH:mm" */
+  start: string;
+  /** "9:00 AM" */
+  label: string;
+}
+
+export interface DaySlots {
+  date: string;
+  slots: Slot[];
 }
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED';
@@ -39,7 +80,11 @@ export interface Booking {
   notes: string | null;
   /** ISO date, yyyy-mm-dd */
   date: string;
+  /** Display label, e.g. "9:00 AM" */
   time: string;
+  /** "HH:mm" slot bounds; null on rows from before scheduling existed. */
+  startTime: string | null;
+  endTime: string | null;
   status: BookingStatus;
   quote: number | null;
   createdAt: string;

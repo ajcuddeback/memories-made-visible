@@ -1,16 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { MONTHS, fmtLongDate, toISO, today } from '../../core/dates';
+import { MONTHS, fmtDuration, fmtLongDate, fmtTime, toISO, today } from '../../core/dates';
+import { Slot } from '../../core/models';
 import { SiteDataService } from '../../core/site-data.service';
 import { Icon } from '../../shared/icons';
 
-const TIMES = ['9:00 AM', '11:00 AM', '2:00 PM', '4:00 PM', 'Golden hour'];
 const WEEKDAYS_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 interface Day {
   label: string;
   date: Date | null;
-  past: boolean;
+  iso: string;
+  /** Not bookable: in the past, or no open slots for this session type. */
+  off: boolean;
 }
 
 @Component({
@@ -27,7 +29,10 @@ export class BookingPage {
 
   readonly weekdays = WEEKDAYS_SHORT;
   readonly skeletons = [0, 1, 2, 3, 4, 5];
-  readonly times = TIMES;
+  /** Open slots per day for the visible month and chosen session type, from the API. */
+  readonly openByDay = signal<Map<string, Slot[]>>(new Map());
+  readonly availLoading = signal(false);
+  readonly availError = signal(false);
   readonly types = this.data.sessionTypes;
   readonly typesError = this.data.pricingError;
 
@@ -56,17 +61,25 @@ export class BookingPage {
     const y = this.vy(), m = this.vm();
     const first = new Date(y, m, 1).getDay();
     const count = new Date(y, m + 1, 0).getDate();
+    const open = this.openByDay();
     const out: Day[] = [];
-    for (let i = 0; i < first; i++) out.push({ label: '', date: null, past: true });
+    for (let i = 0; i < first; i++) out.push({ label: '', date: null, iso: '', off: true });
     for (let d = 1; d <= count; d++) {
       const dt = new Date(y, m, d);
-      out.push({ label: String(d), date: dt, past: dt <= this.today });
+      const iso = toISO(dt);
+      out.push({ label: String(d), date: dt, iso, off: dt < this.today || !(open.get(iso)?.length) });
     }
     return out;
   });
 
+  /** Start times open on the chosen day. */
+  readonly times = computed<Slot[]>(() => (this.date() ? this.openByDay().get(toISO(this.date()!)) ?? [] : []));
+  readonly monthHasSlots = computed(() => this.days().some((d) => d.date && !d.off));
+
   readonly typeName = computed(() => this.data.typeByKey().get(this.type() ?? '')?.name ?? null);
+  readonly duration = computed(() => fmtDuration(this.data.typeByKey().get(this.type() ?? '')?.durationMinutes ?? 60));
   readonly dateLabel = computed(() => (this.date() ? fmtLongDate(this.date()!) : null));
+  readonly timeLabel = computed(() => (this.time() ? fmtTime(this.time()) : null));
 
   readonly missing = computed(() => {
     const m: string[] = [];
@@ -85,6 +98,33 @@ export class BookingPage {
     this.data.loadPricing();
     const preset = this.route.snapshot.queryParamMap.get('type');
     if (preset) this.type.set(preset);
+    // Refetch what's open whenever the visible month or the session type (its length) changes.
+    effect(() => {
+      const y = this.vy(), m = this.vm(), type = this.type();
+      untracked(() => this.fetchAvailability(y, m, type));
+    });
+  }
+
+  private fetchAvailability(y: number, m: number, type: string | null): void {
+    const from = toISO(new Date(y, m, 1));
+    const to = toISO(new Date(y, m + 1, 0));
+    this.availLoading.set(true);
+    this.availError.set(false);
+    this.data.availability(from, to, type).subscribe({
+      next: (days) => {
+        this.openByDay.set(new Map(days.map((d) => [d.date, d.slots])));
+        this.availLoading.set(false);
+        // The chosen time may no longer be open (someone booked it, or the type got longer).
+        const t = this.time();
+        if (t && !this.times().some((s) => s.start === t)) this.time.set(null);
+      },
+      error: () => { this.availLoading.set(false); this.availError.set(true); },
+    });
+  }
+
+  pickDate(d: Date): void {
+    this.date.set(d);
+    this.time.set(null);
   }
 
   isSelected(d: Day): boolean {
@@ -126,6 +166,7 @@ export class BookingPage {
       error: (err) => {
         this.submitting.set(false);
         this.error.set(err?.error?.message ?? 'We couldn’t send your request just now. Please try again in a moment.');
+        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type()); }
       },
     });
   }

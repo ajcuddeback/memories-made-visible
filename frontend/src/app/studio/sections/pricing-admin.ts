@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { SessionType } from '../../core/models';
 import { AdminStore } from '../admin-store.service';
 import { Icon } from '../../shared/icons';
+import { fmtDuration } from '../../core/dates';
 
 interface DraftTier {
   name: string;
@@ -18,8 +19,12 @@ interface Draft {
   description: string;
   from: string;
   showInPortfolio: boolean;
+  durationMinutes: number;
   tiers: DraftTier[];
 }
+
+/** 30-minute steps up to 8 hours, for the "session length" picker. */
+export const DURATIONS = Array.from({ length: 16 }, (_, i) => (i + 1) * 30);
 
 @Component({
   selector: 'app-pricing-admin',
@@ -36,7 +41,9 @@ export class PricingAdminSection {
   readonly dirty = signal(false);
 
   // "Add a category" form
-  readonly nc = signal({ name: '', shortName: '', description: '', from: '', showInPortfolio: true });
+  readonly nc = signal({ name: '', shortName: '', description: '', from: '', showInPortfolio: true, durationMinutes: 60 });
+  readonly durations = DURATIONS;
+  readonly fmtDuration = fmtDuration;
   readonly cantAdd = computed(() => !this.nc().name.trim() || !this.nc().from.trim());
 
   /** How many bookings reference each category — shown before a delete so nobody is surprised. */
@@ -58,6 +65,7 @@ export class PricingAdminSection {
     return list.map((s) => ({
       key: s.key, name: s.name, shortName: s.shortName === s.name ? '' : s.shortName, description: s.description, from: s.from,
       showInPortfolio: s.showInPortfolio,
+      durationMinutes: s.durationMinutes || 60,
       tiers: s.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, includesText: (t.includes ?? []).join('\n') })),
     }));
   }
@@ -66,6 +74,7 @@ export class PricingAdminSection {
     return d.map((c) => ({
       key: c.key, name: c.name, shortName: c.shortName, description: c.description, from: c.from,
       showInPortfolio: c.showInPortfolio,
+      durationMinutes: c.durationMinutes,
       tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price,
         includes: t.includesText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
     }));
@@ -83,6 +92,10 @@ export class PricingAdminSection {
   setCat(i: number, field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
     const v = this.val(e); this.edit((d) => { d[i][field] = v; });
   }
+  setDuration(i: number, e: Event): void {
+    const v = Number((e.target as HTMLSelectElement).value); this.edit((d) => { d[i].durationMinutes = v; });
+  }
+  setNcDuration(e: Event): void { const v = Number((e.target as HTMLSelectElement).value); this.nc.update((n) => ({ ...n, durationMinutes: v })); }
   setPortfolio(i: number, on: boolean): void { this.edit((d) => { d[i].showInPortfolio = on; }); }
   move(i: number, dir: -1 | 1): void {
     this.edit((d) => { const j = i + dir; if (j < 0 || j >= d.length) return; [d[i], d[j]] = [d[j], d[i]]; });
@@ -104,10 +117,10 @@ export class PricingAdminSection {
     if (this.cantAdd() || this.busy()) return;
     const n = this.nc();
     this.busy.set(true);
-    this.store.createCategory({ name: n.name.trim(), shortName: n.shortName.trim(), description: n.description.trim(), from: n.from.trim(), showInPortfolio: n.showInPortfolio }).subscribe({
+    this.store.createCategory({ name: n.name.trim(), shortName: n.shortName.trim(), description: n.description.trim(), from: n.from.trim(), showInPortfolio: n.showInPortfolio, durationMinutes: n.durationMinutes }).subscribe({
       next: (list) => {
         this.busy.set(false);
-        this.nc.set({ name: '', shortName: '', description: '', from: '', showInPortfolio: true });
+        this.nc.set({ name: '', shortName: '', description: '', from: '', showInPortfolio: true, durationMinutes: 60 });
         const added = list.find((s) => !this.draft().some((d) => d.key === s.key));
         if (added) this.draft.update((d) => [...d, ...this.toDraft([added])]);
         this.store.applyPricing(list);

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { BookingStatus, EmailAction } from '../../core/models';
-import { fmtDate, money, num } from '../../core/dates';
+import { fmtDate, fmtRange, money, num } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
 
 const TABS: { key: BookingStatus; label: string }[] = [
@@ -52,7 +52,7 @@ export class RequestsSection {
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((b) => ({
         ...b,
-        when: `${fmtDate(b.date)} · ${b.time}`,
+        when: `${fmtDate(b.date)} · ${b.startTime ? fmtRange(b.startTime, b.endTime) : b.time}`,
         priceLabel: money(b.quote),
       })),
   );

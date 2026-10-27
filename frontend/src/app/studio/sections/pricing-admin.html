@@ -11,6 +11,11 @@
   <div class="add-grid">
     <label class="field field--sm">Name<input class="input md" [value]="nc().name" (input)="setNc('name', $event)" placeholder="Pets & animals" required /></label>
     <label class="field field--sm">From price<input class="input md" [value]="nc().from" (input)="setNc('from', $event)" placeholder="$120" required /></label>
+    <label class="field field--sm">Session length <span class="hint">(blocks the calendar)</span>
+      <select class="input md" [value]="nc().durationMinutes" (change)="setNcDuration($event)">
+        @for (d of durations; track d) { <option [value]="d" [selected]="d === nc().durationMinutes">{{ fmtDuration(d) }}</option> }
+      </select>
+    </label>
     <label class="field field--sm add-desc">Short description<input class="input md" [value]="nc().description" (input)="setNc('description', $event)" placeholder="One line shown on the pricing and home pages" /></label>
     <label class="toggle add-toggle">
       <input type="checkbox" [checked]="nc().showInPortfolio" (change)="setNcPortfolio($any($event.target).checked)" />
@@ -36,6 +41,11 @@
       <div class="cat-fields">
         <label class="field field--sm cat-name">Name<input class="input" [value]="pc.name" (input)="setCat(i, 'name', $event)" /></label>
         <label class="field field--sm">From<input class="input" [value]="pc.from" (input)="setCat(i, 'from', $event)" /></label>
+        <label class="field field--sm">Session length <span class="hint">(booking slots &amp; calendar)</span>
+          <select class="input" [value]="pc.durationMinutes" (change)="setDuration(i, $event)">
+            @for (d of durations; track d) { <option [value]="d" [selected]="d === pc.durationMinutes">{{ fmtDuration(d) }}</option> }
+          </select>
+        </label>
         <label class="field field--sm cat-desc">Description<input class="input" [value]="pc.description" (input)="setCat(i, 'description', $event)" /></label>
         <div class="portfolio-row">
           <label class="toggle">

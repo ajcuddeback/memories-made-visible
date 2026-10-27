@@ -10,6 +10,7 @@ spring:
 
 app:
   seed-demo-data: false
+  booking-rate-limit: 100
   admin:
     users:
       - name: Erica

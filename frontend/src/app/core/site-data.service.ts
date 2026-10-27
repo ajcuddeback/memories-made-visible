@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { catchError, of } from 'rxjs';
-import { BookingRequest, Booking, PublicPopupEvent, SessionType } from './models';
+import { BookingRequest, Booking, DaySlots, PublicPopupEvent, SessionType } from './models';
 
 /**
  * Public-site data: price list, upcoming pop-ups and the slot → photo URL map.
@@ -55,6 +55,13 @@ export class SiteDataService {
     this.sessionTypes.set([]);
     this.upcoming.set([]);
     this.photos.set({});
+  }
+
+  /** Open start times per day in [from, to] for a session type (not cached: it changes as people book). */
+  availability(from: string, to: string, type: string | null) {
+    const params: Record<string, string> = { from, to };
+    if (type) params['type'] = type;
+    return this.http.get<DaySlots[]>('/api/availability', { params });
   }
 
   submitBooking(req: BookingRequest) {
