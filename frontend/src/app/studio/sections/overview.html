@@ -10,13 +10,30 @@
 
 <div class="panels">
   <div class="panel">
-    <h2 class="panel-title">Revenue</h2>
-    <p class="panel-sub">Confirmed sessions plus pop-up print sales</p>
-    <div class="chart" role="img" aria-label="Monthly revenue, last three months through two months ahead">
-      @for (m of months(); track m.mon) {
-        <div class="bar-col">
+    <div class="panel-head">
+      <div>
+        <h2 class="panel-title">Revenue</h2>
+        <p class="panel-sub">Confirmed sessions plus pop-up print sales · {{ rangeTotal() }} in this window</p>
+      </div>
+      <div class="range" role="group" aria-label="Chart range">
+        @for (r of ranges; track r.key) {
+          <button type="button" class="range-btn" [class.is-on]="range() === r.key" [attr.aria-pressed]="range() === r.key" (click)="range.set(r.key)">{{ r.label }}</button>
+        }
+      </div>
+    </div>
+    <div class="legend">
+      <span class="lg lg--sessions">Sessions</span>
+      <span class="lg lg--popups">Pop-up prints</span>
+      <span class="lg-note">Current month solid · months ahead lighter</span>
+    </div>
+    <div class="chart" [class.is-dense]="months().length > 6" role="img" [attr.aria-label]="rangeAria()">
+      @for (m of months(); track m.key) {
+        <div class="bar-col" [class.is-now]="m.isNow" [class.is-future]="m.future" [title]="m.title">
           <span class="bar-label">{{ m.label }}</span>
-          <div class="bar" [style.height.%]="m.h" [style.background]="m.bg"></div>
+          <div class="bars">
+            <div class="bar bar--sessions" [style.height.%]="m.sessionsH"></div>
+            <div class="bar bar--popups" [style.height.%]="m.popupsH"></div>
+          </div>
           <span class="bar-mon">{{ m.mon }}</span>
         </div>
       }
