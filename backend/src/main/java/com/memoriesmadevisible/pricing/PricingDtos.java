@@ -25,10 +25,23 @@ public final class PricingDtos {
                        List<@Valid AddOn> addons) {
         public boolean hourly() { return "HOURLY".equalsIgnoreCase(pricingModel); }
         public List<AddOn> addonsOrEmpty() { return addons == null ? List.of() : addons; }
+
+        /** Fill in anything a snapshot written by an older version left out, so clients never see nulls. */
+        public Tier normalized(int defaultMinutes) {
+            return new Tier(name, detail == null ? "" : detail, price, includes == null ? List.of() : includes,
+                    durationMinutes == null || durationMinutes <= 0 ? defaultMinutes : durationMinutes,
+                    hourly() ? "HOURLY" : "FLAT", minHours == null ? 2 : minHours, maxHours == null ? 8 : maxHours, addonsOrEmpty());
+        }
     }
 
     public record SessionTypeView(String key, String name, String shortName, String description, String from,
-                                  boolean showInPortfolio, int durationMinutes, List<Tier> tiers) {}
+                                  boolean showInPortfolio, int durationMinutes, List<Tier> tiers) {
+        public SessionTypeView normalized() {
+            int d = durationMinutes > 0 ? durationMinutes : 60;
+            return new SessionTypeView(key, name, shortName == null ? name : shortName, description == null ? "" : description, from,
+                    showInPortfolio, d, tiers == null ? List.of() : tiers.stream().map(t -> t.normalized(d)).toList());
+        }
+    }
 
     /** Admin save: the whole category, in the order the list arrives. */
     public record TypeUpdate(@NotBlank String key, @NotBlank @Size(max = 80) String name, @Size(max = 40) String shortName,

@@ -84,6 +84,9 @@ export class BookingPage {
   /** Packages of the chosen session type, with a length label. */
   readonly packages = computed(() => (this.data.typeByKey().get(this.type() ?? '')?.tiers ?? []).map((t) => ({
     ...t,
+    addons: t.addons ?? [],
+    minHours: t.minHours || 1,
+    maxHours: t.maxHours || 12,
     hourly: t.pricingModel === 'HOURLY',
     length: t.pricingModel === 'HOURLY' ? `${t.minHours}–${t.maxHours} hrs` : fmtDuration(t.durationMinutes || 60),
     priceLabel: t.pricingModel === 'HOURLY' ? `${money(num(t.price))}/hr` : t.price,

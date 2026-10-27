@@ -338,6 +338,30 @@ class BookingFlowTest {
         return json.readTree(res).get("token").asText();
     }
 
+    @Autowired com.memoriesmadevisible.publish.PublishedSiteRepository snapshots;
+
+    @Test
+    void oldPricingSnapshotsAreServedWithDefaults() throws Exception {
+        // A snapshot written before add-ons/hourly packages existed: tiers with only name/detail/price/includes.
+        var row = snapshots.findById("pricing").orElseThrow();
+        String original = row.getPayload();
+        try {
+            row.setPayload("[{\"key\":\"legacy\",\"name\":\"Legacy\",\"description\":\"\",\"from\":\"$100\",\"showInPortfolio\":true,"
+                    + "\"tiers\":[{\"name\":\"Old\",\"detail\":\"\",\"price\":\"$100\",\"includes\":[\"x\"]}]}]");
+            snapshots.save(row);
+            mvc.perform(get("/api/pricing"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].tiers[0].addons").isArray())
+                    .andExpect(jsonPath("$[0].tiers[0].pricingModel").value("FLAT"))
+                    .andExpect(jsonPath("$[0].tiers[0].durationMinutes").value(60))
+                    .andExpect(jsonPath("$[0].tiers[0].minHours").value(2))
+                    .andExpect(jsonPath("$[0].shortName").value("Legacy"));
+        } finally {
+            row.setPayload(original);
+            snapshots.save(row);
+        }
+    }
+
     @Test
     void availabilityDrivesSlotsAndBlocksDoubleBooking() throws Exception {
         var res = mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)

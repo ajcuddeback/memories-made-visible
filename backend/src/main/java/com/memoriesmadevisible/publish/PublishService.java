@@ -90,7 +90,7 @@ public class PublishService {
     /** The published price list: what customers see, book against, and what sets a booking's length. */
     @Transactional(readOnly = true)
     public List<PricingDtos.SessionTypeView> publishedPricing() {
-        return read(PRICING, PRICING_T).orElseGet(pricing::list);
+        return read(PRICING, PRICING_T).orElseGet(pricing::list).stream().map(PricingDtos.SessionTypeView::normalized).toList();
     }
 
     @Transactional(readOnly = true)

@@ -29,10 +29,10 @@
                 </div>
                 <div class="tier-price">{{ t.price }}@if (t.pricingModel === 'HOURLY') { <span class="tier-min">{{ t.minHours }}-hr min</span> }</div>
               </div>
-              @if (t.addons.length) {
+              @if (t.addons?.length) {
                 <div class="tier-addons">@for (a of t.addons; track a.name; let last = $last) {<span>{{ a.name }} +${{ a.price }}{{ a.perHour ? '/hr' : '' }}</span>@if (!last) { · }}</div>
               }
-              @if (t.includes.length) {
+              @if (t.includes?.length) {
                 <button type="button" class="tier-more" [attr.aria-expanded]="isOpen(s.key, ti)" (click)="toggle(s.key, ti)">
                   {{ isOpen(s.key, ti) ? 'Hide details' : 'See what’s included' }}
                   <span class="chev" [class.is-open]="isOpen(s.key, ti)" aria-hidden="true">›</span>
