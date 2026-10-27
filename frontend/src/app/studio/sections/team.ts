@@ -79,6 +79,12 @@ export class TeamSection {
       error: (err) => this.say(err?.error?.message ?? 'Couldn’t change that.'),
     });
   }
+  setBookable(m: TeamMember, bookable: boolean): void {
+    this.store.updateMember(m.name, { bookable }).subscribe({
+      next: (u) => { this.replace(u); this.say(bookable ? `${u.name} is now offered on the booking page.` : `${u.name} is no longer offered on the booking page.`); },
+      error: (err) => { this.say(err?.error?.message ?? 'Couldn’t change that.'); this.reload(); },
+    });
+  }
   reinvite(m: TeamMember): void {
     if (!confirm(`Send ${m.name} a new temporary password? Their current password will stop working.`)) return;
     this.store.reinvite(m.name).subscribe({

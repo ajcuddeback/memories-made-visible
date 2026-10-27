@@ -76,7 +76,7 @@ export class AdminStore {
   // ── team ──
   team() { return this.http.get<TeamMember[]>('/api/admin/users'); }
   addMember(body: { name: string; role: string; email: string; access: Access }) { return this.http.post<TeamMember>('/api/admin/users', body); }
-  updateMember(name: string, body: { role?: string; email?: string; access?: Access; active?: boolean }) {
+  updateMember(name: string, body: { role?: string; email?: string; access?: Access; active?: boolean; bookable?: boolean }) {
     return this.http.patch<TeamMember>(`/api/admin/users/${encodeURIComponent(name)}`, body);
   }
   reinvite(name: string) { return this.http.post<TeamMember>(`/api/admin/users/${encodeURIComponent(name)}/invite`, {}); }

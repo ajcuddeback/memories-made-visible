@@ -25,7 +25,8 @@ public class AvailabilityController {
                                                  @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                                  @RequestParam(required = false) String type,
                                                  @RequestParam(name = "package", required = false) String packageName,
-                                                 @RequestParam(required = false) Integer hours) {
-        return availability.slots(from, to, type, packageName, hours);
+                                                 @RequestParam(required = false) Integer hours,
+                                                 @RequestParam(required = false) String photographer) {
+        return availability.slots(from, to, type, packageName, hours, photographer);
     }
 }

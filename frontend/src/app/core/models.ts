@@ -59,6 +59,8 @@ export interface TimeBlock {
   startTime: string | null;
   endTime: string | null;
   note: string | null;
+  /** Whose time; null = the whole studio. */
+  staffName: string | null;
 }
 
 export interface TimeBlockCreate {
@@ -67,6 +69,7 @@ export interface TimeBlockCreate {
   startTime: string | null;
   endTime: string | null;
   note: string;
+  staffName: string | null;
 }
 
 /** Insights report from /api/admin/analytics. */
@@ -137,6 +140,8 @@ export interface BookingRequest {
   hours: number | null;
   /** Chosen add-on names. */
   addons: string[];
+  /** A bookable photographer's name, or null for no preference. */
+  photographer: string | null;
   name: string;
   email: string;
   phone: string;
@@ -257,6 +262,14 @@ export interface TeamMember {
   mustChangePassword: boolean;
   createdAt: string | null;
   isYou: boolean;
+  /** Offered on the public booking page as a photographer to choose. */
+  bookable: boolean;
+}
+
+/** A photographer customers may pick on the booking page. */
+export interface Photographer {
+  name: string;
+  role: string;
 }
 
 export interface LoginResponse {

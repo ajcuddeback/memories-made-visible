@@ -38,6 +38,22 @@ export class BookingPage {
   readonly availError = signal(false);
   readonly types = this.data.sessionTypes;
   readonly contact = this.data.contact;
+  /** Bookable photographers; when there are none the step is hidden and the studio books as one. */
+  readonly photographers = this.data.photographers;
+  readonly photographer = signal<string | null>(null);
+  readonly hasPhotographers = computed(() => this.photographers().length > 0);
+  readonly photographerLabel = computed(() => this.photographer() ?? (this.hasPhotographers() ? 'No preference' : null));
+  pickPhotographer(name: string | null): void { this.photographer.set(name); this.time.set(null); }
+  /** Step numbers shift with the optional package and photographer steps. */
+  stepNo(step: 'package' | 'photographer' | 'when' | 'details'): number {
+    let n = 1;
+    if (step === 'package') return n + 1;
+    if (this.needsPackage()) n++;
+    if (step === 'photographer') return n + 1;
+    if (this.hasPhotographers()) n++;
+    if (step === 'when') return n + 1;
+    return n + 2;
+  }
   readonly typesError = this.data.pricingError;
 
   // Form state
@@ -155,6 +171,7 @@ export class BookingPage {
 
   constructor() {
     this.data.loadPricing();
+    this.data.loadPhotographers();
     const preset = this.route.snapshot.queryParamMap.get('type');
     if (preset) this.type.set(preset);
     this.analytics.track('book_view');
@@ -162,8 +179,9 @@ export class BookingPage {
     if (presetPkg) this.pkg.set(presetPkg); // hours/add-ons are chosen on the page
     // Refetch what's open whenever the visible month or the session type (its length) changes.
     effect(() => {
-      const y = this.vy(), m = this.vm(), type = this.type(), pkg = this.pkg(), hours = this.hours();
-      untracked(() => this.fetchAvailability(y, m, type, pkg, hours));
+      const y = this.vy(), m = this.vm(), type = this.type(), pkg = this.pkg(), hours = this.hours(), who = this.photographer();
+      this.photographers(); // refetch once the list arrives too
+      untracked(() => this.fetchAvailability(y, m, type, pkg, hours, who));
     });
   }
 
@@ -176,12 +194,12 @@ export class BookingPage {
     if (tiers.length === 1) this.pickPackage(tiers[0].name);
   }
 
-  private fetchAvailability(y: number, m: number, type: string | null, pkg: string | null, hours: number | null): void {
+  private fetchAvailability(y: number, m: number, type: string | null, pkg: string | null, hours: number | null, who: string | null = null): void {
     const from = toISO(new Date(y, m, 1));
     const to = toISO(new Date(y, m + 1, 0));
     this.availLoading.set(true);
     this.availError.set(false);
-    this.data.availability(from, to, type, pkg, hours).subscribe({
+    this.data.availability(from, to, type, pkg, hours, who).subscribe({
       next: (days) => {
         this.openByDay.set(new Map(days.map((d) => [d.date, d.slots])));
         this.availLoading.set(false);
@@ -236,6 +254,7 @@ export class BookingPage {
       packageName: this.chosenPackage()?.name ?? null,
       hours: this.chosenPackage()?.hourly ? this.hours() : null,
       addons: [...this.addons()],
+      photographer: this.photographer(),
       name: this.name().trim(),
       email: this.email().trim(),
       phone: this.phone().trim(),
@@ -254,13 +273,13 @@ export class BookingPage {
       error: (err) => {
         this.submitting.set(false);
         this.error.set(err?.error?.message ?? 'We couldn’t send your request just now. Please try again in a moment.');
-        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type(), this.pkg(), this.hours()); }
+        if (err?.status === 409) { this.time.set(null); this.fetchAvailability(this.vy(), this.vm(), this.type(), this.pkg(), this.hours(), this.photographer()); }
       },
     });
   }
 
   reset(): void {
-    this.type.set(null); this.pkg.set(null); this.hours.set(null); this.addons.set(new Set()); this.date.set(null); this.time.set(null);
+    this.type.set(null); this.pkg.set(null); this.hours.set(null); this.addons.set(new Set()); this.photographer.set(null); this.date.set(null); this.time.set(null);
     this.name.set(''); this.email.set(''); this.phone.set(''); this.location.set(''); this.notes.set('');
     this.submitted.set(false);
     this.error.set(null);

@@ -48,10 +48,11 @@ public class AdminUsersController {
     }
 
     public record Member(String name, String role, String email, AdminUser.Access access, boolean active,
-                         boolean mustChangePassword, Instant createdAt, boolean isYou) {}
+                         boolean mustChangePassword, Instant createdAt, boolean isYou, boolean bookable) {}
     public record Create(@NotBlank @Size(max = 60) String name, @NotBlank @Size(max = 120) String role,
                          @NotBlank @Email @Size(max = 200) String email, @NotNull AdminUser.Access access) {}
-    public record Update(@Size(max = 120) String role, @Email @Size(max = 200) String email, AdminUser.Access access, Boolean active) {}
+    public record Update(@Size(max = 120) String role, @Email @Size(max = 200) String email, AdminUser.Access access, Boolean active,
+                         Boolean bookable) {}
 
     @GetMapping
     public List<Member> list(Principal me) {
@@ -106,6 +107,7 @@ public class AdminUsersController {
             if (body.access() == AdminUser.Access.OWNER || u.getAccess() == AdminUser.Access.OWNER) throw new IllegalArgumentException("The owner account can't be changed here.");
             u.setAccess(body.access());
         }
+        if (body.bookable() != null) u.setBookable(body.bookable()); // the owner may flag themselves too
         if (body.active() != null && !self) {
             if (u.getAccess() == AdminUser.Access.OWNER) throw new IllegalArgumentException("The owner account can't be deactivated.");
             u.setActive(body.active());
@@ -159,6 +161,6 @@ public class AdminUsersController {
 
     private static Member toMember(AdminUser u, Principal me) {
         return new Member(u.getName(), u.getRole(), u.getEmail(), u.getAccess(), u.isActive(), u.isMustChangePassword(),
-                u.getCreatedAt(), u.getName().equalsIgnoreCase(me.getName()));
+                u.getCreatedAt(), u.getName().equalsIgnoreCase(me.getName()), u.isBookable());
     }
 }

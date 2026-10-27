@@ -748,4 +748,70 @@ class BookingFlowTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return "Bearer " + json.readTree(res).get("token").asText();
     }
+
+    @Test
+    void customersCanPickAPhotographerAndCapacityIsPerPerson() throws Exception {
+        String owner = token("Austin", "test-pass");
+        // Nobody bookable → the public list is empty and the studio books as one unit.
+        mvc.perform(get("/api/photographers")).andExpect(jsonPath("$.length()").value(0));
+
+        // Mark Erica and Austin bookable.
+        for (String n : List.of("Erica", "Austin")) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/users/" + n).header("Authorization", owner)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"bookable\":true}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.bookable").value(true));
+        }
+        mvc.perform(get("/api/photographers")).andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].name").value("Austin"));
+
+        LocalDate day = LocalDate.now().plusDays(120);
+        while (day.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || day.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) day = day.plusDays(1);
+        String d = day.toString();
+
+        // Erica blocks 09:00–12:00 for herself only: her 09:00 is gone, Austin's isn't, and "no preference" still has it.
+        mvc.perform(post("/api/admin/availability/blocks").header("Authorization", owner).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"" + d + "\",\"startTime\":\"09:00\",\"endTime\":\"12:00\",\"note\":\"Dentist\",\"staffName\":\"Erica\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.staffName").value("Erica"));
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family").param("photographer", "Erica"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='09:00')]").isEmpty())
+                .andExpect(jsonPath("$[0].slots[?(@.start=='13:00')]").isNotEmpty());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family").param("photographer", "Austin"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='09:00')]").isNotEmpty());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='09:00')]").isNotEmpty());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family").param("photographer", "Sam"))
+                .andExpect(status().isBadRequest());
+
+        // Booking Austin at 14:00 assigns him; a second request for Austin at 14:00 is refused, but Erica is still free,
+        // and "no preference" lands on Erica (the free one).
+        var req = new java.util.HashMap<String, Object>(Map.of("sessionType", "families", "packageName", "Family", "name", "Pat", "email", "pat@example.com", "date", d, "time", "14:00"));
+        req.put("photographer", "Austin");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(req)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.assignees[0]").value("Austin"));
+        req.put("email", "pat2@example.com");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(req)))
+                .andExpect(status().isConflict());
+        req.remove("photographer"); req.put("email", "pat3@example.com");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(req)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.assignees[0]").value("Erica"));
+        // Now both are taken at 14:00: nobody is free.
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Family"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='14:00')]").isEmpty());
+        req.put("email", "pat4@example.com");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(req)))
+                .andExpect(status().isConflict());
+
+        // A studio-wide block (no staffName) stops everyone.
+        mvc.perform(post("/api/admin/availability/blocks").header("Authorization", owner).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"" + d + "\",\"startTime\":\"16:00\",\"endTime\":\"17:00\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Solo").param("photographer", "Austin"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='16:00')]").isEmpty());
+
+        // Tidy: unflag both so the other tests see a single-capacity studio again.
+        for (String n : List.of("Erica", "Austin")) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/users/" + n).header("Authorization", owner)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"bookable\":false}"))
+                    .andExpect(status().isOk());
+        }
+    }
 }

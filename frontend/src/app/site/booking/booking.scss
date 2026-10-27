@@ -31,6 +31,8 @@
 }
 .type.is-on .type-dot { background: var(--color-accent); }
 .type-name { font-size: 15px; font-weight: 600; }
+.type-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.type-sub { font-size: 12.5px; color: var(--ink-65); }
 .type--skeleton { cursor: default; }
 .type--skeleton .sk { display: block; height: 15px; width: 60%; border-radius: 999px; background: var(--ink-7); }
 

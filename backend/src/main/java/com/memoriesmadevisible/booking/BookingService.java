@@ -94,7 +94,9 @@ public class BookingService {
         b.setDate(req.date());
         // Lock the day, make sure the slot is still open (a pending request holds its slot), then write.
         LocalTime start = AvailabilityDtos.parse(req.time());
-        LocalTime end = availability.reserve(req.date(), start, minutes, null, true, true);
+        var reservation = availability.reserve(req.date(), start, minutes, null, true, true, req.photographer());
+        LocalTime end = reservation.end();
+        if (reservation.photographer() != null) b.setAssignees(List.of(reservation.photographer()));
         b.setStartTime(start);
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
@@ -166,7 +168,7 @@ public class BookingService {
         var previous = b.getStatus();
         if (status == BookingStatus.CONFIRMED && previous != BookingStatus.CONFIRMED && b.getStartTime() != null) {
             // Approving claims the slot for real: it must not overlap a confirmed session or blocked time.
-            availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), false, false);
+            availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), false, false, ownPhotographer(b));
         }
         b.setStatus(status);
         b = bookings.save(b);
@@ -224,7 +226,7 @@ public class BookingService {
         var oldTime = b.getTime();
         LocalTime start = AvailabilityDtos.parse(r.time());
         LocalTime end = availability.reserve(r.date(), start, minutes(b), b.getId(),
-                b.getStatus() != BookingStatus.DECLINED, false);
+                b.getStatus() != BookingStatus.DECLINED, false, ownPhotographer(b)).end();
         b.setDate(r.date());
         b.setStartTime(start);
         b.setEndTime(end);
@@ -238,6 +240,11 @@ public class BookingService {
             notifications.sendCustomerEmail(b, typeName, subject, body, b.getStatus() == BookingStatus.CONFIRMED);
         }
         return toResponse(b);
+    }
+
+    /** The photographer this booking's slot belongs to, if it's assigned to a bookable one. */
+    private String ownPhotographer(Booking b) {
+        return AvailabilityService.photographerOf(b, availability.photographers());
     }
 
     private int minutes(Booking b) {

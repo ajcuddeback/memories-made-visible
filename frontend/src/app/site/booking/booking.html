@@ -33,7 +33,7 @@
 
         @if (needsPackage()) {
           <div>
-            <h2 class="step-title">2. Package</h2>
+            <h2 class="step-title">{{ stepNo('package') }}. Package</h2>
             <div class="packages" role="radiogroup" aria-label="Package">
               @for (p of packages(); track p.name) {
                 <button type="button" class="pkg" [class.is-on]="pkg() === p.name" role="radio" [attr.aria-checked]="pkg() === p.name" (click)="pickPackage(p.name)">
@@ -74,8 +74,27 @@
           </div>
         }
 
+        @if (hasPhotographers()) {
+          <div>
+            <h2 class="step-title">{{ stepNo('photographer') }}. Photographer</h2>
+            <p class="hint step-hint">Pick who you'd like, or leave it to us — dates and times below follow their availability.</p>
+            <div class="types" role="radiogroup" aria-label="Photographer">
+              <button type="button" class="type" [class.is-on]="photographer() === null" role="radio" [attr.aria-checked]="photographer() === null" (click)="pickPhotographer(null)">
+                <span class="type-dot" aria-hidden="true"></span>
+                <span class="type-text"><span class="type-name">No preference</span><span class="type-sub">Whoever's free</span></span>
+              </button>
+              @for (p of photographers(); track p.name) {
+                <button type="button" class="type" [class.is-on]="photographer() === p.name" role="radio" [attr.aria-checked]="photographer() === p.name" (click)="pickPhotographer(p.name)">
+                  <span class="type-dot" aria-hidden="true"></span>
+                  <span class="type-text"><span class="type-name">{{ p.name }}</span><span class="type-sub">{{ p.role }}</span></span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
         <div>
-          <h2 class="step-title">{{ needsPackage() ? '3' : '2' }}. Date &amp; time</h2>
+          <h2 class="step-title">{{ stepNo('when') }}. Date &amp; time</h2>
           <p class="hint step-hint">Only open times are shown{{ chosenPackage() ? ' — the ' + chosenPackage()!.name + ' package is ' + duration() : (typeName() ? ' — pick a package to see times for its length' : '') }}.</p>
           <div class="calendar" [class.is-loading]="availLoading()">
             <div class="cal-head">
@@ -117,7 +136,7 @@
         </div>
 
         <div>
-          <h2 class="step-title">{{ needsPackage() ? '4' : '3' }}. Your details</h2>
+          <h2 class="step-title">{{ stepNo('details') }}. Your details</h2>
           <div class="details">
             <label class="field">Full name<input class="input lg" [value]="name()" (input)="name.set(value($event)); detailsTyped()" placeholder="Jane Smith" autocomplete="name" /></label>
             <label class="field">Email<input class="input lg" type="email" [value]="email()" (input)="email.set(value($event)); detailsTyped()" placeholder="you@example.com" autocomplete="email" /></label>
@@ -139,6 +158,7 @@
             @if (addons().size) { <div><dt>Add-ons</dt><dd>{{ [...addons()].join(', ') }}</dd></div> }
             @if (estimate()) { <div><dt>Starting quote</dt><dd>{{ estimate() }}</dd></div> }
           }
+          @if (hasPhotographers()) { <div><dt>Photographer</dt><dd>{{ photographerLabel() }}</dd></div> }
           <div><dt>Date</dt><dd>{{ dateLabel() ?? '—' }}</dd></div>
           <div><dt>Time</dt><dd>{{ timeLabel() ?? '—' }}</dd></div>
         </dl>

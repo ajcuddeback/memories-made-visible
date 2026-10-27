@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { catchError, of } from 'rxjs';
-import { BookingRequest, Booking, ContactInfo, DaySlots, PublicPopupEvent, SessionType } from './models';
+import { BookingRequest, Booking, ContactInfo, DaySlots, Photographer, PublicPopupEvent, SessionType } from './models';
 
 /**
  * Public-site data: price list, upcoming pop-ups and the slot → photo URL map.
@@ -67,11 +67,20 @@ export class SiteDataService {
   }
 
   /** Open start times per day in [from, to] for a session type (not cached: it changes as people book). */
-  availability(from: string, to: string, type: string | null, pkg: string | null, hours: number | null) {
+  readonly photographers = signal<Photographer[]>([]);
+  private loadedPhotographers = false;
+  loadPhotographers(): void {
+    if (!this.isBrowser || this.loadedPhotographers) return;
+    this.loadedPhotographers = true;
+    this.http.get<Photographer[]>('/api/photographers').pipe(catchError(() => of([] as Photographer[]))).subscribe((l) => this.photographers.set(l));
+  }
+
+  availability(from: string, to: string, type: string | null, pkg: string | null, hours: number | null, photographer: string | null = null) {
     const params: Record<string, string> = { from, to };
     if (type) params['type'] = type;
     if (pkg) params['package'] = pkg;
     if (hours) params['hours'] = String(hours);
+    if (photographer) params['photographer'] = photographer;
     return this.http.get<DaySlots[]>('/api/availability', { params });
   }
 

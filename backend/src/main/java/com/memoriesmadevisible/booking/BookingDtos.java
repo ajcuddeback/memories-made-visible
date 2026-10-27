@@ -25,6 +25,8 @@ public final class BookingDtos {
             Integer hours,
             /** Add-on names from the package's list. */
             List<@Size(max = 80) String> addons,
+            /** A bookable photographer's name, or blank for no preference. */
+            @Size(max = 60) String photographer,
             @NotBlank @Size(max = 120) String name,
             @NotBlank @Email @Size(max = 200) String email,
             @Size(max = 40) String phone,

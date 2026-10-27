@@ -12,4 +12,5 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, String> {
     List<AdminUser> findAllByActiveTrueOrderByNameAsc();
     List<AdminUser> findAllByOrderByCreatedAtAscNameAsc();
     boolean existsByAccess(AdminUser.Access access);
+    List<AdminUser> findAllByActiveTrueAndBookableTrueOrderByNameAsc();
 }

@@ -41,6 +41,10 @@ public class AdminUser {
     @Column(nullable = false)
     private boolean active = true;
 
+    /** Shown on the public booking page as a photographer customers can choose. */
+    @Column(nullable = false)
+    private boolean bookable;
+
     @Column(name = "reset_token", length = 80)
     private String resetToken;
 
@@ -69,6 +73,8 @@ public class AdminUser {
     public void setAccess(Access v) { this.access = v == null ? Access.EMPLOYEE : v; }
     public boolean isMustChangePassword() { return mustChangePassword; }
     public void setMustChangePassword(boolean v) { this.mustChangePassword = v; }
+    public boolean isBookable() { return bookable; }
+    public void setBookable(boolean v) { this.bookable = v; }
     public boolean isActive() { return active; }
     public void setActive(boolean v) { this.active = v; }
     public String getResetToken() { return resetToken; }

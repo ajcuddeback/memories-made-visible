@@ -130,6 +130,7 @@ public final class BookingEmailDrafts {
         d.add(new EmailTemplates.Detail("Session", b.getPackageName() == null ? sessionTypeName : sessionTypeName + " · " + b.packageSummary()));
         d.add(new EmailTemplates.Detail("Date", LONG_DATE.format(b.getDate())));
         d.add(new EmailTemplates.Detail("Time", b.getTime()));
+        if (!b.getAssignees().isEmpty()) d.add(new EmailTemplates.Detail("Photographer", String.join(" & ", b.getAssignees().stream().sorted().toList())));
         if (b.getLocation() != null && !b.getLocation().isBlank()) d.add(new EmailTemplates.Detail("Location", b.getLocation()));
         if (includePrice && b.getQuote() != null && b.getQuote().signum() > 0) {
             d.add(new EmailTemplates.Detail("Session price", money(b.getQuote())));

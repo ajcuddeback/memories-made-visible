@@ -24,10 +24,13 @@ public class AdminAvailabilityController {
 
     private final AvailabilityService availability;
     private final com.memoriesmadevisible.common.StudioClock clock;
+    private final com.memoriesmadevisible.auth.StaffAccess access;
 
-    public AdminAvailabilityController(AvailabilityService availability, com.memoriesmadevisible.common.StudioClock clock) {
+    public AdminAvailabilityController(AvailabilityService availability, com.memoriesmadevisible.common.StudioClock clock,
+                                       com.memoriesmadevisible.auth.StaffAccess access) {
         this.availability = availability;
         this.clock = clock;
+        this.access = access;
     }
 
     @GetMapping("/hours")
@@ -52,13 +55,13 @@ public class AdminAvailabilityController {
 
     @PostMapping("/blocks")
     @ResponseStatus(HttpStatus.CREATED)
-    public AvailabilityDtos.Block addBlock(@Valid @RequestBody AvailabilityDtos.BlockCreate body) {
-        return availability.addBlock(body);
+    public AvailabilityDtos.Block addBlock(@Valid @RequestBody AvailabilityDtos.BlockCreate body, java.security.Principal me) {
+        return availability.addBlock(body, me.getName(), access.limited(me));
     }
 
     @DeleteMapping("/blocks/{id}")
-    public ResponseEntity<Void> removeBlock(@PathVariable Long id) {
-        availability.removeBlock(id);
+    public ResponseEntity<Void> removeBlock(@PathVariable Long id, java.security.Principal me) {
+        availability.removeBlock(id, me.getName(), access.limited(me));
         return ResponseEntity.noContent().build();
     }
 }

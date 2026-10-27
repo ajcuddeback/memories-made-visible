@@ -15,6 +15,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,15 +44,18 @@ public class AvailabilityService {
     private final CalendarDayRepository days;
     private final PublishService publish;
     private final StudioClock clock;
+    private final com.memoriesmadevisible.auth.AdminUserRepository staff;
 
     public AvailabilityService(AvailabilityHoursRepository hours, TimeBlockRepository blocks, BookingRepository bookings,
-                               CalendarDayRepository days, PublishService publish, StudioClock clock) {
+                               CalendarDayRepository days, PublishService publish, StudioClock clock,
+                               com.memoriesmadevisible.auth.AdminUserRepository staff) {
         this.hours = hours;
         this.blocks = blocks;
         this.bookings = bookings;
         this.days = days;
         this.publish = publish;
         this.clock = clock;
+        this.staff = staff;
     }
 
     /** Rows from before scheduling existed get a time range from their label so they block the calendar too. */
@@ -103,8 +108,15 @@ public class AvailabilityService {
     }
 
     @Transactional
-    public AvailabilityDtos.Block addBlock(AvailabilityDtos.BlockCreate c) {
+    public AvailabilityDtos.Block addBlock(AvailabilityDtos.BlockCreate c, String by, boolean limitedToSelf) {
         var b = new TimeBlock();
+        String who = c.staffName() == null || c.staffName().isBlank() ? null : c.staffName().strip();
+        if (limitedToSelf) who = by; // employees block their own time, never the studio's
+        if (who != null) {
+            var u = staff.findByNameIgnoreCase(who).orElseThrow(() -> new IllegalArgumentException("No account called " + c.staffName()));
+            who = u.getName();
+        }
+        b.setStaffName(who);
         b.setStartDate(c.startDate());
         b.setEndDate(c.endDate() == null ? c.startDate() : c.endDate());
         if (b.getEndDate().isBefore(b.getStartDate())) throw new IllegalArgumentException("The end date is before the start date.");
@@ -119,8 +131,24 @@ public class AvailabilityService {
     }
 
     @Transactional
-    public void removeBlock(Long id) {
-        blocks.delete(blocks.findById(id).orElseThrow(() -> new NotFoundException("That block is already gone.")));
+    public void removeBlock(Long id, String by, boolean limitedToSelf) {
+        var b = blocks.findById(id).orElseThrow(() -> new NotFoundException("That block is already gone."));
+        if (limitedToSelf && (b.getStaffName() == null || !b.getStaffName().equalsIgnoreCase(by))) {
+            throw new org.springframework.security.access.AccessDeniedException("Not your block");
+        }
+        blocks.delete(b);
+    }
+
+    /** Photographers customers may choose. Empty means the studio books as one unit (no per-person capacity). */
+    @Transactional(readOnly = true)
+    public List<String> photographers() {
+        return staff.findAllByActiveTrueAndBookableTrueOrderByNameAsc().stream().map(com.memoriesmadevisible.auth.AdminUser::getName).toList();
+    }
+
+    /** The photographer a booking counts against: its first bookable assignee, else null (counts against everyone). */
+    public static String photographerOf(Booking b, List<String> photographers) {
+        for (String a : b.getAssignees()) for (String p : photographers) if (p.equalsIgnoreCase(a)) return p;
+        return null;
     }
 
     // ── slots ──
@@ -158,6 +186,16 @@ public class AvailabilityService {
     /** Bookable start times per day in [from, to] for a session of the given type. Days with none are left out. */
     @Transactional(readOnly = true)
     public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey, String packageName, Integer bookedHours) {
+        return slots(from, to, typeKey, packageName, bookedHours, null);
+    }
+
+    /**
+     * @param photographer a bookable photographer's name, or null for "no preference" (open if anyone is free).
+     *                     Ignored when nobody is bookable — the studio then books as one.
+     */
+    @Transactional(readOnly = true)
+    public List<AvailabilityDtos.DaySlots> slots(LocalDate from, LocalDate to, String typeKey, String packageName, Integer bookedHours,
+                                                 String photographer) {
         LocalDate today = clock.today();
         if (from.isBefore(today)) from = today;
         if (to.isBefore(from)) return List.of();
@@ -166,12 +204,13 @@ public class AvailabilityService {
         var hoursByDay = hours.findAll().stream().collect(Collectors.toMap(AvailabilityHours::getWeekday, Function.identity()));
         var blockList = blocks.findAllByEndDateGreaterThanEqualAndStartDateLessThanEqualOrderByStartDateAscStartTimeAsc(from, to);
         var booked = bookings.findAllByDateBetweenAndStatusNot(from, to, BookingStatus.DECLINED);
+        var candidates = candidates(photographer);
 
         List<AvailabilityDtos.DaySlots> out = new ArrayList<>();
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
             final LocalDate day = d;
             var starts = openStarts(day, minutes, hoursByDay, blockList,
-                    booked.stream().filter(b -> b.getDate().equals(day)).toList());
+                    booked.stream().filter(b -> b.getDate().equals(day)).toList(), candidates);
             if (!starts.isEmpty()) {
                 out.add(new AvailabilityDtos.DaySlots(day, starts.stream()
                         .map(t -> new AvailabilityDtos.Slot(AvailabilityDtos.hm(t), AvailabilityDtos.label(t))).toList()));
@@ -180,8 +219,22 @@ public class AvailabilityService {
         return out;
     }
 
+    /**
+     * Who a slot must be free for. Nobody bookable → [null] (one studio-wide capacity). A named
+     * photographer → [that one]. No preference → every bookable photographer (free if any is).
+     */
+    private List<String> candidates(String photographer) {
+        var all = photographers();
+        if (all.isEmpty()) return java.util.Collections.singletonList(null);
+        if (photographer != null && !photographer.isBlank()) {
+            return all.stream().filter(p -> p.equalsIgnoreCase(photographer.strip())).findFirst().map(List::of)
+                    .orElseThrow(() -> new IllegalArgumentException("That photographer isn't available to book."));
+        }
+        return all;
+    }
+
     private List<LocalTime> openStarts(LocalDate day, int minutes, Map<Integer, AvailabilityHours> hoursByDay,
-                                       List<TimeBlock> blockList, List<Booking> sameDay) {
+                                       List<TimeBlock> blockList, List<Booking> sameDay, List<String> candidates) {
         var h = hoursByDay.get(day.getDayOfWeek().getValue() % 7);
         if (h == null || !h.isOpen()) return List.of();
         LocalDateTime cutoff = clock.now().plus(NOTICE);
@@ -190,16 +243,36 @@ public class AvailabilityService {
             LocalTime end = t.plusMinutes(minutes);
             if (end.isAfter(h.getEnd()) || end.isBefore(t) /* wrapped past midnight */) break;
             if (LocalDateTime.of(day, t).isBefore(cutoff)) continue;
-            if (!clash(day, t, end, blockList, sameDay, null, true).isPresent()) out.add(t);
+            if (freeFor(candidates, day, t, end, blockList, sameDay, null, true) != null) out.add(t);
             if (t.plus(STEP).isBefore(t)) break;
         }
         return out;
     }
 
-    /** What (if anything) a [start, end) on this day runs into. Pending bookings count only when asked. */
-    private Optional<String> clash(LocalDate day, LocalTime start, LocalTime end, List<TimeBlock> blockList,
-                                   List<Booking> sameDay, Long ignoreBookingId, boolean includePending) {
+    /**
+     * The first candidate who is free for [start, end), or null if none. Candidates are tried in order,
+     * so "no preference" lands on the photographer with the fewest sessions that day.
+     */
+    private String freeFor(List<String> candidates, LocalDate day, LocalTime start, LocalTime end, List<TimeBlock> blockList,
+                           List<Booking> sameDay, Long ignoreBookingId, boolean includePending) {
+        var photographers = candidates.size() == 1 && candidates.get(0) == null ? List.<String>of() : photographers();
+        List<String> ordered = new ArrayList<>(candidates);
+        if (ordered.size() > 1) {
+            Map<String, Long> load = new HashMap<>();
+            for (var b : sameDay) { String p = photographerOf(b, photographers); if (p != null) load.merge(p, 1L, Long::sum); }
+            ordered.sort(Comparator.comparingLong(p -> load.getOrDefault(p, 0L)));
+        }
+        for (String p : ordered) {
+            if (clash(p, photographers, day, start, end, blockList, sameDay, ignoreBookingId, includePending).isEmpty()) return p == null ? "" : p;
+        }
+        return null;
+    }
+
+    /** What (if anything) a [start, end) on this day runs into, for one photographer (null = the studio as one). */
+    private Optional<String> clash(String photographer, List<String> photographers, LocalDate day, LocalTime start, LocalTime end,
+                                   List<TimeBlock> blockList, List<Booking> sameDay, Long ignoreBookingId, boolean includePending) {
         for (var b : blockList) {
+            if (!b.appliesTo(photographer)) continue;
             if (b.overlaps(day, start, end)) return Optional.of("time you've blocked off" + (b.getNote() == null ? "" : " (" + b.getNote() + ")"));
         }
         for (var b : sameDay) {
@@ -207,6 +280,8 @@ public class AvailabilityService {
             if (b.getStatus() == BookingStatus.DECLINED) continue;
             if (b.getStatus() == BookingStatus.PENDING && !includePending) continue;
             if (b.getStartTime() == null || b.getEndTime() == null) continue; // legacy row without a time range
+            // A booking on another photographer doesn't block this one; an unassigned booking blocks everyone.
+            if (photographer != null) { String theirs = photographerOf(b, photographers); if (theirs != null && !theirs.equalsIgnoreCase(photographer)) continue; }
             if (b.getStartTime().isBefore(end) && start.isBefore(b.getEndTime())) {
                 return Optional.of(b.getName() + "'s " + (b.getStatus() == BookingStatus.PENDING ? "pending request" : "confirmed session")
                         + " at " + AvailabilityDtos.label(b.getStartTime()));
@@ -222,9 +297,21 @@ public class AvailabilityService {
      * @param includePending true for a new public request (a pending request holds its slot);
      *                       false when approving (only confirmed sessions and blocks matter).
      */
+    public record Reservation(LocalTime end, String photographer) {}
+
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
     public LocalTime reserve(LocalDate day, LocalTime start, int minutes, Long ignoreBookingId, boolean includePending,
                              boolean enforceHours) {
+        return reserve(day, start, minutes, ignoreBookingId, includePending, enforceHours, null).end();
+    }
+
+    /**
+     * Same, for a photographer ("" or null = no preference; ignored when nobody is bookable). The
+     * reservation names who the slot was found for, so the booking can be assigned to them.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public Reservation reserve(LocalDate day, LocalTime start, int minutes, Long ignoreBookingId, boolean includePending,
+                               boolean enforceHours, String photographer) {
         days.ensure(day);
         days.lock(day);
         LocalTime end = start.plusMinutes(minutes);
@@ -250,11 +337,14 @@ public class AvailabilityService {
         }
         var blockList = blocks.findAllByEndDateGreaterThanEqualAndStartDateLessThanEqualOrderByStartDateAscStartTimeAsc(day, day);
         var sameDay = bookings.findAllByDateBetweenAndStatusNot(day, day, BookingStatus.DECLINED);
-        clash(day, start, end, blockList, sameDay, ignoreBookingId, includePending).ifPresent(what -> {
+        var candidates = candidates(photographer);
+        String who = freeFor(candidates, day, start, end, blockList, sameDay, ignoreBookingId, includePending);
+        if (who == null) {
+            String what = clash(candidates.get(0), photographers(), day, start, end, blockList, sameDay, ignoreBookingId, includePending).orElse("another session");
             throw new ConflictException(includePending
                     ? "That time was just taken. Please pick another available time."
                     : "This overlaps " + what + ". Move or decline the other one first.");
-        });
-        return end;
+        }
+        return new Reservation(end, who.isEmpty() ? null : who);
     }
 }

@@ -32,3 +32,7 @@
 .levels { margin-top: 24px; padding: 18px 22px; border-radius: 22px; background: var(--ink-4); }
 .levels-title { font-size: 15px; margin: 0 0 8px; }
 .levels-list { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.6; color: var(--ink-72); }
+
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.toggle input { width: 17px; height: 17px; accent-color: var(--color-accent); }
+.levels-note { font-size: 13px; line-height: 1.55; color: var(--ink-65); margin: 0 0 10px; }

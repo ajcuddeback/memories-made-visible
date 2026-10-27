@@ -43,9 +43,14 @@
           <select class="input access-select" [value]="m.access" (change)="setAccess(m, $event)" aria-label="Access level">
             @for (a of grantable; track a) { <option [value]="a" [selected]="a === m.access">{{ label[a] }}</option> }
           </select>
+          <label class="toggle bookable"><input type="checkbox" [checked]="m.bookable" (change)="setBookable(m, $any($event.target).checked)" /> Bookable by customers</label>
           <button type="button" class="btn btn-secondary sm" (click)="reinvite(m)">Resend invite</button>
           <button type="button" class="btn btn-ghost sm" (click)="toggleActive(m)">{{ m.active ? 'Deactivate' : 'Reactivate' }}</button>
           <button type="button" class="btn btn-ghost sm danger" (click)="remove(m)">Remove</button>
+        </div>
+      } @else if (m.isYou) {
+        <div class="member-actions">
+          <label class="toggle bookable"><input type="checkbox" [checked]="m.bookable" (change)="setBookable(m, $any($event.target).checked)" /> Bookable by customers</label>
         </div>
       } @else if (m.access === 'OWNER' && !m.isYou) {
         <div class="member-note">Only the owner can change this account.</div>
@@ -57,7 +62,8 @@
 </div>
 
 <div class="levels">
-  <h2 class="levels-title">Access levels</h2>
+  <h2 class="levels-title">Access levels &amp; booking</h2>
+  <p class="levels-note">“Bookable by customers” puts a person on the public booking page as a photographer to choose. With at least one bookable person, availability is tracked per photographer (their assigned sessions and their own blocked time); with none, the studio books as a single calendar.</p>
   <ul class="levels-list">
     <li><strong>Owner</strong> — {{ help['OWNER'] }}</li>
     <li><strong>Admin</strong> — {{ help['ADMIN'] }}</li>

@@ -30,7 +30,7 @@ interface CalDay {
 }
 
 /** Inline "block time" form. */
-interface BlockForm { startDate: string; endDate: string; allDay: boolean; startTime: string; endTime: string; note: string; busy: boolean; error: string | null; }
+interface BlockForm { startDate: string; endDate: string; allDay: boolean; startTime: string; endTime: string; note: string; staffName: string; busy: boolean; error: string | null; }
 /** Inline "move session" form: the new slot, why, and the confirmation email the customer gets. */
 interface MoveForm {
   bookingId: number; to: string; date: string; time: string; reason: MoveReason;
@@ -56,7 +56,10 @@ const STATUS_KIND: Record<BookingStatus, Kind> = { CONFIRMED: 'confirmed', PENDI
 })
 export class CalendarSection {
   readonly store = inject(AdminStore);
-  readonly canManage = inject(AuthService).canManage;
+  readonly auth = inject(AuthService);
+  readonly canManage = this.auth.canManage;
+  /** Staff who can own a block (owner/admin pick anyone; employees only themselves). */
+  readonly staff = signal<{ name: string; role: string }[]>([]);
   readonly viewport = inject(ViewportService);
   readonly weekdays = WEEKDAYS;
   readonly kindLabel = KIND_LABEL;
@@ -100,7 +103,8 @@ export class CalendarSection {
       for (let d = fromISO(bl.startDate); toISO(d) <= bl.endDate; d.setDate(d.getDate() + 1)) {
         push(toISO(d), {
           key: 'k' + bl.id + toISO(d), kind: 'block', sort: allDay ? '' : bl.startTime!, time: allDay ? 'All day' : fmtRange(bl.startTime, bl.endTime),
-          title: bl.note || 'Unavailable', sub: bl.startDate === bl.endDate ? '' : `${fmtDateShort(bl.startDate)} – ${fmtDateShort(bl.endDate)}`, blockId: bl.id,
+          title: (bl.staffName ? bl.staffName + ' · ' : '') + (bl.note || 'Unavailable'),
+          sub: [bl.staffName ? '' : 'Whole studio', bl.startDate === bl.endDate ? '' : `${fmtDateShort(bl.startDate)} – ${fmtDateShort(bl.endDate)}`].filter(Boolean).join(' · '), blockId: bl.id,
         });
       }
     }
@@ -135,6 +139,10 @@ export class CalendarSection {
     };
   });
 
+  constructor() {
+    if (this.canManage()) this.store.team().subscribe({ next: (m) => this.staff.set(m.filter((x) => x.active).map((x) => ({ name: x.name, role: x.role }))), error: () => undefined });
+  }
+
   // ── navigation ──
   prev(): void { if (this.cm() === 0) { this.cm.set(11); this.cy.update((y) => y - 1); } else this.cm.update((m) => m - 1); }
   next(): void { if (this.cm() === 11) { this.cm.set(0); this.cy.update((y) => y + 1); } else this.cm.update((m) => m + 1); }
@@ -150,7 +158,7 @@ export class CalendarSection {
   // ── block time ──
   openBlock(iso?: string): void {
     const d = iso ?? this.selected() ?? this.todayIso;
-    this.block.set({ startDate: d, endDate: '', allDay: true, startTime: '12:00', endTime: '13:00', note: '', busy: false, error: null });
+    this.block.set({ startDate: d, endDate: '', allDay: true, startTime: '12:00', endTime: '13:00', note: '', staffName: this.canManage() ? '' : (this.auth.user()?.name ?? ''), busy: false, error: null });
     this.move.set(null);
   }
   closeBlock(): void { this.block.set(null); }
@@ -166,7 +174,7 @@ export class CalendarSection {
     this.setBlock('busy', true); this.setBlock('error', null);
     this.store.addBlock({
       startDate: b.startDate, endDate: b.endDate || null,
-      startTime: b.allDay ? null : b.startTime, endTime: b.allDay ? null : b.endTime, note: b.note.trim(),
+      startTime: b.allDay ? null : b.startTime, endTime: b.allDay ? null : b.endTime, note: b.note.trim(), staffName: b.staffName || null,
     }).subscribe({
       next: () => { this.block.set(null); this.say('Time blocked. Customers can no longer book it.'); },
       error: (e) => { this.setBlock('busy', false); this.setBlock('error', e?.error?.message ?? 'Couldn’t save that. Please try again.'); },
