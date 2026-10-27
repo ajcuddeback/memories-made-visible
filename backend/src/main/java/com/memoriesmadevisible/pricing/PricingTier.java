@@ -62,7 +62,7 @@ public class PricingTier {
     private String addonsText = "";
 
     /** An optional extra on a package; {@code perHour} extras scale with the session's hours. */
-    public record AddOn(String name, java.math.BigDecimal price, boolean perHour) {}
+    public record AddOn(String name, java.math.BigDecimal price, boolean perHour, boolean extraPhotographer) {}
 
     /** How long this package blocks the calendar; the booking page offers slots of this length. */
     @Column(name = "duration_minutes", nullable = false)
@@ -106,7 +106,8 @@ public class PricingTier {
             if (p.length < 2 || p[0].isBlank()) continue;
             java.math.BigDecimal price;
             try { price = new java.math.BigDecimal(p[1].strip()); } catch (NumberFormatException e) { continue; }
-            out.add(new AddOn(p[0].strip(), price, p.length > 2 && p[2].strip().equalsIgnoreCase("hour")));
+            out.add(new AddOn(p[0].strip(), price, p.length > 2 && p[2].strip().equalsIgnoreCase("hour"),
+                    p.length > 3 && p[3].strip().equalsIgnoreCase("staff")));
         }
         return out;
     }
@@ -116,7 +117,7 @@ public class PricingTier {
             if (a == null || a.name() == null || a.name().isBlank() || a.price() == null) continue;
             if (sb.length() > 0) sb.append('\n');
             sb.append(a.name().strip().replace("|", "/")).append('|').append(a.price().max(java.math.BigDecimal.ZERO).stripTrailingZeros().toPlainString())
-              .append('|').append(a.perHour() ? "hour" : "flat");
+              .append('|').append(a.perHour() ? "hour" : "flat").append('|').append(a.extraPhotographer() ? "staff" : "-");
         }
         this.addonsText = sb.toString();
     }

@@ -12,7 +12,9 @@ public final class PricingDtos {
     private PricingDtos() {}
 
     /** An optional extra; {@code perHour} extras are charged per hour of the session. */
-    public record AddOn(@NotBlank @Size(max = 80) String name, @NotNull java.math.BigDecimal price, boolean perHour) {}
+    public record AddOn(@NotBlank @Size(max = 80) String name, @NotNull java.math.BigDecimal price, boolean perHour,
+                        /** This extra means another photographer attends (the session needs a lead and a second). */
+                        boolean extraPhotographer) {}
 
     /**
      * A package. FLAT: {@code durationMinutes} long for {@code price}. HOURLY: {@code price} is per
@@ -56,6 +58,6 @@ public final class PricingDtos {
         return new SessionTypeView(t.getKey(), t.getName(), t.displayShortName(), t.getDescription(), t.getFromPrice(),
                 t.isShowInPortfolio(), t.getDurationMinutes(), t.getTiers().stream().map(x -> new Tier(x.getName(), x.getDetail(), x.getPrice(), x.getIncludes(), x.getDurationMinutes(),
                         x.getPricingModel().name(), x.getMinHours(), x.getMaxHours(),
-                        x.getAddOns().stream().map(a -> new AddOn(a.name(), a.price(), a.perHour())).toList())).toList());
+                        x.getAddOns().stream().map(a -> new AddOn(a.name(), a.price(), a.perHour(), a.extraPhotographer())).toList())).toList());
     }
 }

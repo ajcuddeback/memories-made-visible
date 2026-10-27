@@ -452,6 +452,8 @@ class BookingFlowTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.hours").value(3))
                 .andExpect(jsonPath("$.addons[0]").value("Second photographer"))
+                .andExpect(jsonPath("$.needsSecond").value(true))
+                .andExpect(jsonPath("$.lead").value("Erica"))
                 .andExpect(jsonPath("$.startTime").value("14:00"))
                 .andExpect(jsonPath("$.endTime").value("17:00"))
                 .andExpect(jsonPath("$.quote").value(675));
@@ -708,14 +710,14 @@ class BookingFlowTest {
         for (var n : all) { if (n.get("name").asText().equals("Assign One")) someId = n.get("id").asLong(); if (n.get("name").asText().equals("Assign Two")) otherId = n.get("id").asLong(); }
         mvc.perform(get("/api/admin/bookings").header("Authorization", sam2)).andExpect(jsonPath("$.length()").value(0));
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
-                        .header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Sam\"]}"))
+                        .header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON).content("{\"lead\":\"Sam\"}"))
                 .andExpect(status().isForbidden()); // employees can't assign themselves
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
-                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Sam\",\"Nobody\"]}"))
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"lead\":\"Sam\",\"second\":\"Nobody\"}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
-                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Sam\"]}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.assignees[0]").value("Sam"));
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"lead\":\"Sam\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.lead").value("Sam")).andExpect(jsonPath("$.assignees[0]").value("Sam"));
         mvc.perform(get("/api/admin/bookings").header("Authorization", sam2))
                 .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(someId));
         Thread.sleep(400);
@@ -726,7 +728,7 @@ class BookingFlowTest {
                         .content("{\"bookingId\":" + otherId + "}"))
                 .andExpect(status().isForbidden());
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
-                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[]}"))
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.assignees.length()").value(0));
 
         // Deactivated accounts can't sign in or use an old token; the owner can promote and remove.
@@ -803,7 +805,7 @@ class BookingFlowTest {
         // Handing a session off checks the new person's calendar: Pat (14:00, Austin) can't go to Erica, who has Pat3 at 14:00.
         var patId = bookings.findAll().stream().filter(b -> b.getEmail().equals("pat@example.com")).findFirst().orElseThrow().getId();
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + patId + "/assignees")
-                        .header("Authorization", owner).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Erica\"]}"))
+                        .header("Authorization", owner).contentType(MediaType.APPLICATION_JSON).content("{\"lead\":\"Erica\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Erica isn't free then")));
 

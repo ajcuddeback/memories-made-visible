@@ -119,6 +119,7 @@
                       <input class="input" [value]="a.name" (input)="setAddon(i, ti, ai, 'name', $event)" placeholder="Second photographer" aria-label="Add-on name" />
                       <input class="input t-addon-price" inputmode="decimal" [value]="a.price" (input)="setAddon(i, ti, ai, 'price', $event)" placeholder="75" aria-label="Add-on price in dollars" />
                       <label class="toggle t-addon-ph"><input type="checkbox" [checked]="a.perHour" (change)="setAddonPerHour(i, ti, ai, $event)" /> per hour</label>
+                      <label class="toggle t-addon-ph" title="The session then needs a lead and a second photographer"><input type="checkbox" [checked]="a.extraPhotographer" (change)="setAddonExtra(i, ti, ai, $event)" /> +1 photographer</label>
                       <button type="button" class="btn btn-ghost btn-icon t-remove" (click)="removeAddon(i, ti, ai)" aria-label="Remove add-on"><app-icon name="close" [size]="14" /></button>
                     </div>
                   }

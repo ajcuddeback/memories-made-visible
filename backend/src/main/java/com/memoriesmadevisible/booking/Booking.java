@@ -58,11 +58,18 @@ public class Booking {
     @Column(name = "addons_text", length = 300)
     private String addonsText;
 
-    /** Staff assigned to this session (sign-in names). Employees only see sessions they're on. */
+    public enum Role { LEAD, SECOND }
+
+    /** Staff on this session: sign-in name → LEAD or SECOND. Employees only see sessions they're on. */
     @jakarta.persistence.ElementCollection(fetch = jakarta.persistence.FetchType.EAGER)
     @jakarta.persistence.CollectionTable(name = "booking_assignment", joinColumns = @jakarta.persistence.JoinColumn(name = "booking_id"))
-    @Column(name = "staff_name", length = 60)
-    private java.util.Set<String> assignees = new java.util.HashSet<>();
+    @jakarta.persistence.MapKeyColumn(name = "staff_name", length = 60)
+    @Column(name = "role", length = 10)
+    private java.util.Map<String, String> assignments = new java.util.HashMap<>();
+
+    /** True when the chosen package/add-ons call for two photographers. */
+    @Column(name = "needs_second", nullable = false)
+    private boolean needsSecond;
 
     @Column(name = "session_time", nullable = false, length = 40)
     private String time;
@@ -104,9 +111,23 @@ public class Booking {
     public void setNotes(String v) { this.notes = v; }
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate v) { this.date = v; }
-    public java.util.Set<String> getAssignees() { return assignees; }
-    public void setAssignees(java.util.Collection<String> names) { this.assignees = new java.util.HashSet<>(names); }
-    public boolean isAssignedTo(String name) { return assignees.stream().anyMatch(a -> a.equalsIgnoreCase(name)); }
+    /** Everyone on the session, lead first. */
+    public java.util.List<String> getAssignees() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (getLead() != null) out.add(getLead());
+        if (getSecond() != null) out.add(getSecond());
+        return out;
+    }
+    public String getLead() { return assignments.entrySet().stream().filter(e -> "LEAD".equals(e.getValue())).map(java.util.Map.Entry::getKey).findFirst().orElse(null); }
+    public String getSecond() { return assignments.entrySet().stream().filter(e -> "SECOND".equals(e.getValue())).map(java.util.Map.Entry::getKey).findFirst().orElse(null); }
+    public void setTeam(String lead, String second) {
+        assignments.clear();
+        if (lead != null) assignments.put(lead, "LEAD");
+        if (second != null && (lead == null || !second.equalsIgnoreCase(lead))) assignments.put(second, "SECOND");
+    }
+    public boolean isAssignedTo(String name) { return assignments.keySet().stream().anyMatch(a -> a.equalsIgnoreCase(name)); }
+    public boolean isNeedsSecond() { return needsSecond; }
+    public void setNeedsSecond(boolean v) { this.needsSecond = v; }
     public Integer getHours() { return hours; }
     public void setHours(Integer v) { this.hours = v; }
     public java.util.List<String> getAddons() {

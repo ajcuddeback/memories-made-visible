@@ -26,11 +26,14 @@ public class BookingService {
     private final AvailabilityService availability;
     private final com.memoriesmadevisible.auth.AdminUserRepository staff;
     private final String siteUrl;
+    /** Who leads a session when no photographer was chosen (app.default-photographer). */
+    private final String defaultPhotographer;
 
     public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
                           PublishService publish, AvailabilityService availability,
                           com.memoriesmadevisible.auth.AdminUserRepository staff, AppProperties props) {
         this.staff = staff;
+        this.defaultPhotographer = props.defaultPhotographer() == null || props.defaultPhotographer().isBlank() ? null : props.defaultPhotographer().strip();
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
@@ -64,6 +67,7 @@ public class BookingService {
         }
         int minutes = availability.durationFor(type.key(), pkg == null ? null : pkg.name(), hours);
         List<String> addons = new java.util.ArrayList<>();
+        boolean needsSecond = false;
         java.math.BigDecimal quote = PricingService.parseAmount(pkg == null ? type.from() : pkg.price());
         if (hours != null) quote = quote.multiply(java.math.BigDecimal.valueOf(hours));
         if (req.addons() != null && pkg != null) {
@@ -75,6 +79,7 @@ public class BookingService {
                         .orElseThrow(() -> new IllegalArgumentException("\"" + want + "\" isn't an add-on for " + chosen.name() + "."));
                 if (addons.contains(a.name())) continue;
                 addons.add(a.name());
+                if (a.extraPhotographer()) needsSecond = true;
                 quote = quote.add(a.perHour() ? a.price().multiply(java.math.BigDecimal.valueOf(billableHours)) : a.price());
             }
         } else if (req.addons() != null && !req.addons().isEmpty()) {
@@ -86,6 +91,7 @@ public class BookingService {
         b.setPackageName(pkg == null ? null : pkg.name());
         b.setHours(hours);
         b.setAddons(addons);
+        b.setNeedsSecond(needsSecond);
         b.setName(req.name().trim());
         b.setEmail(req.email().trim());
         b.setPhone(blankToNull(req.phone()));
@@ -96,7 +102,13 @@ public class BookingService {
         LocalTime start = AvailabilityDtos.parse(req.time());
         var reservation = availability.reserve(req.date(), start, minutes, null, true, true, req.photographer());
         LocalTime end = reservation.end();
-        if (reservation.photographer() != null) b.setAssignees(List.of(reservation.photographer()));
+        // Lead: the photographer the slot was found for, else the studio's default (so emails always say who's coming).
+        String lead = reservation.photographer();
+        if (lead == null && defaultPhotographer != null) {
+            lead = staff.findByNameIgnoreCase(defaultPhotographer).filter(com.memoriesmadevisible.auth.AdminUser::isActive)
+                    .map(com.memoriesmadevisible.auth.AdminUser::getName).orElse(null);
+        }
+        b.setTeam(lead, null);
         b.setStartTime(start);
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
@@ -120,47 +132,50 @@ public class BookingService {
         return bookings.findAllByOrderByDateAscTimeAsc().stream().filter(b -> b.isAssignedTo(staffName)).map(this::toResponse).toList();
     }
 
-    /** Set who's on a session; newly added staff get a heads-up email. */
+    /** Set the lead and second photographer. Bookable people must be free then; newly added people get a heads-up email. */
     @Transactional
-    public BookingDtos.Response assign(Long id, List<String> names, String by) {
+    public BookingDtos.Response assign(Long id, String leadName, String secondName, String by) {
         var b = find(id);
         var before = new java.util.HashSet<>(b.getAssignees());
-        java.util.List<String> clean = new java.util.ArrayList<>();
-        for (String n : names == null ? List.<String>of() : names) {
-            if (n == null || n.isBlank()) continue;
-            var u = staff.findByNameIgnoreCase(n.strip()).filter(com.memoriesmadevisible.auth.AdminUser::isActive)
-                    .orElseThrow(() -> new IllegalArgumentException("No active account called \"" + n.strip() + "\"."));
-            if (clean.stream().noneMatch(x -> x.equalsIgnoreCase(u.getName()))) clean.add(u.getName());
-        }
-        // Handing off to a bookable photographer: make sure they're actually free then (their sessions + their blocks).
-        String newPhotographer = null;
+        String lead = resolveStaff(leadName);
+        String second = resolveStaff(secondName);
+        if (lead != null && second != null && lead.equalsIgnoreCase(second)) throw new IllegalArgumentException("Lead and second can't be the same person.");
         var photographers = availability.photographers();
-        for (String n : clean) for (String p : photographers) if (p.equalsIgnoreCase(n)) { newPhotographer = p; break; }
-        String oldPhotographer = AvailabilityService.photographerOf(b, photographers);
-        if (newPhotographer != null && !newPhotographer.equalsIgnoreCase(oldPhotographer)
-                && b.getStatus() != BookingStatus.DECLINED && b.getStartTime() != null) {
+        for (String n : java.util.Arrays.asList(lead, second)) {
+            if (n == null || before.stream().anyMatch(x -> x.equalsIgnoreCase(n))) continue;
+            if (photographers.stream().noneMatch(p -> p.equalsIgnoreCase(n))) continue; // not bookable: no capacity tracking
+            if (b.getStatus() == BookingStatus.DECLINED || b.getStartTime() == null) continue;
             try {
-                availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), true, false, newPhotographer);
+                availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), true, false, n);
             } catch (com.memoriesmadevisible.common.ConflictException e) {
-                throw new com.memoriesmadevisible.common.ConflictException(newPhotographer + " isn't free then — " + e.getMessage().replace("This overlaps ", "it overlaps ").replace("That time was just taken. Please pick another available time.", "they already have something at that time."));
+                throw new com.memoriesmadevisible.common.ConflictException(n + " isn't free then — " + e.getMessage()
+                        .replace("This overlaps ", "it overlaps ").replace("That time was just taken. Please pick another available time.", "they already have something at that time."));
             }
         }
-        b.setAssignees(clean);
+        b.setTeam(lead, second);
         final Booking saved = bookings.save(b);
         String typeName = typeName(saved);
-        for (String n : clean) {
+        for (String n : saved.getAssignees()) {
             if (before.stream().anyMatch(x -> x.equalsIgnoreCase(n)) || n.equalsIgnoreCase(by)) continue;
+            String role = n.equalsIgnoreCase(saved.getLead()) ? "lead" : "second photographer";
             staff.findByNameIgnoreCase(n).map(com.memoriesmadevisible.auth.AdminUser::getEmail).ifPresent(email ->
                     notifications.sendStaffEmail(email, "You're on " + saved.getName() + "'s " + typeName + " session",
                             """
                             Hi %s,
 
-                            %s put you on %s's %s session — %s at %s%s. It's in your studio now under Sessions and on your calendar.
-                            """.formatted(n, by, saved.getName(), typeName, BookingEmailDrafts.LONG_DATE.format(saved.getDate()), saved.getTime(),
+                            %s put you on %s's %s session as %s — %s at %s%s. It's in your studio now under Sessions and on your calendar.
+                            """.formatted(n, by, saved.getName(), typeName, role, BookingEmailDrafts.LONG_DATE.format(saved.getDate()), saved.getTime(),
                                     saved.getLocation() == null ? "" : " (" + saved.getLocation() + ")").strip(),
                             "Open the studio", siteUrl + "/studio/sessions"));
         }
         return toResponse(saved);
+    }
+
+    private String resolveStaff(String name) {
+        if (name == null || name.isBlank()) return null;
+        return staff.findByNameIgnoreCase(name.strip()).filter(com.memoriesmadevisible.auth.AdminUser::isActive)
+                .map(com.memoriesmadevisible.auth.AdminUser::getName)
+                .orElseThrow(() -> new IllegalArgumentException("No active account called \"" + name.strip() + "\"."));
     }
 
     /** What the studio would send for this action, pre-filled, for the admin to edit. */
@@ -289,7 +304,7 @@ public class BookingService {
                 b.getName(), b.getEmail(),
                 b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(),
                 AvailabilityDtos.hm(b.getStartTime()), AvailabilityDtos.hm(b.getEndTime()), b.getStatus(), b.getQuote(),
-                b.getCreatedAt(), b.getAssignees().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
+                b.getCreatedAt(), b.getAssignees(), b.getLead(), b.getSecond(), b.isNeedsSecond());
     }
 
     private static String blankToNull(String s) {

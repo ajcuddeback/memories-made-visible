@@ -55,7 +55,7 @@ public final class PricingDefaults {
                         "Birthdays, showers, parties and community events across Polk County.", "$150/hr", 5,
                         hourly(new PricingTier("Event coverage", "By the hour · 2-hour minimum", "$150/hr", List.of(
                                 "Candid and group photos", "Private online gallery", "Print release"), 120), 2, 8,
-                                new PricingTier.AddOn("Second photographer", new java.math.BigDecimal("75"), true)))
+                                new PricingTier.AddOn("Second photographer", new java.math.BigDecimal("75"), true, true)))
         );
     }
 

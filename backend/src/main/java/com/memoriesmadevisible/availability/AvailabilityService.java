@@ -145,10 +145,21 @@ public class AvailabilityService {
         return staff.findAllByActiveTrueAndBookableTrueOrderByNameAsc().stream().map(com.memoriesmadevisible.auth.AdminUser::getName).toList();
     }
 
-    /** The photographer a booking counts against: its first bookable assignee, else null (counts against everyone). */
+    /** The booking's lead if they're a bookable photographer, else null (the booking then counts against everyone). */
     public static String photographerOf(Booking b, List<String> photographers) {
-        for (String a : b.getAssignees()) for (String p : photographers) if (p.equalsIgnoreCase(a)) return p;
+        String lead = b.getLead();
+        if (lead != null) for (String p : photographers) if (p.equalsIgnoreCase(lead)) return p;
         return null;
+    }
+
+    /** Does this booking take up the given photographer's time? Every bookable person on it is busy; an unassigned booking blocks everyone. */
+    static boolean occupies(Booking b, String photographer, List<String> photographers) {
+        if (photographer == null) return true;
+        boolean anyBookable = false;
+        for (String a : b.getAssignees()) {
+            for (String p : photographers) if (p.equalsIgnoreCase(a)) { anyBookable = true; if (p.equalsIgnoreCase(photographer)) return true; }
+        }
+        return !anyBookable;
     }
 
     // ── slots ──
@@ -259,7 +270,7 @@ public class AvailabilityService {
         List<String> ordered = new ArrayList<>(candidates);
         if (ordered.size() > 1) {
             Map<String, Long> load = new HashMap<>();
-            for (var b : sameDay) { String p = photographerOf(b, photographers); if (p != null) load.merge(p, 1L, Long::sum); }
+            for (var b : sameDay) for (String a : b.getAssignees()) for (String p : photographers) if (p.equalsIgnoreCase(a)) load.merge(p, 1L, Long::sum);
             ordered.sort(Comparator.comparingLong(p -> load.getOrDefault(p, 0L)));
         }
         for (String p : ordered) {
@@ -281,7 +292,7 @@ public class AvailabilityService {
             if (b.getStatus() == BookingStatus.PENDING && !includePending) continue;
             if (b.getStartTime() == null || b.getEndTime() == null) continue; // legacy row without a time range
             // A booking on another photographer doesn't block this one; an unassigned booking blocks everyone.
-            if (photographer != null) { String theirs = photographerOf(b, photographers); if (theirs != null && !theirs.equalsIgnoreCase(photographer)) continue; }
+            if (!occupies(b, photographer, photographers)) continue;
             if (b.getStartTime().isBefore(end) && start.isBefore(b.getEndTime())) {
                 return Optional.of(b.getName() + "'s " + (b.getStatus() == BookingStatus.PENDING ? "pending request" : "confirmed session")
                         + " at " + AvailabilityDtos.label(b.getStartTime()));

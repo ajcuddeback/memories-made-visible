@@ -11,6 +11,7 @@ spring:
 app:
   seed-demo-data: false
   booking-rate-limit: 100
+  default-photographer: Erica
   login-rate-limit: 1000
   admin:
     owner: Austin

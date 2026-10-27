@@ -80,15 +80,16 @@ export class SessionsSection {
   }
 
   toggleAssign(id: number): void { this.assigning.update((v) => (v === id ? null : id)); }
-  isAssigned(bookingId: number, name: string): boolean {
-    return (this.store.bookingById().get(bookingId)?.assignees ?? []).some((a) => a.toLowerCase() === name.toLowerCase());
-  }
-  setAssigned(bookingId: number, name: string, on: boolean): void {
-    const current = this.store.bookingById().get(bookingId)?.assignees ?? [];
-    const next = on ? [...current.filter((a) => a.toLowerCase() !== name.toLowerCase()), name] : current.filter((a) => a.toLowerCase() !== name.toLowerCase());
-    this.store.assign(bookingId, next).subscribe({
-      next: (b) => { if (on) this.say(`${name} is on ${b.name}'s session${this.staffEmail(name) ? ' and has been emailed' : ''}.`); },
-      error: (e) => this.say(e?.error?.message ?? 'Couldn’t change who’s on this session.'),
+  /** Change the lead or the second; the server checks the person is free and emails newcomers. */
+  setRole(bookingId: number, role: 'lead' | 'second', e: Event): void {
+    const name = (e.target as HTMLSelectElement).value || null;
+    const b = this.store.bookingById().get(bookingId);
+    if (!b) return;
+    const lead = role === 'lead' ? name : b.lead;
+    const second = role === 'second' ? name : b.second;
+    this.store.assign(bookingId, lead, second).subscribe({
+      next: (u) => { if (name) this.say(`${name} is the ${role === 'lead' ? 'lead' : 'second photographer'} on ${u.name}'s session${this.staffEmail(name) ? ' and has been emailed' : ''}.`); },
+      error: (err) => { this.say(err?.error?.message ?? 'Couldn’t change who’s on this session.'); this.store.load(this.canManage()); },
     });
   }
   private staffEmail(name: string): string | null { return this.staff().find((s) => s.name === name)?.email ?? null; }
@@ -106,7 +107,8 @@ export class SessionsSection {
         gallery: g ?? null,
         stage,
         upcoming: fromISO(b.date) > this.today,
-        team: (b.assignees ?? []).join(', '),
+        team: [b.lead ? b.lead + ' (lead)' : '', b.second ? b.second + ' (second)' : ''].filter(Boolean).join(' · '),
+        missingSecond: !!b.needsSecond && !b.second && b.status !== 'DECLINED',
         steps: STEPS.map((label, i) => ({ label, done: i <= stage, current: i === stage, delivered: stage === 3 })),
         nextLabel: stage < 0 ? 'Mark as shot' : stage === 0 ? 'Start editing' : stage === 1 ? 'Send to proofing' : stage === 2 ? 'Deliver & email link…' : '',
         when: `${fmtDate(b.date)} · ${b.startTime ? fmtRange(b.startTime, b.endTime) : b.time}`,

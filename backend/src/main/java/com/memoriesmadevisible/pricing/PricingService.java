@@ -42,7 +42,7 @@ public class PricingService {
                 x.durationMinutes() == null ? defaultMinutes : x.durationMinutes());
         t.setPricingModel(x.hourly() ? PricingTier.PricingModel.HOURLY : PricingTier.PricingModel.FLAT);
         t.setHourRange(x.minHours(), x.maxHours());
-        t.setAddOns(x.addonsOrEmpty().stream().map(a -> new PricingTier.AddOn(a.name(), a.price(), a.perHour())).toList());
+        t.setAddOns(x.addonsOrEmpty().stream().map(a -> new PricingTier.AddOn(a.name(), a.price(), a.perHour(), a.extraPhotographer())).toList());
         var seen = new java.util.HashSet<String>();
         for (var a : t.getAddOns()) {
             if (!seen.add(a.name().toLowerCase(java.util.Locale.ROOT))) {

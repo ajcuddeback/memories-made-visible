@@ -38,7 +38,7 @@ public class AdminBookingController {
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PutMapping("/{id}/assignees")
     public BookingDtos.Response assign(@PathVariable Long id, @Valid @RequestBody BookingDtos.Assign body, java.security.Principal me) {
-        return service.assign(id, body.names(), me.getName());
+        return service.assign(id, body.lead(), body.second(), me.getName());
     }
 
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")

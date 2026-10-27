@@ -4,7 +4,7 @@ import { AdminStore } from '../admin-store.service';
 import { Icon } from '../../shared/icons';
 import { fmtDuration } from '../../core/dates';
 
-interface DraftAddOn { name: string; price: string; perHour: boolean; }
+interface DraftAddOn { name: string; price: string; perHour: boolean; extraPhotographer: boolean; }
 interface DraftTier {
   name: string;
   detail: string;
@@ -93,7 +93,7 @@ export class PricingAdminSection {
       tiers: s.tiers.map((t) => ({
         name: t.name, detail: t.detail, price: t.price, durationMinutes: t.durationMinutes || 60,
         hourly: t.pricingModel === 'HOURLY', minHours: t.minHours || 2, maxHours: t.maxHours || 8,
-        addons: (t.addons ?? []).map((a) => ({ name: a.name, price: String(a.price), perHour: a.perHour })),
+        addons: (t.addons ?? []).map((a) => ({ name: a.name, price: String(a.price), perHour: a.perHour, extraPhotographer: !!a.extraPhotographer })),
         includesText: (t.includes ?? []).join('\n'),
       })),
     }));
@@ -106,7 +106,7 @@ export class PricingAdminSection {
       durationMinutes: c.durationMinutes,
       tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, durationMinutes: t.durationMinutes,
         pricingModel: t.hourly ? 'HOURLY' as const : 'FLAT' as const, minHours: t.minHours, maxHours: t.maxHours,
-        addons: t.addons.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), price: Number(a.price.replace(/[^0-9.]/g, '')) || 0, perHour: a.perHour })),
+        addons: t.addons.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), price: Number(a.price.replace(/[^0-9.]/g, '')) || 0, perHour: a.perHour, extraPhotographer: a.extraPhotographer })),
         includes: t.includesText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
     }));
   }
@@ -147,7 +147,10 @@ export class PricingAdminSection {
   setHours(i: number, ti: number, field: 'minHours' | 'maxHours', e: Event): void {
     const v = Math.max(1, Math.min(12, Number((e.target as HTMLInputElement).value) || 1)); this.edit((d) => { d[i].tiers[ti][field] = v; });
   }
-  addAddon(i: number, ti: number): void { this.edit((d) => { d[i].tiers[ti].addons.push({ name: '', price: '', perHour: false }); }); }
+  addAddon(i: number, ti: number): void { this.edit((d) => { d[i].tiers[ti].addons.push({ name: '', price: '', perHour: false, extraPhotographer: false }); }); }
+  setAddonExtra(i: number, ti: number, ai: number, e: Event): void {
+    const v = (e.target as HTMLInputElement).checked; this.edit((d) => { d[i].tiers[ti].addons[ai].extraPhotographer = v; });
+  }
   removeAddon(i: number, ti: number, ai: number): void { this.edit((d) => { d[i].tiers[ti].addons.splice(ai, 1); }); }
   setAddon(i: number, ti: number, ai: number, field: 'name' | 'price', e: Event): void {
     const v = (e.target as HTMLInputElement).value; this.edit((d) => { d[i].tiers[ti].addons[ai][field] = v; });

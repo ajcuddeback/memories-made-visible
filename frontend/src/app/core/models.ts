@@ -18,6 +18,8 @@ export interface PricingAddOn {
   price: number;
   /** Charged per hour of the session instead of once. */
   perHour: boolean;
+  /** Brings another photographer along (the session then needs a lead and a second). */
+  extraPhotographer: boolean;
 }
 
 export interface SessionType {
@@ -128,8 +130,12 @@ export interface Booking {
   status: BookingStatus;
   quote: number | null;
   createdAt: string;
-  /** Staff sign-in names working this session. */
+  /** Everyone on the session, lead first. */
   assignees: string[];
+  lead: string | null;
+  second: string | null;
+  /** The package/add-ons call for two photographers. */
+  needsSecond: boolean;
 }
 
 export interface BookingRequest {

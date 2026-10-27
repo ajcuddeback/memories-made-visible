@@ -42,10 +42,12 @@ public final class BookingDtos {
             Long id, String sessionType, String sessionTypeName, String packageName, Integer hours, List<String> addons,
             String name, String email, String phone,
             String location, String notes, LocalDate date, String time, String startTime, String endTime,
-            BookingStatus status, BigDecimal quote, Instant createdAt, List<String> assignees
+            BookingStatus status, BigDecimal quote, Instant createdAt, List<String> assignees,
+            String lead, String second, boolean needsSecond
     ) {}
 
-    public record Assign(@NotNull List<@Size(max = 60) String> names) {}
+    /** Who's on the session. Either may be null; the second only makes sense when the package calls for one, but isn't limited to that. */
+    public record Assign(@Size(max = 60) String lead, @Size(max = 60) String second) {}
 
     /**
      * Admin: move a booking to another slot. The customer gets a "please confirm" email built

@@ -69,8 +69,8 @@ export class AdminStore {
   }
 
   // ── assignments ──
-  assign(id: number, names: string[]) {
-    return this.http.put<Booking>(`/api/admin/bookings/${id}/assignees`, { names }).pipe(tap((b) => this.replaceBooking(b)));
+  assign(id: number, lead: string | null, second: string | null) {
+    return this.http.put<Booking>(`/api/admin/bookings/${id}/assignees`, { lead, second }).pipe(tap((b) => this.replaceBooking(b)));
   }
 
   // ── team ──

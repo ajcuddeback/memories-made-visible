@@ -83,6 +83,8 @@ app:
     customer-from: ${NOTIFY_CUSTOMER_FROM:hello@memoriesmadevisible.com}
     send-customer-confirmation: ${NOTIFY_CUSTOMER:false}
     site-url: ${APP_SITE_URL:http://localhost:4200}
+  # Who leads a session when the customer didn't (or couldn't) choose a photographer.
+  default-photographer: ${DEFAULT_PHOTOGRAPHER:Erica}
   # Direct contact details shown on the site (booking page, about page, footer).
   contact:
     email: ${CONTACT_EMAIL:hello@memoriesmadevisible.com}

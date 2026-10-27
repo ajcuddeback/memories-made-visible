@@ -15,7 +15,9 @@ public record AppProperties(
         Cors cors,
         Notifications notifications,
         S3 s3,
-        Contact contact
+        Contact contact,
+        /** Lead photographer for requests that didn't choose one (nobody bookable, or "no preference" with nobody free to pick). */
+        String defaultPhotographer
 ) {
 
     /** How customers reach the studio directly (shown on the booking page, about page and footer). */
