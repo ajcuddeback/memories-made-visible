@@ -36,6 +36,7 @@ services:
       CONTACT_EMAIL: ${CONTACT_EMAIL:-hello@memoriesmadevisible.com}
       CONTACT_PHONE: ${CONTACT_PHONE:-}
       CONTACT_INSTAGRAM: ${CONTACT_INSTAGRAM:-}
+      ADMIN_OWNER: ${ADMIN_OWNER:-Austin}
     expose:
       - "8080"
 

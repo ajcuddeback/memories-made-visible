@@ -19,6 +19,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
     private final AppProperties props;
@@ -37,9 +38,10 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Login + the "who's signing in" picker are open; everything else under /api/admin needs a token.
-                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login", "/api/admin/auth/forgot", "/api/admin/auth/reset").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/users").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Any active staff account gets in; @PreAuthorize on the controllers decides what each level may do.
+                        .requestMatchers("/api/admin/**").hasRole("STAFF")
                         .requestMatchers("/api/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().denyAll())

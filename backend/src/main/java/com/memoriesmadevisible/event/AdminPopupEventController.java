@@ -32,6 +32,7 @@ public class AdminPopupEventController {
         return events.findAllByOrderByDateAsc().stream().map(PopupEventDtos::toAdmin).toList();
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PopupEventDtos.AdminResponse create(@Valid @RequestBody PopupEventDtos.Upsert body) {
@@ -40,6 +41,7 @@ public class AdminPopupEventController {
         return PopupEventDtos.toAdmin(events.save(e));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PutMapping("/{id}")
     public PopupEventDtos.AdminResponse update(@PathVariable Long id, @Valid @RequestBody PopupEventDtos.Upsert body) {
         var e = find(id);
@@ -55,6 +57,7 @@ public class AdminPopupEventController {
         return PopupEventDtos.toAdmin(events.save(e));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         events.delete(find(id));

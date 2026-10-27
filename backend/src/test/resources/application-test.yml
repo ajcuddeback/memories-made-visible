@@ -12,13 +12,16 @@ app:
   seed-demo-data: false
   booking-rate-limit: 100
   admin:
+    owner: Austin
     users:
       - name: Erica
         role: Lead photographer
         password: test-pass
+        email: erica@test.local
       - name: Austin
         role: Second photographer & operations
         password: test-pass
+        email: austin@test.local
   jwt:
     secret: test-secret-test-secret-test-secret-test-secret
     ttl-hours: 1

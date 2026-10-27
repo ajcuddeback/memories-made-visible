@@ -57,8 +57,14 @@ Values: `SMTP_HOST=mail.privateemail.com`, `SMTP_PORT=587`, `SMTP_USERNAME=hello
 openssl rand -base64 48     # → APP_JWT_SECRET (≥ 32 chars)
 openssl rand -base64 24     # → POSTGRES_PASSWORD (option A only)
 ```
-Pick strong admin passwords → `ADMIN_ERICA_PASSWORD`, `ADMIN_AUSTIN_PASSWORD`. Changing one later and restarting the
-backend is the password-reset procedure.
+Pick strong passwords for the first two accounts → `ADMIN_ERICA_PASSWORD`, `ADMIN_AUSTIN_PASSWORD`, and set their emails
+(`ADMIN_ERICA_EMAIL`, `ADMIN_AUSTIN_EMAIL`) so "Forgot your password?" works. `ADMIN_OWNER` (default `Austin`) names the
+one **owner** account. These are created once on first boot and never overwritten: from then on people change their own
+password in the studio (account menu → Change password) and the owner/admins add or remove people under **Studio → Team**.
+
+Access levels: **Owner** (one account, can do everything including managing admins), **Admin** (everything in the studio),
+**Employee** (sessions pipeline, calendar blocks, pop-up print sales only — no prices, photos, publishing, revenue, insights
+or team). New people get an email with a temporary password and must choose their own at first sign-in.
 
 ### 5. Container images
 

@@ -8,7 +8,7 @@
     </div>
     <div class="cal-tools">
       <button type="button" class="btn btn-primary sm" (click)="openBlock()">Block time</button>
-      <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">Booking hours</button>
+      @if (canManage()) { <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">Booking hours</button> }
     </div>
   </div>
   <div class="legend" aria-label="Legend">
@@ -110,7 +110,7 @@
               @if (it.sub) { <span class="dayi-sub">{{ it.sub }}</span> }
             </span>
             <span class="tag dayi-tag" [class]="'tag dayi-tag tag--' + it.kind">{{ kindLabel[it.kind] }}</span>
-            @if (it.bookingId && it.kind !== 'declined') {
+            @if (it.bookingId && it.kind !== 'declined' && canManage()) {
               <button type="button" class="btn btn-ghost sm dayi-act" (click)="openMove(it.bookingId!)">Move</button>
             }
             @if (it.blockId) {

@@ -20,9 +20,13 @@ export class AuthService {
   readonly user = computed(() => this.session()?.user ?? null);
   readonly token = computed(() => this.session()?.token ?? null);
   readonly isLoggedIn = computed(() => !!this.session());
+  /** Owner or admin: may change prices, photos, publish, see revenue and insights, manage the team. */
+  readonly canManage = computed(() => { const a = this.user()?.access; return a === 'OWNER' || a === 'ADMIN'; });
+  readonly isOwner = computed(() => this.user()?.access === 'OWNER');
+  readonly mustChangePassword = computed(() => !!this.user()?.mustChangePassword);
 
   users() {
-    return this.http.get<AdminUser[]>('/api/admin/auth/users');
+    return this.http.get<{ name: string; role: string; initial: string }[]>('/api/admin/auth/users');
   }
 
   login(name: string, password: string) {
@@ -37,6 +41,23 @@ export class AuthService {
         }
       }),
     );
+  }
+
+  private store(res: LoginResponse): void {
+    const s: StoredSession = { token: res.token, user: res.user, expiresAt: Date.now() + res.expiresInSeconds * 1000 };
+    this.session.set(s);
+    try { sessionStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  }
+
+  changePassword(current: string, next: string) {
+    return this.http.post<AdminUser>('/api/admin/auth/password', { current, next }).pipe(
+      tap((u) => { const s = this.session(); if (s) this.store({ token: s.token, expiresInSeconds: (s.expiresAt - Date.now()) / 1000, user: u }); }),
+    );
+  }
+  forgot(email: string) { return this.http.post<void>('/api/admin/auth/forgot', { email }); }
+  /** Finish a reset from the emailed link; signs the person in. */
+  reset(token: string, password: string) {
+    return this.http.post<LoginResponse>('/api/admin/auth/reset', { token, password }).pipe(tap((res) => this.store(res)));
   }
 
   logout(): void {

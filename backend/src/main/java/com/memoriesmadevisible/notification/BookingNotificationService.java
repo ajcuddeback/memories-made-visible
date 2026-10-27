@@ -109,6 +109,19 @@ public class BookingNotificationService {
         }
     }
 
+    /** An email to a member of staff (invites, password resets) from the internal sender. */
+    @Async
+    public void sendStaffEmail(String to, String subject, String body, String ctaLabel, String ctaUrl) {
+        if (to == null || to.isBlank()) { log.warn("Staff email \"{}\" skipped: no address.", subject); return; }
+        try {
+            var r = EmailTemplates.render(siteUrl(), subject, body, List.of(), ctaLabel, ctaUrl, null);
+            send(cfg.from(), new String[]{to}, null, null, subject, r);
+            log.info("Staff email \"{}\" sent to {}", subject, to);
+        } catch (Exception e) {
+            log.error("Failed to send staff email \"{}\" to {}", subject, to, e);
+        }
+    }
+
     private void send(String from, String[] to, String replyTo, String bcc, String subject, EmailTemplates.Rendered r)
             throws MessagingException, java.io.UnsupportedEncodingException {
         MimeMessage msg = mail.createMimeMessage();

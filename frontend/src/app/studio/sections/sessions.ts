@@ -3,6 +3,7 @@ import { BookingStatus, EmailAction, Gallery } from '../../core/models';
 import { DatePipe } from '@angular/common';
 import { fmtDate, fmtRange, fromISO, money, num, today } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
+import { AuthService } from '../auth.service';
 
 /** One session's whole life: request → booked → shot/edited/proofed → delivered (or declined). */
 type Tab = 'REQUESTS' | 'BOOKED' | 'DELIVERED' | 'DECLINED';
@@ -50,6 +51,7 @@ const ACTION_LABEL: Record<EmailAction, { title: string; button: string }> = {
 })
 export class SessionsSection {
   readonly store = inject(AdminStore);
+  readonly canManage = inject(AuthService).canManage;
   readonly tab = signal<Tab>('REQUESTS');
   readonly compose = signal<Compose | null>(null);
   readonly deliver = signal<Deliver | null>(null);

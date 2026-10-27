@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { MON, MONTHS, fromISO, money, num, sameMonth, today } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
+import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-overview',
@@ -12,6 +13,7 @@ import { AdminStore } from '../admin-store.service';
 })
 export class OverviewSection {
   readonly store = inject(AdminStore);
+  readonly canManage = inject(AuthService).canManage;
   private readonly today = today();
 
   /** Confirmed-session quotes and pop-up print sales for a given month, separately. */

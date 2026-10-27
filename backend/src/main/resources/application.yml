@@ -55,13 +55,18 @@ app:
   # The studio's time zone: "today", booking notice and upcoming pop-ups are judged in it, not the server's.
   time-zone: ${APP_TIME_ZONE:America/New_York}
   admin:
+    # The one OWNER account. The rest start as ADMIN; more people are added from Studio → Team.
+    owner: ${ADMIN_OWNER:Austin}
+    # First accounts, created once on first boot (never overwritten — people change passwords in the studio).
     users:
       - name: Erica
         role: Lead photographer
         password: ${ADMIN_ERICA_PASSWORD:}
+        email: ${ADMIN_ERICA_EMAIL:}
       - name: Austin
         role: Second photographer & operations
         password: ${ADMIN_AUSTIN_PASSWORD:}
+        email: ${ADMIN_AUSTIN_EMAIL:}
   jwt:
     # At least 32 characters. Generate one with: openssl rand -base64 48
     secret: ${APP_JWT_SECRET:}

@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 @RequestMapping("/api/admin/analytics")
 public class AdminAnalyticsController {
 

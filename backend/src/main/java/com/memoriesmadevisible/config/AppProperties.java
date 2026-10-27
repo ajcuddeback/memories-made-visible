@@ -21,8 +21,9 @@ public record AppProperties(
     /** How customers reach the studio directly (shown on the booking page, about page and footer). */
     public record Contact(String email, String phone, String instagram, String location) {}
 
-    public record Admin(List<User> users) {
-        public record User(String name, String role, String password) {}
+    /** {@code owner} names the single OWNER account; the rest are ADMIN until changed in the studio. */
+    public record Admin(List<User> users, String owner) {
+        public record User(String name, String role, String password, String email) {}
     }
 
     /** Secret must be at least 32 bytes; token lifetime in hours. */

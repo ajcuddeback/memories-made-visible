@@ -1,3 +1,4 @@
+@if (canManage()) {
 <div class="stats">
   @for (st of stats(); track st.label) {
     <div class="stat">
@@ -7,8 +8,10 @@
     </div>
   }
 </div>
+}
 
 <div class="panels">
+  @if (canManage()) {
   <div class="panel">
     <div class="panel-head">
       <div>
@@ -45,6 +48,7 @@
       }
     </div>
   </div>
+  }
   <div class="panel">
     <h2 class="panel-title mb-18">Next up</h2>
     @if (nextUp().length === 0) {
@@ -68,6 +72,6 @@
 </div>
 
 <div class="quick">
-  <a routerLink="/studio/sessions" class="btn btn-secondary quick-btn">{{ pendingLabel() }}</a>
+  @if (canManage()) { <a routerLink="/studio/sessions" class="btn btn-secondary quick-btn">{{ pendingLabel() }}</a> }
   <a routerLink="/studio/sessions" class="btn btn-secondary quick-btn">{{ galleriesLabel() }}</a>
 </div>

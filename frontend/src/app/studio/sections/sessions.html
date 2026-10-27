@@ -47,26 +47,35 @@
         <div class="req-actions">
           @switch (r.status) {
             @case ('PENDING') {
-              <label class="field field--sm">Quote ($)<input class="input quote" type="number" min="0" step="1" [value]="r.quote ?? 0" (change)="quoteChanged(r.id, $event)" /></label>
-              <button type="button" class="btn btn-primary act" (click)="open(r.id, 'approve')">Approve…</button>
-              <button type="button" class="btn btn-secondary act" (click)="open(r.id, 'decline')">Decline…</button>
+              @if (canManage()) {
+                <label class="field field--sm">Quote ($)<input class="input quote" type="number" min="0" step="1" [value]="r.quote ?? 0" (change)="quoteChanged(r.id, $event)" /></label>
+                <button type="button" class="btn btn-primary act" (click)="open(r.id, 'approve')">Approve…</button>
+                <button type="button" class="btn btn-secondary act" (click)="open(r.id, 'decline')">Decline…</button>
+              } @else {
+                <div class="price">{{ r.priceLabel }}</div>
+                <div class="ro-note">Waiting for an admin to approve or decline.</div>
+              }
             }
             @case ('CONFIRMED') {
               <div class="price">{{ r.priceLabel }}@if (r.stage === 3) { <span class="price-note">final</span> }</div>
               @if (r.stage === 3) {
                 @if (r.gallery?.link) { <a class="btn btn-secondary act" [href]="r.gallery!.link" target="_blank" rel="noopener">Open gallery</a> }
-                <button type="button" class="btn btn-ghost msg" (click)="openDeliver(r.gallery!.id)">Edit link / resend…</button>
+                @if (canManage()) { <button type="button" class="btn btn-ghost msg" (click)="openDeliver(r.gallery!.id)">Edit link / resend…</button> }
               } @else {
-                <button type="button" class="btn btn-primary act" (click)="advance(r.id, r.stage)">{{ r.nextLabel }}</button>
+                @if (r.stage < 2 || canManage()) {
+                  <button type="button" class="btn btn-primary act" (click)="advance(r.id, r.stage)">{{ r.nextLabel }}</button>
+                } @else {
+                  <div class="ro-note">Ready to deliver — an admin sends the gallery link and final price.</div>
+                }
                 @if (r.stage >= 0) { <button type="button" class="btn btn-ghost msg" (click)="back(r.id)">Back a step</button> }
-                <button type="button" class="btn btn-ghost cancel" (click)="open(r.id, 'cancel')">Cancel session…</button>
+                @if (canManage()) { <button type="button" class="btn btn-ghost cancel" (click)="open(r.id, 'cancel')">Cancel session…</button> }
               }
             }
             @case ('DECLINED') {
-              <button type="button" class="btn btn-secondary act" (click)="restore(r.id)">Move back to Requests</button>
+              @if (canManage()) { <button type="button" class="btn btn-secondary act" (click)="restore(r.id)">Move back to Requests</button> }
             }
           }
-          <button type="button" class="btn btn-ghost msg" (click)="open(r.id, 'message')">Email customer…</button>
+          @if (canManage()) { <button type="button" class="btn btn-ghost msg" (click)="open(r.id, 'message')">Email customer…</button> }
         </div>
       </div>
 

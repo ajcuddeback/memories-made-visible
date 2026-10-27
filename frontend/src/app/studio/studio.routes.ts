@@ -16,6 +16,7 @@ export const STUDIO_ROUTES: Routes = [
       { path: 'pricing', loadComponent: () => import('./sections/pricing-admin').then((m) => m.PricingAdminSection) },
       { path: 'photos', loadComponent: () => import('./sections/photos').then((m) => m.PhotosSection) },
       { path: 'insights', loadComponent: () => import('./sections/insights').then((m) => m.InsightsSection) },
+      { path: 'team', loadComponent: () => import('./sections/team').then((m) => m.TeamSection) },
       { path: '**', redirectTo: '' },
     ],
   },

@@ -31,9 +31,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ") && SecurityContextHolder.getContext().getAuthentication() == null) {
             jwt.verify(header.substring(7))
                     .flatMap(users::findByNameIgnoreCase)
+                    .filter(AdminUser::isActive)
                     .ifPresent(user -> {
-                        var auth = new UsernamePasswordAuthenticationToken(
-                                user.getName(), null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+                        // ROLE_STAFF for anyone signed in; ROLE_<access> for what they may do.
+                        var auth = new UsernamePasswordAuthenticationToken(user.getName(), null,
+                                List.of(new SimpleGrantedAuthority("ROLE_STAFF"),
+                                        new SimpleGrantedAuthority("ROLE_" + user.getAccess().name())));
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     });
         }

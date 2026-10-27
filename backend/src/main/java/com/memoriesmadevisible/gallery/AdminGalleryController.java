@@ -65,6 +65,7 @@ public class AdminGalleryController {
         return GalleryDtos.toResponse(galleries.save(g));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         var g = galleries.findById(id).orElseThrow(() -> new NotFoundException("Gallery " + id + " not found"));
@@ -73,12 +74,14 @@ public class AdminGalleryController {
     }
 
     /** The "photos are ready" email, pre-filled for the admin to edit before delivering. */
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @GetMapping("/{id}/draft")
     public BookingDtos.EmailDraft draft(@PathVariable Long id) {
         return service.draft(id);
     }
 
     /** Mark delivered: record the link + final price and email the client (unless sendEmail=false). */
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/deliver")
     public GalleryDtos.Delivered deliver(@PathVariable Long id, @Valid @RequestBody GalleryDtos.DeliverRequest body) {
         return service.deliver(id, body);

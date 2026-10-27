@@ -5,6 +5,7 @@ import { ViewportService } from '../../core/viewport.service';
 import { Icon } from '../../shared/icons';
 import { DateField, TimeField } from '../../shared/pickers';
 import { AdminStore } from '../admin-store.service';
+import { AuthService } from '../auth.service';
 
 type Kind = 'confirmed' | 'pending' | 'declined' | 'popup' | 'block';
 
@@ -55,6 +56,7 @@ const STATUS_KIND: Record<BookingStatus, Kind> = { CONFIRMED: 'confirmed', PENDI
 })
 export class CalendarSection {
   readonly store = inject(AdminStore);
+  readonly canManage = inject(AuthService).canManage;
   readonly viewport = inject(ViewportService);
   readonly weekdays = WEEKDAYS;
   readonly kindLabel = KIND_LABEL;

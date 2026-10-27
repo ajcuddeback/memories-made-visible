@@ -6,6 +6,29 @@
     <h1 class="title">Studio admin</h1>
     <p class="sub">Sign in to manage bookings, pop-ups, galleries and pricing.</p>
 
+    @if (mode() === 'forgot') {
+      @if (sent()) {
+        <p class="sub">If that email belongs to a studio account, a reset link is on its way. It works for 2 hours.</p>
+        <button type="button" class="btn btn-secondary btn-block" (click)="mode.set('signin'); sent.set(false)">Back to sign in</button>
+      } @else {
+        <label class="field">Email on your account
+          <input class="input pw" type="email" [value]="email()" (input)="email.set(val($event)); error.set('')" placeholder="you@memoriesmadevisible.com" autocomplete="email" />
+        </label>
+        <button type="button" class="btn btn-primary btn-block sign-in" [disabled]="busy()" (click)="sendReset()">{{ busy() ? 'Sending…' : 'Email me a reset link' }}</button>
+        <p class="error" aria-live="polite">{{ error() }}</p>
+        <button type="button" class="link" (click)="mode.set('signin')">← Back to sign in</button>
+      }
+    } @else if (mode() === 'reset') {
+      <label class="field">New password
+        <input class="input pw" type="password" [value]="pw()" (input)="onPw($event)" autocomplete="new-password" />
+      </label>
+      <label class="field">New password again
+        <input class="input pw" type="password" [value]="pw2()" (input)="pw2.set(val($event)); error.set('')" autocomplete="new-password" />
+      </label>
+      <button type="button" class="btn btn-primary btn-block sign-in" [disabled]="busy()" (click)="finishReset()">{{ busy() ? 'Saving…' : 'Set password & sign in' }}</button>
+      <p class="error" aria-live="polite">{{ error() }}</p>
+      <button type="button" class="link" (click)="mode.set('signin')">← Back to sign in</button>
+    } @else {
     <div class="who-label">Who's signing in?</div>
     <div class="who-grid" role="radiogroup" aria-label="Who's signing in?">
       @for (u of users(); track u.name) {
@@ -23,6 +46,8 @@
       {{ busy() ? 'Signing in…' : 'Sign in as ' + (loginAs() || '…') }}
     </button>
     <p class="error" aria-live="polite">{{ error() }}</p>
+    <button type="button" class="link" (click)="mode.set('forgot'); error.set('')">Forgot your password?</button>
+    }
     <a routerLink="/" class="back">← Back to the website</a>
   </form>
 </div>

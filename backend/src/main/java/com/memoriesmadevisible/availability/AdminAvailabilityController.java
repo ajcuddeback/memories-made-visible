@@ -35,6 +35,7 @@ public class AdminAvailabilityController {
         return availability.hours();
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PutMapping("/hours")
     public List<AvailabilityDtos.Hours> saveHours(@RequestBody List<AvailabilityDtos.Hours> body) {
         return availability.saveHours(body);

@@ -234,10 +234,27 @@ export interface EmailRequest {
   body?: string;
 }
 
+export type Access = 'OWNER' | 'ADMIN' | 'EMPLOYEE';
+
+/** The signed-in person. `role` is the job title; `access` decides which sections they see. */
 export interface AdminUser {
   name: string;
   role: string;
   initial: string;
+  access: Access;
+  mustChangePassword: boolean;
+}
+
+/** A team member as the Team page shows it. */
+export interface TeamMember {
+  name: string;
+  role: string;
+  email: string | null;
+  access: Access;
+  active: boolean;
+  mustChangePassword: boolean;
+  createdAt: string | null;
+  isYou: boolean;
 }
 
 export interface LoginResponse {

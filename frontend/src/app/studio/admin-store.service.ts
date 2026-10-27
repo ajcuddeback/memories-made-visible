@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { forkJoin, tap } from 'rxjs';
-import { AnalyticsReport, AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
+import { forkJoin, of, tap } from 'rxjs';
+import { Access, AnalyticsReport, AvailabilityHours, Booking, TeamMember, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -32,17 +32,19 @@ export class AdminStore {
   readonly bookingById = computed(() => new Map(this.bookings().map((b) => [b.id, b])));
   readonly typeName = computed(() => new Map(this.pricing().map((t) => [t.key, t.name])));
 
-  load(): void {
+  /** Employees can't read pricing drafts, photos or publish state; they get the public price list for names. */
+  load(canManage = true): void {
     this.loadError.set(null);
+    const empty = <T>(v: T) => of(v);
     forkJoin({
       bookings: this.http.get<Booking[]>('/api/admin/bookings'),
       events: this.http.get<PopupEvent[]>('/api/admin/events'),
       galleries: this.http.get<Gallery[]>('/api/admin/galleries'),
-      pricing: this.http.get<SessionType[]>('/api/admin/pricing'),
-      publish: this.http.get<PublishStatus>('/api/admin/publish'),
+      pricing: this.http.get<SessionType[]>(canManage ? '/api/admin/pricing' : '/api/pricing'),
+      publish: canManage ? this.http.get<PublishStatus>('/api/admin/publish') : empty<PublishStatus | null>(null),
       hours: this.http.get<AvailabilityHours[]>('/api/admin/availability/hours'),
       blocks: this.http.get<TimeBlock[]>('/api/admin/availability/blocks'),
-      photos: this.http.get<PhotoGroup[]>('/api/admin/photos'),
+      photos: canManage ? this.http.get<PhotoGroup[]>('/api/admin/photos') : empty<PhotoGroup[]>([]),
     }).subscribe({
       next: (r) => {
         this.bookings.set(r.bookings);
@@ -65,6 +67,15 @@ export class AdminStore {
     this.hours.set([]); this.blocks.set([]);
     this.loaded.set(false);
   }
+
+  // ── team ──
+  team() { return this.http.get<TeamMember[]>('/api/admin/users'); }
+  addMember(body: { name: string; role: string; email: string; access: Access }) { return this.http.post<TeamMember>('/api/admin/users', body); }
+  updateMember(name: string, body: { role?: string; email?: string; access?: Access; active?: boolean }) {
+    return this.http.patch<TeamMember>(`/api/admin/users/${encodeURIComponent(name)}`, body);
+  }
+  reinvite(name: string) { return this.http.post<TeamMember>(`/api/admin/users/${encodeURIComponent(name)}/invite`, {}); }
+  removeMember(name: string) { return this.http.delete<void>(`/api/admin/users/${encodeURIComponent(name)}`); }
 
   // ── insights ──
   analytics(days: number) {

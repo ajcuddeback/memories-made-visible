@@ -249,8 +249,7 @@ class BookingFlowTest {
                 .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/admin/auth/users"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Erica"))
-                .andExpect(jsonPath("$[0].initial").value("E"));
+                .andExpect(jsonPath("$[?(@.name=='Erica')].initial").value("E"));
     }
 
     @Test
@@ -610,5 +609,101 @@ class BookingFlowTest {
                 .andExpect(jsonPath("$.daily.length()").value(7));
         // Public readers can't see the report.
         mvc.perform(get("/api/admin/analytics")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void teamAccountsRolesInvitesAndPasswordReset() throws Exception {
+        var sent = ArgumentCaptor.forClass(MimeMessage.class);
+        String owner = token("Austin", "test-pass");
+        String admin = token("Erica", "test-pass");
+
+        // Seeded: Austin is the owner, Erica an admin.
+        mvc.perform(get("/api/admin/auth/me").header("Authorization", owner))
+                .andExpect(jsonPath("$.access").value("OWNER")).andExpect(jsonPath("$.mustChangePassword").value(false));
+        mvc.perform(get("/api/admin/auth/me").header("Authorization", admin)).andExpect(jsonPath("$.access").value("ADMIN"));
+
+        // An admin adds an employee → invite email with a temporary password.
+        int before = org.mockito.Mockito.mockingDetails(mailSender).getInvocations().size();
+        mvc.perform(post("/api/admin/users").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Sam\",\"role\":\"Assistant\",\"email\":\"sam@test.local\",\"access\":\"EMPLOYEE\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.access").value("EMPLOYEE"))
+                .andExpect(jsonPath("$.mustChangePassword").value(true));
+        Thread.sleep(400);
+        verify(mailSender, org.mockito.Mockito.atLeastOnce()).send(sent.capture());
+        var invite = bySubject(sent, "studio team");
+        assertThat(addresses(invite.getRecipients(MimeMessage.RecipientType.TO))).containsExactly("sam@test.local");
+        String text = bodies(invite)[0];
+        var m = java.util.regex.Pattern.compile("Temporary password: (\\S+)").matcher(text);
+        assertThat(m.find()).isTrue();
+        String temp = m.group(1);
+        assertThat(text).contains("employee");
+
+        // Nobody can hand out OWNER; an admin can't touch the owner; a duplicate name is refused.
+        mvc.perform(post("/api/admin/users").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Boss\",\"role\":\"x\",\"email\":\"boss@test.local\",\"access\":\"OWNER\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/admin/users/Austin").header("Authorization", admin))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/admin/users").header("Authorization", admin).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"sam\",\"role\":\"x\",\"email\":\"other@test.local\",\"access\":\"EMPLOYEE\"}"))
+                .andExpect(status().isBadRequest());
+
+        // Sam signs in with the temporary password, is flagged to change it, and can't reach admin-only things.
+        var samLogin = json.readTree(mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("name", "Sam", "password", temp))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.user.mustChangePassword").value(true))
+                .andReturn().getResponse().getContentAsString());
+        String sam = "Bearer " + samLogin.get("token").asText();
+        mvc.perform(get("/api/admin/bookings").header("Authorization", sam)).andExpect(status().isOk());
+        mvc.perform(get("/api/admin/availability/blocks").header("Authorization", sam)).andExpect(status().isOk());
+        mvc.perform(get("/api/admin/pricing").header("Authorization", sam)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/analytics").header("Authorization", sam)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/users").header("Authorization", sam)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/admin/publish").header("Authorization", sam)).andExpect(status().isForbidden());
+
+        // Sam sets a real password; the temporary one stops working.
+        mvc.perform(post("/api/admin/auth/password").header("Authorization", sam).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("current", temp, "next", "sams-new-password"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.mustChangePassword").value(false));
+        mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("name", "Sam", "password", temp))))
+                .andExpect(status().isUnauthorized());
+
+        // Forgot password: a reset link by email, then a new password through it. Unknown emails get the same 204.
+        mvc.perform(post("/api/admin/auth/forgot").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"nobody@test.local\"}"))
+                .andExpect(status().isNoContent());
+        mvc.perform(post("/api/admin/auth/forgot").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"SAM@test.local\"}"))
+                .andExpect(status().isNoContent());
+        Thread.sleep(400);
+        verify(mailSender, org.mockito.Mockito.atLeastOnce()).send(sent.capture());
+        var resetMail = bySubject(sent, "Reset your studio password");
+        var tm = java.util.regex.Pattern.compile("reset=([0-9a-f]+)").matcher(bodies(resetMail)[0]);
+        assertThat(tm.find()).isTrue();
+        mvc.perform(post("/api/admin/auth/reset").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("token", tm.group(1), "password", "reset-password-1"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.user.name").value("Sam"));
+        mvc.perform(post("/api/admin/auth/reset").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("token", tm.group(1), "password", "again"))))
+                .andExpect(status().isBadRequest()); // single use
+
+        // Deactivated accounts can't sign in or use an old token; the owner can promote and remove.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/users/Sam").header("Authorization", owner)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.active").value(false));
+        mvc.perform(get("/api/admin/bookings").header("Authorization", sam)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/admin/auth/users")).andExpect(jsonPath("$[?(@.name=='Sam')]").isEmpty());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/users/Sam").header("Authorization", owner)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":true,\"access\":\"ADMIN\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.access").value("ADMIN"));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/admin/users/Sam").header("Authorization", owner))
+                .andExpect(status().isNoContent());
+    }
+
+    private String token(String name, String password) throws Exception {
+        var res = mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("name", name, "password", password))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return "Bearer " + json.readTree(res).get("token").asText();
     }
 }

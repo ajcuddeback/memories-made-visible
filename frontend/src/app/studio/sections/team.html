@@ -1,0 +1,66 @@
+<div class="head">
+  <p class="explain">Who can sign in to the studio and what they can do. New people get an email with a temporary password and choose their own at first sign-in.</p>
+  @if (!addOpen()) { <button type="button" class="btn btn-primary sm" (click)="addOpen.set(true)">+ Add a person</button> }
+</div>
+@if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+
+@if (addOpen()) {
+  <form class="add" (submit)="$event.preventDefault(); add()">
+    <div class="add-head"><h2 class="add-title">Add a person</h2><button type="button" class="btn btn-ghost sm" (click)="addOpen.set(false)">Close</button></div>
+    <div class="add-grid">
+      <label class="field field--sm">Name <span class="hint">(this is their sign-in name)</span><input class="input" [value]="form().name" (input)="setForm('name', $event)" placeholder="Sam" required /></label>
+      <label class="field field--sm">Job title<input class="input" [value]="form().role" (input)="setForm('role', $event)" placeholder="Assistant photographer" required /></label>
+      <label class="field field--sm">Email<input class="input" type="email" [value]="form().email" (input)="setForm('email', $event)" placeholder="sam@example.com" required /></label>
+      <label class="field field--sm">Access
+        <select class="input" [value]="form().access" (change)="setFormAccess($event)">
+          @for (a of grantable; track a) { <option [value]="a" [selected]="a === form().access">{{ label[a] }}</option> }
+        </select>
+      </label>
+    </div>
+    <p class="access-help">{{ help[form().access] }}</p>
+    @if (formError()) { <p class="error" role="alert">{{ formError() }}</p> }
+    <div class="add-actions">
+      <button type="submit" class="btn btn-primary sm" [disabled]="cantAdd() || busy()">{{ busy() ? 'Adding…' : 'Add & send invite' }}</button>
+    </div>
+  </form>
+}
+
+<div class="list">
+  @for (m of members(); track m.name) {
+    <article class="member" [class.is-inactive]="!m.active">
+      <span class="avatar">{{ m.name.charAt(0).toUpperCase() }}</span>
+      <div class="member-main">
+        <div class="member-head">
+          <h3 class="member-name">{{ m.name }}@if (m.isYou) { <span class="you">you</span> }</h3>
+          <span class="tag" [class.tag-accent]="m.access !== 'EMPLOYEE'" [class.tag-neutral]="m.access === 'EMPLOYEE'">{{ label[m.access] }}</span>
+          @if (!m.active) { <span class="tag tag-neutral">Deactivated</span> }
+          @if (m.active && m.mustChangePassword) { <span class="tag tag-outline">Hasn’t signed in yet</span> }
+        </div>
+        <div class="member-meta">{{ m.role }}@if (m.email) { · <a [href]="'mailto:' + m.email">{{ m.email }}</a> }@if (m.createdAt) { · added {{ m.createdAt | date: 'MMM d, yyyy' }} }</div>
+      </div>
+      @if (canEdit(m)) {
+        <div class="member-actions">
+          <select class="input access-select" [value]="m.access" (change)="setAccess(m, $event)" aria-label="Access level">
+            @for (a of grantable; track a) { <option [value]="a" [selected]="a === m.access">{{ label[a] }}</option> }
+          </select>
+          <button type="button" class="btn btn-secondary sm" (click)="reinvite(m)">Resend invite</button>
+          <button type="button" class="btn btn-ghost sm" (click)="toggleActive(m)">{{ m.active ? 'Deactivate' : 'Reactivate' }}</button>
+          <button type="button" class="btn btn-ghost sm danger" (click)="remove(m)">Remove</button>
+        </div>
+      } @else if (m.access === 'OWNER' && !m.isYou) {
+        <div class="member-note">Only the owner can change this account.</div>
+      } @else if (!m.isYou) {
+        <div class="member-note">Only the owner can change another admin.</div>
+      }
+    </article>
+  }
+</div>
+
+<div class="levels">
+  <h2 class="levels-title">Access levels</h2>
+  <ul class="levels-list">
+    <li><strong>Owner</strong> — {{ help['OWNER'] }}</li>
+    <li><strong>Admin</strong> — {{ help['ADMIN'] }}</li>
+    <li><strong>Employee</strong> — {{ help['EMPLOYEE'] }}</li>
+  </ul>
+</div>
