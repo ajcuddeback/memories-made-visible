@@ -132,6 +132,19 @@ public class BookingService {
                     .orElseThrow(() -> new IllegalArgumentException("No active account called \"" + n.strip() + "\"."));
             if (clean.stream().noneMatch(x -> x.equalsIgnoreCase(u.getName()))) clean.add(u.getName());
         }
+        // Handing off to a bookable photographer: make sure they're actually free then (their sessions + their blocks).
+        String newPhotographer = null;
+        var photographers = availability.photographers();
+        for (String n : clean) for (String p : photographers) if (p.equalsIgnoreCase(n)) { newPhotographer = p; break; }
+        String oldPhotographer = AvailabilityService.photographerOf(b, photographers);
+        if (newPhotographer != null && !newPhotographer.equalsIgnoreCase(oldPhotographer)
+                && b.getStatus() != BookingStatus.DECLINED && b.getStartTime() != null) {
+            try {
+                availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), true, false, newPhotographer);
+            } catch (com.memoriesmadevisible.common.ConflictException e) {
+                throw new com.memoriesmadevisible.common.ConflictException(newPhotographer + " isn't free then — " + e.getMessage().replace("This overlaps ", "it overlaps ").replace("That time was just taken. Please pick another available time.", "they already have something at that time."));
+            }
+        }
         b.setAssignees(clean);
         final Booking saved = bookings.save(b);
         String typeName = typeName(saved);

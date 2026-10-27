@@ -800,6 +800,13 @@ class BookingFlowTest {
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(req)))
                 .andExpect(status().isConflict());
 
+        // Handing a session off checks the new person's calendar: Pat (14:00, Austin) can't go to Erica, who has Pat3 at 14:00.
+        var patId = bookings.findAll().stream().filter(b -> b.getEmail().equals("pat@example.com")).findFirst().orElseThrow().getId();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + patId + "/assignees")
+                        .header("Authorization", owner).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Erica\"]}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Erica isn't free then")));
+
         // A studio-wide block (no staffName) stops everyone.
         mvc.perform(post("/api/admin/availability/blocks").header("Authorization", owner).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"startDate\":\"" + d + "\",\"startTime\":\"16:00\",\"endTime\":\"17:00\"}"))
