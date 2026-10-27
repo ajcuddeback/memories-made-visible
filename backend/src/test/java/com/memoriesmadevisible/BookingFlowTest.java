@@ -687,6 +687,48 @@ class BookingFlowTest {
                         .content(json.writeValueAsString(Map.of("token", tm.group(1), "password", "again"))))
                 .andExpect(status().isBadRequest()); // single use
 
+        // Assignments: Sam (employee) sees nothing until an admin puts them on a session; then only that one.
+        // Reactivate Sam first for this part.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/users/Sam").header("Authorization", owner)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"active\":true}"))
+                .andExpect(status().isOk());
+        var samLogin2 = json.readTree(mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("name", "Sam", "password", "reset-password-1"))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String sam2 = "Bearer " + samLogin2.get("token").asText();
+        for (String who : List.of("Assign One", "Assign Two")) {
+            var b = new Booking();
+            b.setSessionTypeKey("families"); b.setName(who); b.setEmail(who.replace(" ", "").toLowerCase() + "@example.com");
+            b.setDate(LocalDate.now().plusDays(80)); b.setTime("9:00 AM"); b.setStatus(BookingStatus.CONFIRMED);
+            bookings.save(b);
+        }
+        var all = json.readTree(mvc.perform(get("/api/admin/bookings").header("Authorization", owner)).andReturn().getResponse().getContentAsString());
+        assertThat(all.size()).isGreaterThan(1);
+        long someId = -1, otherId = -1;
+        for (var n : all) { if (n.get("name").asText().equals("Assign One")) someId = n.get("id").asLong(); if (n.get("name").asText().equals("Assign Two")) otherId = n.get("id").asLong(); }
+        mvc.perform(get("/api/admin/bookings").header("Authorization", sam2)).andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
+                        .header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Sam\"]}"))
+                .andExpect(status().isForbidden()); // employees can't assign themselves
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Sam\",\"Nobody\"]}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[\"Sam\"]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.assignees[0]").value("Sam"));
+        mvc.perform(get("/api/admin/bookings").header("Authorization", sam2))
+                .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(someId));
+        Thread.sleep(400);
+        verify(mailSender, org.mockito.Mockito.atLeastOnce()).send(sent.capture());
+        assertThat(bySubject(sent, "You're on ")).isNotNull();
+        // Sam can't start a gallery on a session they're not on.
+        mvc.perform(post("/api/admin/galleries").header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bookingId\":" + otherId + "}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + someId + "/assignees")
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"names\":[]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.assignees.length()").value(0));
+
         // Deactivated accounts can't sign in or use an old token; the owner can promote and remove.
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/users/Sam").header("Authorization", owner)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))

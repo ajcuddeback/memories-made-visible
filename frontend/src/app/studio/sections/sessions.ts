@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { BookingStatus, EmailAction, Gallery } from '../../core/models';
+import { BookingStatus, EmailAction, Gallery, TeamMember } from '../../core/models';
 import { DatePipe } from '@angular/common';
 import { fmtDate, fmtRange, fromISO, money, num, today } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
@@ -52,6 +52,10 @@ const ACTION_LABEL: Record<EmailAction, { title: string; button: string }> = {
 export class SessionsSection {
   readonly store = inject(AdminStore);
   readonly canManage = inject(AuthService).canManage;
+  /** Active staff who can be put on a session (loaded for owner/admin only). */
+  readonly staff = signal<TeamMember[]>([]);
+  /** Which card has its assignment picker open. */
+  readonly assigning = signal<number | null>(null);
   readonly tab = signal<Tab>('REQUESTS');
   readonly compose = signal<Compose | null>(null);
   readonly deliver = signal<Deliver | null>(null);
@@ -71,6 +75,24 @@ export class SessionsSection {
   });
   readonly tabHint = computed(() => TABS.find((t) => t.key === this.tab())?.hint ?? '');
 
+  constructor() {
+    if (this.canManage()) this.store.team().subscribe({ next: (m) => this.staff.set(m.filter((x) => x.active)), error: () => undefined });
+  }
+
+  toggleAssign(id: number): void { this.assigning.update((v) => (v === id ? null : id)); }
+  isAssigned(bookingId: number, name: string): boolean {
+    return (this.store.bookingById().get(bookingId)?.assignees ?? []).some((a) => a.toLowerCase() === name.toLowerCase());
+  }
+  setAssigned(bookingId: number, name: string, on: boolean): void {
+    const current = this.store.bookingById().get(bookingId)?.assignees ?? [];
+    const next = on ? [...current.filter((a) => a.toLowerCase() !== name.toLowerCase()), name] : current.filter((a) => a.toLowerCase() !== name.toLowerCase());
+    this.store.assign(bookingId, next).subscribe({
+      next: (b) => { if (on) this.say(`${name} is on ${b.name}'s session${this.staffEmail(name) ? ' and has been emailed' : ''}.`); },
+      error: (e) => this.say(e?.error?.message ?? 'Couldn’t change who’s on this session.'),
+    });
+  }
+  private staffEmail(name: string): string | null { return this.staff().find((s) => s.name === name)?.email ?? null; }
+
   readonly requests = computed(() => {
     const gal = this.galleryByBooking();
     return this.store.bookings()
@@ -84,6 +106,7 @@ export class SessionsSection {
         gallery: g ?? null,
         stage,
         upcoming: fromISO(b.date) > this.today,
+        team: (b.assignees ?? []).join(', '),
         steps: STEPS.map((label, i) => ({ label, done: i <= stage, current: i === stage, delivered: stage === 3 })),
         nextLabel: stage < 0 ? 'Mark as shot' : stage === 0 ? 'Start editing' : stage === 1 ? 'Send to proofing' : stage === 2 ? 'Deliver & email link…' : '',
         when: `${fmtDate(b.date)} · ${b.startTime ? fmtRange(b.startTime, b.endTime) : b.time}`,

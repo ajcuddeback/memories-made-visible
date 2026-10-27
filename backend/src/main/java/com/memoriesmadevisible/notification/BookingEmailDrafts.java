@@ -53,7 +53,7 @@ public final class BookingEmailDrafts {
         return new Draft(subject, body);
     }
 
-    static final DateTimeFormatter LONG_DATE = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US);
+    public static final DateTimeFormatter LONG_DATE = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US);
     static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("MMMM d", Locale.US);
 
     public static Action actionFor(BookingStatus from, BookingStatus to) {

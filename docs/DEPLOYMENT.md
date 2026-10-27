@@ -64,7 +64,8 @@ password in the studio (account menu → Change password) and the owner/admins a
 
 Access levels: **Owner** (one account, can do everything including managing admins), **Admin** (everything in the studio),
 **Employee** (sessions pipeline, calendar blocks, pop-up print sales only — no prices, photos, publishing, revenue, insights
-or team). New people get an email with a temporary password and must choose their own at first sign-in.
+or team). An employee only ever sees the sessions an admin has assigned to them (Sessions → Booked card → **Assign…**);
+they get an email when they're put on one. New people get an email with a temporary password and must choose their own at first sign-in.
 
 ### 5. Container images
 

@@ -40,8 +40,10 @@ public final class BookingDtos {
             Long id, String sessionType, String sessionTypeName, String packageName, Integer hours, List<String> addons,
             String name, String email, String phone,
             String location, String notes, LocalDate date, String time, String startTime, String endTime,
-            BookingStatus status, BigDecimal quote, Instant createdAt
+            BookingStatus status, BigDecimal quote, Instant createdAt, List<String> assignees
     ) {}
+
+    public record Assign(@NotNull List<@Size(max = 60) String> names) {}
 
     /**
      * Admin: move a booking to another slot. The customer gets a "please confirm" email built

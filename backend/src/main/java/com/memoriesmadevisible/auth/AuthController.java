@@ -31,11 +31,14 @@ public class AuthController {
     private final JwtService jwt;
     private final BookingNotificationService mail;
     private final String siteUrl;
-    private final RateLimiter loginLimiter = new RateLimiter(10, Duration.ofMinutes(10));
+    /** Sign-in attempts per client per 10 minutes (app.login-rate-limit; tests raise it). */
+    private final RateLimiter loginLimiter;
     private final RateLimiter forgotLimiter = new RateLimiter(5, Duration.ofMinutes(15));
 
     public AuthController(AdminUserRepository users, PasswordEncoder encoder, JwtService jwt, BookingNotificationService mail,
-                          com.memoriesmadevisible.config.AppProperties props) {
+                          com.memoriesmadevisible.config.AppProperties props,
+                          @org.springframework.beans.factory.annotation.Value("${app.login-rate-limit:10}") int loginLimit) {
+        this.loginLimiter = new RateLimiter(loginLimit, Duration.ofMinutes(10));
         this.users = users;
         this.encoder = encoder;
         this.jwt = jwt;

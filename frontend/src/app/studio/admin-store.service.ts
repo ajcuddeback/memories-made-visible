@@ -68,6 +68,11 @@ export class AdminStore {
     this.loaded.set(false);
   }
 
+  // ── assignments ──
+  assign(id: number, names: string[]) {
+    return this.http.put<Booking>(`/api/admin/bookings/${id}/assignees`, { names }).pipe(tap((b) => this.replaceBooking(b)));
+  }
+
   // ── team ──
   team() { return this.http.get<TeamMember[]>('/api/admin/users'); }
   addMember(body: { name: string; role: string; email: string; access: Access }) { return this.http.post<TeamMember>('/api/admin/users', body); }

@@ -58,6 +58,12 @@ public class Booking {
     @Column(name = "addons_text", length = 300)
     private String addonsText;
 
+    /** Staff assigned to this session (sign-in names). Employees only see sessions they're on. */
+    @jakarta.persistence.ElementCollection(fetch = jakarta.persistence.FetchType.EAGER)
+    @jakarta.persistence.CollectionTable(name = "booking_assignment", joinColumns = @jakarta.persistence.JoinColumn(name = "booking_id"))
+    @Column(name = "staff_name", length = 60)
+    private java.util.Set<String> assignees = new java.util.HashSet<>();
+
     @Column(name = "session_time", nullable = false, length = 40)
     private String time;
 
@@ -98,6 +104,9 @@ public class Booking {
     public void setNotes(String v) { this.notes = v; }
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate v) { this.date = v; }
+    public java.util.Set<String> getAssignees() { return assignees; }
+    public void setAssignees(java.util.Collection<String> names) { this.assignees = new java.util.HashSet<>(names); }
+    public boolean isAssignedTo(String name) { return assignees.stream().anyMatch(a -> a.equalsIgnoreCase(name)); }
     public Integer getHours() { return hours; }
     public void setHours(Integer v) { this.hours = v; }
     public java.util.List<String> getAddons() {

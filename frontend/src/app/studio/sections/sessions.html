@@ -5,7 +5,7 @@
   }
 </div>
 
-<p class="tab-hint">{{ tabHint() }}</p>
+<p class="tab-hint">{{ canManage() ? tabHint() : 'You see the sessions you’ve been assigned to. An admin assigns them.' }}</p>
 @if (notice(); as n) {
   <p class="notice" role="status" aria-live="polite">{{ n }}</p>
 }
@@ -28,6 +28,25 @@
           <div class="req-meta"><a [href]="'mailto:' + r.email">{{ r.email }}</a>@if (r.phone) { · <a [href]="'tel:' + r.phone">{{ r.phone }}</a> }</div>
           @if (r.notes) { <p class="req-notes">{{ r.notes }}</p> }
           @if (r.status === 'CONFIRMED') {
+            <div class="team">
+              <span class="team-label">Team:</span>
+              @if (r.team) { <span class="team-names">{{ r.team }}</span> } @else { <span class="team-none">nobody assigned yet</span> }
+              @if (canManage() && staff().length) {
+                <button type="button" class="btn btn-ghost sm team-btn" (click)="toggleAssign(r.id)" [attr.aria-expanded]="assigning() === r.id">{{ assigning() === r.id ? 'Done' : 'Assign…' }}</button>
+              }
+            </div>
+            @if (assigning() === r.id) {
+              <div class="team-pick" role="group" aria-label="Assign staff">
+                @for (m of staff(); track m.name) {
+                  <label class="team-opt">
+                    <input type="checkbox" [checked]="isAssigned(r.id, m.name)" (change)="setAssigned(r.id, m.name, $any($event.target).checked)" />
+                    <span class="team-opt-name">{{ m.name }}</span>
+                    <span class="team-opt-role">{{ m.role }} · {{ m.access === 'EMPLOYEE' ? 'Employee' : m.access === 'OWNER' ? 'Owner' : 'Admin' }}</span>
+                  </label>
+                }
+                <p class="team-hint">Employees only see the sessions they’re on. Newly assigned people get an email.</p>
+              </div>
+            }
             <div class="pipe" [class.is-delivered]="r.stage === 3">
               <div class="steps">
                 @for (sp of r.steps; track sp.label) {

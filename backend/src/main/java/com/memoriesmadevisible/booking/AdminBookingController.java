@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,14 +21,24 @@ import java.util.List;
 public class AdminBookingController {
 
     private final BookingService service;
+    private final com.memoriesmadevisible.auth.StaffAccess access;
 
-    public AdminBookingController(BookingService service) {
+    public AdminBookingController(BookingService service, com.memoriesmadevisible.auth.StaffAccess access) {
         this.service = service;
+        this.access = access;
     }
 
+    /** Owner/admin: everything. Employee: only the sessions they're assigned to. */
     @GetMapping
-    public List<BookingDtos.Response> list() {
-        return service.list();
+    public List<BookingDtos.Response> list(java.security.Principal me) {
+        return access.limited(me) ? service.listAssignedTo(me.getName()) : service.list();
+    }
+
+    /** Who's working this session. */
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    @PutMapping("/{id}/assignees")
+    public BookingDtos.Response assign(@PathVariable Long id, @Valid @RequestBody BookingDtos.Assign body, java.security.Principal me) {
+        return service.assign(id, body.names(), me.getName());
     }
 
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")

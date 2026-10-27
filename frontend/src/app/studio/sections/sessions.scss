@@ -57,3 +57,15 @@
 @media (max-width: 560px) { .deliver-grid { grid-template-columns: 1fr; } }
 
 .ro-note { font-size: 13px; color: var(--ink-65); max-width: 220px; }
+
+.team { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 13.5px; }
+.team-label { font-weight: 600; color: var(--ink-65); }
+.team-names { font-weight: 600; }
+.team-none { color: var(--ink-55); font-style: italic; }
+.team-btn { padding: 4px 10px; font-size: 12.5px; color: var(--color-accent-700); }
+.team-pick { margin-top: 8px; padding: 10px 14px; border-radius: 16px; background: var(--ink-4); display: grid; gap: 6px; max-width: 420px; }
+.team-opt { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
+.team-opt input { width: 18px; height: 18px; accent-color: var(--color-accent); }
+.team-opt-name { font-weight: 600; }
+.team-opt-role { font-size: 12.5px; color: var(--ink-65); }
+.team-hint { font-size: 12px; color: var(--ink-55); margin: 4px 0 0; }

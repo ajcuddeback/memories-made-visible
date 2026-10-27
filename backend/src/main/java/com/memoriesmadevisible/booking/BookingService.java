@@ -24,16 +24,19 @@ public class BookingService {
     private final BookingNotificationService notifications;
     private final PublishService publish;
     private final AvailabilityService availability;
+    private final com.memoriesmadevisible.auth.AdminUserRepository staff;
     private final String siteUrl;
 
     public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
-                          PublishService publish, AvailabilityService availability, AppProperties props) {
+                          PublishService publish, AvailabilityService availability,
+                          com.memoriesmadevisible.auth.AdminUserRepository staff, AppProperties props) {
+        this.staff = staff;
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
         this.publish = publish;
         this.availability = availability;
-        this.siteUrl = props.notifications().siteUrl();
+        this.siteUrl = props.notifications().siteUrl() == null ? "" : props.notifications().siteUrl().replaceAll("/+$", "");
     }
 
     @Transactional
@@ -107,6 +110,42 @@ public class BookingService {
     @Transactional(readOnly = true)
     public List<BookingDtos.Response> list() {
         return bookings.findAllByOrderByDateAscTimeAsc().stream().map(this::toResponse).toList();
+    }
+
+    /** An employee's view: only the sessions they're assigned to. */
+    @Transactional(readOnly = true)
+    public List<BookingDtos.Response> listAssignedTo(String staffName) {
+        return bookings.findAllByOrderByDateAscTimeAsc().stream().filter(b -> b.isAssignedTo(staffName)).map(this::toResponse).toList();
+    }
+
+    /** Set who's on a session; newly added staff get a heads-up email. */
+    @Transactional
+    public BookingDtos.Response assign(Long id, List<String> names, String by) {
+        var b = find(id);
+        var before = new java.util.HashSet<>(b.getAssignees());
+        java.util.List<String> clean = new java.util.ArrayList<>();
+        for (String n : names == null ? List.<String>of() : names) {
+            if (n == null || n.isBlank()) continue;
+            var u = staff.findByNameIgnoreCase(n.strip()).filter(com.memoriesmadevisible.auth.AdminUser::isActive)
+                    .orElseThrow(() -> new IllegalArgumentException("No active account called \"" + n.strip() + "\"."));
+            if (clean.stream().noneMatch(x -> x.equalsIgnoreCase(u.getName()))) clean.add(u.getName());
+        }
+        b.setAssignees(clean);
+        final Booking saved = bookings.save(b);
+        String typeName = typeName(saved);
+        for (String n : clean) {
+            if (before.stream().anyMatch(x -> x.equalsIgnoreCase(n)) || n.equalsIgnoreCase(by)) continue;
+            staff.findByNameIgnoreCase(n).map(com.memoriesmadevisible.auth.AdminUser::getEmail).ifPresent(email ->
+                    notifications.sendStaffEmail(email, "You're on " + saved.getName() + "'s " + typeName + " session",
+                            """
+                            Hi %s,
+
+                            %s put you on %s's %s session — %s at %s%s. It's in your studio now under Sessions and on your calendar.
+                            """.formatted(n, by, saved.getName(), typeName, BookingEmailDrafts.LONG_DATE.format(saved.getDate()), saved.getTime(),
+                                    saved.getLocation() == null ? "" : " (" + saved.getLocation() + ")").strip(),
+                            "Open the studio", siteUrl + "/studio/sessions"));
+        }
+        return toResponse(saved);
     }
 
     /** What the studio would send for this action, pre-filled, for the admin to edit. */
@@ -230,7 +269,7 @@ public class BookingService {
                 b.getName(), b.getEmail(),
                 b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(),
                 AvailabilityDtos.hm(b.getStartTime()), AvailabilityDtos.hm(b.getEndTime()), b.getStatus(), b.getQuote(),
-                b.getCreatedAt());
+                b.getCreatedAt(), b.getAssignees().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
     }
 
     private static String blankToNull(String s) {

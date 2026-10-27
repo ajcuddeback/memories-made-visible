@@ -125,6 +125,8 @@ export interface Booking {
   status: BookingStatus;
   quote: number | null;
   createdAt: string;
+  /** Staff sign-in names working this session. */
+  assignees: string[];
 }
 
 export interface BookingRequest {
