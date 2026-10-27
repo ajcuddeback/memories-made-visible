@@ -1,7 +1,7 @@
 <form class="add" (submit)="$event.preventDefault(); add()">
   <h2 class="add-title">Add a pop-up</h2>
   <div class="add-grid">
-    <label class="field field--sm">Date<input class="input md" type="date" [value]="ne().date" (input)="set('date', $event)" required /></label>
+    <div class="field field--sm">Date<app-date-field [value]="ne().date" [min]="todayIso" (valueChange)="setDate($event)" label="Pop-up date" /></div>
     <label class="field field--sm">Name<input class="input md" [value]="ne().title" (input)="set('title', $event)" placeholder="Spring Pop-Up" required /></label>
     <label class="field field--sm">Theme<input class="input md" [value]="ne().theme" (input)="set('theme', $event)" placeholder="Wildflower set" /></label>
     <label class="field field--sm">Venue<input class="input md" [value]="ne().venue" (input)="set('venue', $event)" placeholder="Market · City" /></label>

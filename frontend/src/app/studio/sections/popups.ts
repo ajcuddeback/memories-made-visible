@@ -1,14 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { MON, fromISO, money, num, today } from '../../core/dates';
+import { MON, fromISO, money, num, toISO, today } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
+import { DateField } from '../../shared/pickers';
 
 @Component({
   selector: 'app-popups',
+  imports: [DateField],
   templateUrl: './popups.html',
   styleUrl: './popups.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PopupsSection {
+  readonly todayIso = toISO(today());
+  setDate(iso: string): void { this.ne.update((n) => ({ ...n, date: iso })); }
   mapUrl(address: string): string { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address); }
   readonly store = inject(AdminStore);
   private readonly today = today();

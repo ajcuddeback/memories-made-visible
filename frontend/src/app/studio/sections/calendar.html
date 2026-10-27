@@ -28,9 +28,9 @@
         @for (h of hoursDraft(); track h.weekday) {
           <div class="hour-row" [class.is-closed]="!h.open">
             <label class="hour-day"><input type="checkbox" [checked]="h.open" (change)="setHour(h.weekday, 'open', checked($event))" /> {{ weekdays[h.weekday] }}</label>
-            <input class="input hour-time" type="time" step="1800" [value]="h.start" [disabled]="!h.open" (change)="setHour(h.weekday, 'start', val($event))" [attr.aria-label]="weekdays[h.weekday] + ' opens'" />
+            <app-time-field class="hour-time" [value]="h.start" [disabled]="!h.open" (valueChange)="setHour(h.weekday, 'start', $event)" [label]="weekdays[h.weekday] + ' opens'" />
             <span class="hour-sep">to</span>
-            <input class="input hour-time" type="time" step="1800" [value]="h.end" [disabled]="!h.open" (change)="setHour(h.weekday, 'end', val($event))" [attr.aria-label]="weekdays[h.weekday] + ' closes'" />
+            <app-time-field class="hour-time" [value]="h.end" [disabled]="!h.open" (valueChange)="setHour(h.weekday, 'end', $event)" [label]="weekdays[h.weekday] + ' closes'" />
           </div>
         }
       </div>
@@ -47,12 +47,12 @@
       <h3 class="panel-title">Block time</h3>
       <p class="panel-hint">Customers just see the time as unavailable — the note is only for you.</p>
       <div class="block-grid">
-        <label class="field field--sm">From<input class="input" type="date" [value]="b.startDate" (change)="setBlock('startDate', val($event))" required /></label>
-        <label class="field field--sm">Through <span class="hint">(optional)</span><input class="input" type="date" [value]="b.endDate" [min]="b.startDate" (change)="setBlock('endDate', val($event))" /></label>
+        <div class="field field--sm">From<app-date-field [value]="b.startDate" (valueChange)="setBlock('startDate', $event)" label="Block from" /></div>
+        <div class="field field--sm">Through <span class="hint">(optional)</span><app-date-field [value]="b.endDate" [min]="b.startDate" [clearable]="true" placeholder="Same day" (valueChange)="setBlock('endDate', $event)" label="Block through" /></div>
         <label class="toggle"><input type="checkbox" [checked]="b.allDay" (change)="setBlock('allDay', checked($event))" /> All day</label>
         @if (!b.allDay) {
-          <label class="field field--sm">Start<input class="input" type="time" step="900" [value]="b.startTime" (change)="setBlock('startTime', val($event))" /></label>
-          <label class="field field--sm">End<input class="input" type="time" step="900" [value]="b.endTime" (change)="setBlock('endTime', val($event))" /></label>
+          <div class="field field--sm">Start<app-time-field [value]="b.startTime" [step]="15" (valueChange)="setBlock('startTime', $event)" label="Block start" /></div>
+          <div class="field field--sm">End<app-time-field [value]="b.endTime" [step]="15" (valueChange)="setBlock('endTime', $event)" label="Block end" /></div>
         }
         <label class="field field--sm block-note">Note <span class="hint">(private)</span><input class="input" [value]="b.note" (input)="setBlock('note', val($event))" placeholder="Dentist, vacation, family day…" maxlength="200" /></label>
       </div>
@@ -119,8 +119,8 @@
             @if (move(); as mv) {
               @if (mv.bookingId === it.bookingId) {
                 <form class="move" (submit)="$event.preventDefault(); saveMove()">
-                  <label class="field field--sm">New date<input class="input" type="date" [value]="mv.date" (change)="setMoveSlot('date', val($event))" /></label>
-                  <label class="field field--sm">New start<input class="input" type="time" step="1800" [value]="mv.time" (change)="setMoveSlot('time', val($event))" /></label>
+                  <div class="field field--sm">New date<app-date-field [value]="mv.date" [min]="todayIso" (valueChange)="setMoveSlot('date', $event)" label="New date" /></div>
+                  <div class="field field--sm">New start<app-time-field [value]="mv.time" (valueChange)="setMoveSlot('time', $event)" label="New start time" /></div>
                   <label class="field field--sm move-reason">Reason
                     <select class="input" [value]="mv.reason" (change)="setMoveSlot('reason', val($event))">
                       @for (r of moveReasons; track r.key) { <option [value]="r.key" [selected]="r.key === mv.reason">{{ r.label }}</option> }

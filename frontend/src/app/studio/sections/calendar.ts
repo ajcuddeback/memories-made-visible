@@ -3,6 +3,7 @@ import { MONTHS, WEEKDAYS, fmtLongDate, fmtRange, fmtTime, fromISO, toISO, today
 import { AvailabilityHours, BookingStatus, MoveReason } from '../../core/models';
 import { ViewportService } from '../../core/viewport.service';
 import { Icon } from '../../shared/icons';
+import { DateField, TimeField } from '../../shared/pickers';
 import { AdminStore } from '../admin-store.service';
 
 type Kind = 'confirmed' | 'pending' | 'declined' | 'popup' | 'block';
@@ -47,7 +48,7 @@ const STATUS_KIND: Record<BookingStatus, Kind> = { CONFIRMED: 'confirmed', PENDI
 
 @Component({
   selector: 'app-calendar',
-  imports: [Icon],
+  imports: [Icon, DateField, TimeField],
   templateUrl: './calendar.html',
   styleUrl: './calendar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,7 +60,7 @@ export class CalendarSection {
   readonly kindLabel = KIND_LABEL;
   readonly moveReasons = MOVE_REASONS;
   private readonly today = today();
-  private readonly todayIso = toISO(this.today);
+  readonly todayIso = toISO(this.today);
 
   readonly cy = signal(this.today.getFullYear());
   readonly cm = signal(this.today.getMonth());
