@@ -33,3 +33,13 @@
 .t-includes { font-size: 13.5px; min-height: 86px; border-radius: 16px; padding: 10px 14px; line-height: 1.5; }
 .add-tier { font-size: 13px; margin-top: 12px; color: var(--color-accent-700); }
 @media (max-width: 560px) { .cat-fields { grid-template-columns: 1fr; } }
+
+.explain { font-size: 14px; color: var(--ink-65); margin: 0 0 16px; max-width: 70ch; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 38px; }
+.toggle input { width: 18px; height: 18px; accent-color: var(--color-accent); cursor: pointer; }
+.add-toggle { align-self: end; }
+.portfolio-row { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; align-items: end; padding: 10px 14px; border-radius: 16px; background: var(--ink-4); }
+.pf-label { margin: 0; }
+.pf-off { font-size: 13px; color: var(--ink-65); align-self: center; }
+.hint { font-weight: 500; color: var(--ink-65); }
+@media (max-width: 560px) { .portfolio-row { grid-template-columns: 1fr; } }

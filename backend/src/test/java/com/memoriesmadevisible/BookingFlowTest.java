@@ -236,13 +236,18 @@ class BookingFlowTest {
         // Edit a category: rename, new "from", one package with an includes list.
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
                         .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content("[{\"key\":\"weddings\",\"name\":\"Weddings & elopements\",\"shortName\":\"Weddings\",\"description\":\"Big or small.\",\"from\":\"$900\","
+                        .content("[{\"key\":\"weddings\",\"name\":\"Weddings & elopements\",\"shortName\":\"Weddings\",\"description\":\"Big or small.\",\"from\":\"$900\",\"showInPortfolio\":false,"
                                 + "\"tiers\":[{\"name\":\"Intimate\",\"detail\":\"2 hours\",\"price\":\"$900\",\"includes\":[\"2 hours\",\"  \",\"Online gallery\"]}]}]"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.key=='weddings')].name").value("Weddings & elopements"))
                 .andExpect(jsonPath("$[?(@.key=='weddings')].from").value("$900"))
                 .andExpect(jsonPath("$[?(@.key=='weddings')].tiers.length()").value(1))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].showInPortfolio").value(false))
                 .andExpect(jsonPath("$[?(@.key=='weddings')].tiers[0].includes.length()").value(2)); // blank item dropped
+        // Hidden from the portfolio → no photo slot group for it.
+        mvc.perform(get("/api/admin/photos").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.title=='Portfolio · Weddings')]").isEmpty());
 
         // Add a category: slug key, appended last; it gets portfolio photo slots.
         mvc.perform(post("/api/admin/pricing").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)

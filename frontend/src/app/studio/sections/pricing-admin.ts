@@ -17,6 +17,7 @@ interface Draft {
   shortName: string;
   description: string;
   from: string;
+  showInPortfolio: boolean;
   tiers: DraftTier[];
 }
 
@@ -35,7 +36,7 @@ export class PricingAdminSection {
   readonly dirty = signal(false);
 
   // "Add a category" form
-  readonly nc = signal({ name: '', shortName: '', description: '', from: '' });
+  readonly nc = signal({ name: '', shortName: '', description: '', from: '', showInPortfolio: true });
   readonly cantAdd = computed(() => !this.nc().name.trim() || !this.nc().from.trim());
 
   /** How many bookings reference each category — shown before a delete so nobody is surprised. */
@@ -56,6 +57,7 @@ export class PricingAdminSection {
   private toDraft(list: SessionType[]): Draft[] {
     return list.map((s) => ({
       key: s.key, name: s.name, shortName: s.shortName === s.name ? '' : s.shortName, description: s.description, from: s.from,
+      showInPortfolio: s.showInPortfolio,
       tiers: s.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, includesText: (t.includes ?? []).join('\n') })),
     }));
   }
@@ -63,6 +65,7 @@ export class PricingAdminSection {
   private toPayload(d: Draft[]): SessionType[] {
     return d.map((c) => ({
       key: c.key, name: c.name, shortName: c.shortName, description: c.description, from: c.from,
+      showInPortfolio: c.showInPortfolio,
       tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price,
         includes: t.includesText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
     }));
@@ -80,6 +83,7 @@ export class PricingAdminSection {
   setCat(i: number, field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
     const v = this.val(e); this.edit((d) => { d[i][field] = v; });
   }
+  setPortfolio(i: number, on: boolean): void { this.edit((d) => { d[i].showInPortfolio = on; }); }
   move(i: number, dir: -1 | 1): void {
     this.edit((d) => { const j = i + dir; if (j < 0 || j >= d.length) return; [d[i], d[j]] = [d[j], d[i]]; });
   }
@@ -93,20 +97,21 @@ export class PricingAdminSection {
   setNc(field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
     const v = this.val(e); this.nc.update((n) => ({ ...n, [field]: v }));
   }
+  setNcPortfolio(on: boolean): void { this.nc.update((n) => ({ ...n, showInPortfolio: on })); }
 
   /** Categories are created server-side (the key is a slug of the name) — unsaved edits are kept. */
   addCategory(): void {
     if (this.cantAdd() || this.busy()) return;
     const n = this.nc();
     this.busy.set(true);
-    this.store.createCategory({ name: n.name.trim(), shortName: n.shortName.trim(), description: n.description.trim(), from: n.from.trim() }).subscribe({
+    this.store.createCategory({ name: n.name.trim(), shortName: n.shortName.trim(), description: n.description.trim(), from: n.from.trim(), showInPortfolio: n.showInPortfolio }).subscribe({
       next: (list) => {
         this.busy.set(false);
-        this.nc.set({ name: '', shortName: '', description: '', from: '' });
+        this.nc.set({ name: '', shortName: '', description: '', from: '', showInPortfolio: true });
         const added = list.find((s) => !this.draft().some((d) => d.key === s.key));
         if (added) this.draft.update((d) => [...d, ...this.toDraft([added])]);
         this.store.applyPricing(list);
-        this.msg.set(`Added "${n.name.trim()}". It's live on the site; it also has three portfolio photo slots now.`);
+        this.msg.set(`Added "${n.name.trim()}". It's live on the Pricing page${n.showInPortfolio ? ' and has three Portfolio photo slots under Photos' : ''}.`);
       },
       error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t add that category.'); },
     });

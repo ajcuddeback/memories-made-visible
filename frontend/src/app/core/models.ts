@@ -13,6 +13,8 @@ export interface SessionType {
   shortName: string;
   description: string;
   from: string;
+  /** Portfolio page: show a filter chip and three photo slots for this category. */
+  showInPortfolio: boolean;
   tiers: PricingTier[];
 }
 
@@ -21,6 +23,7 @@ export interface SessionTypeCreate {
   shortName: string;
   description: string;
   from: string;
+  showInPortfolio: boolean;
 }
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED';

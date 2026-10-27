@@ -4,13 +4,21 @@
   <span class="msg" aria-live="polite">{{ msg() }}</span>
 </div>
 
+<p class="explain">Categories drive the <strong>Pricing</strong> page and, when switched on, the <strong>Portfolio</strong> page too: each category shown there gets a filter chip and three photo slots under Photos.</p>
+
 <form class="add" (submit)="$event.preventDefault(); addCategory()">
   <h2 class="add-title">Add a category</h2>
   <div class="add-grid">
     <label class="field field--sm">Name<input class="input md" [value]="nc().name" (input)="setNc('name', $event)" placeholder="Pets & animals" required /></label>
-    <label class="field field--sm">Short label<input class="input md" [value]="nc().shortName" (input)="setNc('shortName', $event)" placeholder="Pets (for filters)" /></label>
     <label class="field field--sm">From price<input class="input md" [value]="nc().from" (input)="setNc('from', $event)" placeholder="$120" required /></label>
     <label class="field field--sm add-desc">Short description<input class="input md" [value]="nc().description" (input)="setNc('description', $event)" placeholder="One line shown on the pricing and home pages" /></label>
+    <label class="toggle add-toggle">
+      <input type="checkbox" [checked]="nc().showInPortfolio" (change)="setNcPortfolio($any($event.target).checked)" />
+      <span>Show in Portfolio</span>
+    </label>
+    @if (nc().showInPortfolio) {
+      <label class="field field--sm">Portfolio label <span class="hint">(optional, for the filter chip)</span><input class="input md" [value]="nc().shortName" (input)="setNc('shortName', $event)" [placeholder]="nc().name || 'Defaults to the name'" /></label>
+    }
     <button type="submit" class="btn btn-primary add-btn" [disabled]="cantAdd() || busy()">Add category</button>
   </div>
 </form>
@@ -27,9 +35,19 @@
       </div>
       <div class="cat-fields">
         <label class="field field--sm cat-name">Name<input class="input" [value]="pc.name" (input)="setCat(i, 'name', $event)" /></label>
-        <label class="field field--sm">Short label<input class="input" [value]="pc.shortName" (input)="setCat(i, 'shortName', $event)" [placeholder]="pc.name" /></label>
         <label class="field field--sm">From<input class="input" [value]="pc.from" (input)="setCat(i, 'from', $event)" /></label>
         <label class="field field--sm cat-desc">Description<input class="input" [value]="pc.description" (input)="setCat(i, 'description', $event)" /></label>
+        <div class="portfolio-row">
+          <label class="toggle">
+            <input type="checkbox" [checked]="pc.showInPortfolio" (change)="setPortfolio(i, $any($event.target).checked)" />
+            <span>Show in Portfolio</span>
+          </label>
+          @if (pc.showInPortfolio) {
+            <label class="field field--sm pf-label">Portfolio label <span class="hint">(filter chip &amp; captions)</span><input class="input" [value]="pc.shortName" (input)="setCat(i, 'shortName', $event)" [placeholder]="pc.name" /></label>
+          } @else {
+            <span class="pf-off">Not shown on the Portfolio page. Its photos stay saved under Photos while hidden.</span>
+          }
+        </div>
       </div>
 
       <h3 class="pk-title">Packages</h3>

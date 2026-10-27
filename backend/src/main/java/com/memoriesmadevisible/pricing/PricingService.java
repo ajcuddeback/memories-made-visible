@@ -49,8 +49,10 @@ public class PricingService {
         String key = base;
         for (int i = 2; types.existsById(key); i++) key = base + "-" + i;
         int order = (int) types.count();
-        types.save(new SessionType(key, c.name().strip(), blankToNull(c.shortName()),
-                c.description() == null ? "" : c.description().strip(), c.from().strip(), order));
+        var t = new SessionType(key, c.name().strip(), blankToNull(c.shortName()),
+                c.description() == null ? "" : c.description().strip(), c.from().strip(), order);
+        t.setShowInPortfolio(c.showInPortfolio() == null || c.showInPortfolio());
+        types.save(t);
         return list();
     }
 
@@ -65,6 +67,7 @@ public class PricingService {
             t.setShortName(blankToNull(u.shortName()));
             t.setDescription(u.description() == null ? "" : u.description().strip());
             t.setFromPrice(u.from().strip());
+            t.setShowInPortfolio(u.showInPortfolio());
             t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
                     .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),

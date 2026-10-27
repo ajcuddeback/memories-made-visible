@@ -24,14 +24,16 @@ export class PortfolioPage {
   private readonly data = inject(SiteDataService);
   readonly filter = signal('all');
 
+  private readonly shown = computed(() => this.data.sessionTypes().filter((t) => t.showInPortfolio));
+
   readonly filters = computed(() => [
     { key: 'all', label: 'All' },
-    ...this.data.sessionTypes().map((t) => ({ key: t.key, label: t.shortName })),
+    ...this.shown().map((t) => ({ key: t.key, label: t.shortName })),
   ]);
 
   private readonly all = computed<PortfolioItem[]>(() => {
     const out: PortfolioItem[] = [];
-    this.data.sessionTypes().forEach((t, ci) => {
+    this.shown().forEach((t, ci) => {
       for (let i = 0; i < PER_CATEGORY; i++) {
         out.push({ id: `${t.key}-${i + 1}`, key: t.key, cat: t.shortName, ratio: RATIOS[(ci + i * 2) % RATIOS.length] });
       }
