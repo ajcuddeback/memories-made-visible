@@ -77,9 +77,13 @@ public class PricingService {
         return list();
     }
 
-    /** Full save: every category in the list, in list order. Categories not in the list are left alone. */
+    /**
+     * Save the given categories. When the list covers every category it also sets the order;
+     * a partial list leaves the existing order alone.
+     */
     @Transactional
     public List<PricingDtos.SessionTypeView> update(List<PricingDtos.TypeUpdate> updates) {
+        boolean reorder = updates.size() >= types.count();
         for (int i = 0; i < updates.size(); i++) {
             var u = updates.get(i);
             var t = types.findWithTiersByKey(u.key())
@@ -90,7 +94,7 @@ public class PricingService {
             t.setFromPrice(u.from().strip());
             t.setShowInPortfolio(u.showInPortfolio());
             if (u.durationMinutes() != null) t.setDurationMinutes(u.durationMinutes());
-            t.setSortOrder(i);
+            if (reorder) t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
                     .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),
                             x.price().strip(), x.includes(), x.durationMinutes() == null ? t.getDurationMinutes() : x.durationMinutes()))

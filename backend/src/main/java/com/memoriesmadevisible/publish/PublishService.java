@@ -84,9 +84,41 @@ public class PublishService {
 
     // ── what the public site sees ──
 
+    /**
+     * The published price list, with package lengths taken from the *current* list: a session's
+     * length is scheduling config (it decides the slots offered and what a booking blocks), so it
+     * takes effect as soon as it's saved rather than waiting for Publish.
+     */
     @Transactional(readOnly = true)
     public List<PricingDtos.SessionTypeView> publishedPricing() {
-        return read(PRICING, PRICING_T).orElseGet(pricing::list);
+        var live = pricing.list();
+        return read(PRICING, PRICING_T).map(snap -> withLiveDurations(snap, live)).orElse(live);
+    }
+
+    private static List<PricingDtos.SessionTypeView> withLiveDurations(List<PricingDtos.SessionTypeView> snap,
+                                                                        List<PricingDtos.SessionTypeView> live) {
+        Map<String, PricingDtos.SessionTypeView> byKey = new HashMap<>();
+        live.forEach(t -> byKey.put(t.key(), t));
+        return snap.stream().map(t -> {
+            var cur = byKey.get(t.key());
+            int typeMinutes = cur == null ? t.durationMinutes() : cur.durationMinutes();
+            var tiers = t.tiers().stream().map(tier -> {
+                Integer m = null;
+                if (cur != null) {
+                    m = cur.tiers().stream().filter(x -> x.name().equalsIgnoreCase(tier.name())).map(PricingDtos.Tier::durationMinutes).findFirst().orElse(null);
+                }
+                if (m == null || m <= 0) m = tier.durationMinutes() != null && tier.durationMinutes() > 0 ? tier.durationMinutes() : (typeMinutes > 0 ? typeMinutes : 60);
+                return new PricingDtos.Tier(tier.name(), tier.detail(), tier.price(), tier.includes(), m);
+            }).toList();
+            return new PricingDtos.SessionTypeView(t.key(), t.name(), t.shortName(), t.description(), t.from(), t.showInPortfolio(), typeMinutes, tiers);
+        }).toList();
+    }
+
+    /** Lengths are live (above), so they're left out of the snapshot and the "unpublished changes" check. */
+    private static List<PricingDtos.SessionTypeView> withoutDurations(List<PricingDtos.SessionTypeView> list) {
+        return list.stream().map(t -> new PricingDtos.SessionTypeView(t.key(), t.name(), t.shortName(), t.description(), t.from(),
+                t.showInPortfolio(), 0,
+                t.tiers().stream().map(x -> new PricingDtos.Tier(x.name(), x.detail(), x.price(), x.includes(), 0)).toList())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -123,7 +155,7 @@ public class PublishService {
     @Transactional(readOnly = true)
     public Status status() {
         var changes = new Changes(
-                differs(PRICING, pricing.list()),
+                differs(PRICING, withoutDurations(pricing.list())),
                 differs(EVENTS, draftEvents()),
                 differs(PHOTOS, draftPhotos()));
         Instant at = snapshots.findAll().stream().map(PublishedSite::getPublishedAt).max(Comparator.naturalOrder()).orElse(null);
@@ -135,7 +167,7 @@ public class PublishService {
     public Status publish() {
         Set<String> previouslyLive = publishedPhotoKeys();
         var draftPhotos = draftPhotos();
-        write(PRICING, pricing.list());
+        write(PRICING, withoutDurations(pricing.list()));
         write(EVENTS, draftEvents());
         write(PHOTOS, draftPhotos);
         // Objects the old snapshot used that nothing references any more.
@@ -148,7 +180,8 @@ public class PublishService {
     /** Live → draft: throw away every unpublished change. */
     @Transactional
     public Status discard() {
-        read(PRICING, PRICING_T).ifPresent(pricing::restore);
+        // Lengths aren't part of the snapshot; keep the current ones when rewriting the draft.
+        read(PRICING, PRICING_T).ifPresent(snap -> pricing.restore(withLiveDurations(snap, pricing.list())));
         read(EVENTS, EVENTS_T).ifPresent(this::restoreEvents);
         read(PHOTOS, PHOTOS_T).ifPresent(this::restorePhotos);
         return status();
