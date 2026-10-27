@@ -45,7 +45,10 @@
   background: transparent; color: var(--color-text);
 }
 .cal-day:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--color-accent-300); }
-.cal-day.is-past { opacity: 0.3; cursor: default; }
+.cal-day.is-off { opacity: 0.3; cursor: default; text-decoration: line-through; text-decoration-color: var(--ink-55); }
+.calendar.is-loading .cal-grid { opacity: 0.6; transition: opacity 0.15s; }
+.step-hint { margin: -8px 0 16px; }
+.times-hint { margin-top: 16px; }
 .cal-day:disabled { cursor: default; }
 .cal-day.is-selected { background: var(--color-accent); color: var(--color-bg); }
 .times { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }

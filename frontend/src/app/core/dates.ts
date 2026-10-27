@@ -47,3 +47,28 @@ export function sameMonth(iso: string, y: number, m: number): boolean {
   const d = fromISO(iso);
   return d.getFullYear() === y && d.getMonth() === m;
 }
+
+/** "09:00" → "9:00 AM" */
+export function fmtTime(hm: string | null | undefined): string {
+  if (!hm) return '';
+  const [h, m] = hm.split(':').map(Number);
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 === 0 ? 12 : h % 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${suffix}`;
+}
+
+/** "09:00", "10:30" → "9:00 – 10:30 AM" (suffix only repeated when it differs). */
+export function fmtRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start) return '';
+  if (!end) return fmtTime(start);
+  const a = fmtTime(start), b = fmtTime(end);
+  const sa = a.slice(-2), sb = b.slice(-2);
+  return sa === sb ? `${a.slice(0, -3)} – ${b}` : `${a} – ${b}`;
+}
+
+/** Minutes → "1 hr", "1.5 hrs", "45 min" */
+export function fmtDuration(minutes: number): string {
+  if (!minutes || minutes < 60) return `${minutes || 60} min`;
+  const h = minutes / 60;
+  return `${Number.isInteger(h) ? h : h.toFixed(1)} ${h === 1 ? 'hr' : 'hrs'}`;
+}

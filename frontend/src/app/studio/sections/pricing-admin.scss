@@ -16,6 +16,7 @@
 .ord { width: 32px; height: 32px; color: var(--color-text); font-size: 16px; }
 .remove-cat { font-size: 13px; color: var(--color-accent-700); }
 .cat-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+.cat-fields select.input { min-height: 38px; }
 .cat-name, .cat-desc { grid-column: 1 / -1; }
 .cat-fields .input { font-size: 14px; min-height: 38px; }
 .pk-title { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; margin: 0 0 10px; color: var(--ink-65); }

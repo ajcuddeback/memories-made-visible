@@ -3,7 +3,7 @@
     <div class="done">
       <div class="done-check"><app-icon name="check" [size]="30" /></div>
       <h1 class="done-title">Request sent</h1>
-      <p class="done-text">Thank you, {{ name() }}. We've received your request for a <strong>{{ typeName() }}</strong> session on <strong>{{ dateLabel() }}</strong> at <strong>{{ time() }}</strong>.</p>
+      <p class="done-text">Thank you, {{ name() }}. We've received your request for a <strong>{{ typeName() }}</strong> session on <strong>{{ dateLabel() }}</strong> at <strong>{{ timeLabel() }}</strong>.</p>
       <p class="done-text muted">Erica will reach out at {{ email() }} to confirm your date and plan the session.</p>
       <button type="button" class="btn btn-secondary btn-md" (click)="reset()">Make another request</button>
     </div>
@@ -33,7 +33,8 @@
 
         <div>
           <h2 class="step-title">2. Date &amp; time</h2>
-          <div class="calendar">
+          <p class="hint step-hint">Only open times are shown{{ typeName() ? ' — a ' + typeName() + ' session is ' + duration() : '' }}. Pick the session type first if you haven’t.</p>
+          <div class="calendar" [class.is-loading]="availLoading()">
             <div class="cal-head">
               <button type="button" class="btn btn-ghost btn-icon cal-nav" (click)="prevMonth()" [disabled]="prevDisabled()" aria-label="Previous month"><app-icon name="prev" /></button>
               <span class="cal-label">{{ monthLabel() }}</span>
@@ -45,21 +46,31 @@
               }
               @for (d of days(); track $index) {
                 @if (d.date) {
-                  <button type="button" class="cal-day" [class.is-selected]="isSelected(d)" [class.is-past]="d.past"
-                          [disabled]="d.past" [attr.aria-label]="d.label + ', ' + d.date.toDateString()" [attr.aria-pressed]="isSelected(d)"
-                          (click)="date.set(d.date)">{{ d.label }}</button>
+                  <button type="button" class="cal-day" [class.is-selected]="isSelected(d)" [class.is-off]="d.off"
+                          [disabled]="d.off" [attr.aria-label]="d.label + ', ' + d.date.toDateString() + (d.off ? ', unavailable' : '')" [attr.aria-pressed]="isSelected(d)"
+                          (click)="pickDate(d.date)">{{ d.label }}</button>
                 } @else {
                   <span class="cal-day cal-day--blank" aria-hidden="true"></span>
                 }
               }
             </div>
           </div>
-          <div class="times" role="radiogroup" aria-label="Time">
-            @for (tm of times; track tm) {
-              <button type="button" class="btn time" [class.btn-primary]="time() === tm" [class.btn-secondary]="time() !== tm"
-                      role="radio" [attr.aria-checked]="time() === tm" [disabled]="!date()" (click)="time.set(tm)">{{ tm }}</button>
-            }
-          </div>
+          @if (availError()) {
+            <p class="hint">We couldn’t load open times just now — please refresh in a moment.</p>
+          } @else if (!availLoading() && !monthHasSlots()) {
+            <p class="hint">Nothing open this month — try the next one.</p>
+          }
+          @if (date()) {
+            <div class="times" role="radiogroup" aria-label="Start time">
+              @for (s of times(); track s.start) {
+                <button type="button" class="btn time" [class.btn-primary]="time() === s.start" [class.btn-secondary]="time() !== s.start"
+                        role="radio" [attr.aria-checked]="time() === s.start" (click)="time.set(s.start)">{{ s.label }}</button>
+              }
+              @if (times().length === 0) { <p class="hint">That day just filled up — pick another.</p> }
+            </div>
+          } @else {
+            <p class="hint times-hint">Choose a date to see start times.</p>
+          }
         </div>
 
         <div>
@@ -81,7 +92,7 @@
         <dl class="summary-list">
           <div><dt>Session</dt><dd>{{ typeName() ?? '—' }}</dd></div>
           <div><dt>Date</dt><dd>{{ dateLabel() ?? '—' }}</dd></div>
-          <div><dt>Time</dt><dd>{{ time() ?? '—' }}</dd></div>
+          <div><dt>Time</dt><dd>{{ timeLabel() ?? '—' }}</dd></div>
         </dl>
         <button type="button" class="btn btn-primary btn-block send" [disabled]="missing().length > 0 || submitting()" (click)="submit()">
           {{ submitting() ? 'Sending…' : 'Send request' }}

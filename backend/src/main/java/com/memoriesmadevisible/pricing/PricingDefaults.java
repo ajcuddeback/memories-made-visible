@@ -60,9 +60,13 @@ public final class PricingDefaults {
         );
     }
 
+    private static final java.util.Map<String, Integer> DURATION = java.util.Map.of(
+            "families", 60, "couples", 60, "weddings", 240, "maternity", 60, "seniors", 60, "events", 180);
+
     private static SessionType type(String key, String name, String shortName, String desc, String from, int order,
                                     PricingTier... tiers) {
         var t = new SessionType(key, name, shortName, desc, from, order);
+        t.setDurationMinutes(DURATION.getOrDefault(key, 60));
         t.replaceTiers(List.of(tiers));
         return t;
     }

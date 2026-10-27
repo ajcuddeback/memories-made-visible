@@ -99,7 +99,18 @@ public class DemoDataSeeder implements ApplicationRunner {
         b.setLocation(location);
         b.setNotes(notes);
         b.setDate(date);
-        b.setTime(time);
+        // Demo rows are written straight to the table, so give them the time range a real request would get.
+        java.time.LocalTime start = switch (time) {
+            case "9:00 AM" -> java.time.LocalTime.of(9, 0);
+            case "11:00 AM" -> java.time.LocalTime.of(11, 0);
+            case "2:00 PM" -> java.time.LocalTime.of(14, 0);
+            case "4:00 PM" -> java.time.LocalTime.of(16, 0);
+            default -> java.time.LocalTime.of(17, 0); // "Golden hour"
+        };
+        int minutes = switch (type) { case "weddings" -> 240; case "events" -> 180; default -> 60; };
+        b.setStartTime(start);
+        b.setEndTime(start.plusMinutes(minutes));
+        b.setTime(com.memoriesmadevisible.availability.AvailabilityDtos.label(start));
         b.setStatus(status);
         b.setQuote(BigDecimal.valueOf(quote));
         return b;

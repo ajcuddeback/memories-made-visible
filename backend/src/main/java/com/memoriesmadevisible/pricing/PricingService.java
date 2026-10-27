@@ -29,6 +29,7 @@ public class PricingService {
             var t = new SessionType(v.key(), v.name(), v.shortName().equals(v.name()) ? null : v.shortName(),
                     v.description(), v.from(), i);
             t.setShowInPortfolio(v.showInPortfolio());
+            if (v.durationMinutes() > 0) t.setDurationMinutes(v.durationMinutes());
             t.replaceTiers(v.tiers().stream()
                     .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes())).toList());
             rows.add(t);
@@ -70,6 +71,7 @@ public class PricingService {
         var t = new SessionType(key, c.name().strip(), blankToNull(c.shortName()),
                 c.description() == null ? "" : c.description().strip(), c.from().strip(), order);
         t.setShowInPortfolio(c.showInPortfolio() == null || c.showInPortfolio());
+        if (c.durationMinutes() != null) t.setDurationMinutes(c.durationMinutes());
         types.save(t);
         return list();
     }
@@ -86,6 +88,7 @@ public class PricingService {
             t.setDescription(u.description() == null ? "" : u.description().strip());
             t.setFromPrice(u.from().strip());
             t.setShowInPortfolio(u.showInPortfolio());
+            if (u.durationMinutes() != null) t.setDurationMinutes(u.durationMinutes());
             t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
                     .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),

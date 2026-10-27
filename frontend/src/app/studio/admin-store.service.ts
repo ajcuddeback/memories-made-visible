@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap } from 'rxjs';
-import { Booking, DeliverRequest, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
+import { AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -19,6 +19,8 @@ export class AdminStore {
   readonly galleries = signal<Gallery[]>([]);
   readonly pricing = signal<SessionType[]>([]);
   readonly photoGroups = signal<PhotoGroup[]>([]);
+  readonly hours = signal<AvailabilityHours[]>([]);
+  readonly blocks = signal<TimeBlock[]>([]);
   readonly loaded = signal(false);
   /** Draft vs. live. Pricing, pop-ups and photos are a draft until Publish; bookings and galleries are not staged. */
   readonly publishStatus = signal<PublishStatus | null>(null);
@@ -38,6 +40,8 @@ export class AdminStore {
       galleries: this.http.get<Gallery[]>('/api/admin/galleries'),
       pricing: this.http.get<SessionType[]>('/api/admin/pricing'),
       publish: this.http.get<PublishStatus>('/api/admin/publish'),
+      hours: this.http.get<AvailabilityHours[]>('/api/admin/availability/hours'),
+      blocks: this.http.get<TimeBlock[]>('/api/admin/availability/blocks'),
       photos: this.http.get<PhotoGroup[]>('/api/admin/photos'),
     }).subscribe({
       next: (r) => {
@@ -47,6 +51,8 @@ export class AdminStore {
         this.pricing.set(r.pricing);
         this.photoGroups.set(r.photos);
         this.publishStatus.set(r.publish);
+        this.hours.set(r.hours);
+        this.blocks.set(r.blocks);
         this.loaded.set(true);
       },
       error: () => this.loadError.set('Couldn’t load the studio data. Check that the API is running.'),
@@ -56,7 +62,24 @@ export class AdminStore {
   reset(): void {
     this.bookings.set([]); this.events.set([]); this.galleries.set([]); this.photoGroups.set([]);
     this.publishStatus.set(null);
+    this.hours.set([]); this.blocks.set([]);
     this.loaded.set(false);
+  }
+
+  // ── availability ──
+  saveHours(hours: AvailabilityHours[]) {
+    return this.http.put<AvailabilityHours[]>('/api/admin/availability/hours', hours).pipe(tap((h) => this.hours.set(h)));
+  }
+  addBlock(body: TimeBlockCreate) {
+    return this.http.post<TimeBlock>('/api/admin/availability/blocks', body).pipe(
+      tap((b) => this.blocks.update((list) => [...list, b].sort((x, y) => x.startDate.localeCompare(y.startDate) || (x.startTime ?? '').localeCompare(y.startTime ?? '')))),
+    );
+  }
+  removeBlock(id: number) {
+    return this.http.delete<void>(`/api/admin/availability/blocks/${id}`).pipe(tap(() => this.blocks.update((list) => list.filter((b) => b.id !== id))));
+  }
+  reschedule(id: number, date: string, time: string) {
+    return this.http.post<Booking>(`/api/admin/bookings/${id}/reschedule`, { date, time }).pipe(tap((b) => this.replaceBooking(b)));
   }
 
   // ── publish ──

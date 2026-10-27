@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 /** A session request from the website; becomes a confirmed session once approved. */
 @Entity
@@ -44,8 +45,16 @@ public class Booking {
     @Column(name = "session_date", nullable = false)
     private LocalDate date;
 
+    /** Display label ("9:00 AM"); kept for emails and old rows. */
     @Column(name = "session_time", nullable = false, length = 40)
     private String time;
+
+    /** The slot this booking occupies on the calendar; null only on rows from before scheduling existed. */
+    @Column(name = "start_time")
+    private LocalTime startTime;
+
+    @Column(name = "end_time")
+    private LocalTime endTime;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -79,6 +88,10 @@ public class Booking {
     public void setDate(LocalDate v) { this.date = v; }
     public String getTime() { return time; }
     public void setTime(String v) { this.time = v; }
+    public LocalTime getStartTime() { return startTime; }
+    public void setStartTime(LocalTime v) { this.startTime = v; }
+    public LocalTime getEndTime() { return endTime; }
+    public void setEndTime(LocalTime v) { this.endTime = v; }
     public BookingStatus getStatus() { return status; }
     public void setStatus(BookingStatus v) { this.status = v; }
     public BigDecimal getQuote() { return quote; }

@@ -1,6 +1,7 @@
 package com.memoriesmadevisible;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.memoriesmadevisible.booking.Booking;
 import com.memoriesmadevisible.booking.BookingRepository;
 import com.memoriesmadevisible.booking.BookingStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,7 +96,7 @@ class BookingFlowTest {
                 "location", "Winter Haven",
                 "notes", "About 120 guests.",
                 "date", LocalDate.now().plusDays(30).toString(),
-                "time", "2:00 PM");
+                "time", "14:00");
 
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
                 .andExpect(status().isCreated())
@@ -127,7 +128,7 @@ class BookingFlowTest {
     void honeypotSubmissionsAreSilentlyDropped() throws Exception {
         var body = Map.of(
                 "sessionType", "families", "name", "Bot", "email", "bot@example.com",
-                "date", LocalDate.now().plusDays(3).toString(), "time", "9:00 AM", "website", "http://spam");
+                "date", LocalDate.now().plusDays(3).toString(), "time", "09:00", "website", "http://spam");
         mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
                 .andExpect(status().isCreated());
         assertThat(bookings.count()).isZero();
@@ -150,7 +151,7 @@ class BookingFlowTest {
 
         var created = mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(Map.of(
                         "sessionType", "seniors", "name", "Ava", "email", "ava@example.com",
-                        "date", LocalDate.now().plusDays(10).toString(), "time", "Golden hour"))))
+                        "date", LocalDate.now().plusDays(10).toString(), "time", "16:30"))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long id = json.readTree(created).get("id").asLong();
 
@@ -172,7 +173,7 @@ class BookingFlowTest {
         assertThat(addresses(confirm.getRecipients(MimeMessage.RecipientType.BCC))).containsExactly("bookings@test.local");
         assertThat(confirm.getSubject()).contains("confirmed");
         var confirmBodies = bodies(confirm);
-        assertThat(confirmBodies[0]).contains("$250.00").contains("Golden hour").contains("Hi Ava,");
+        assertThat(confirmBodies[0]).contains("$250.00").contains("4:30 PM").contains("Hi Ava,");
         assertThat(confirmBodies[1]).contains("Session price").contains("$250.00");
 
         // The admin can preview the draft and send an edited version; cancelling a confirmed session emails too.
@@ -325,5 +326,110 @@ class BookingFlowTest {
                         .content(json.writeValueAsString(Map.of("name", name, "password", password))))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json.readTree(res).get("token").asText();
+    }
+
+    @Test
+    void availabilityDrivesSlotsAndBlocksDoubleBooking() throws Exception {
+        var res = mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Austin\",\"password\":\"test-pass\"}"))
+                .andReturn().getResponse().getContentAsString();
+        var auth = "Bearer " + json.readTree(res).get("token").asText();
+
+        // Pick a weekday well ahead so "today" rules don't interfere.
+        LocalDate day = LocalDate.now().plusDays(45);
+        while (day.getDayOfWeek() == java.time.DayOfWeek.SATURDAY || day.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) day = day.plusDays(1);
+        String d = day.toString();
+
+        // Default hours 07:00–18:00 → a 60-minute family session can start every 30 min from 7:00 to 17:00 (21 slots).
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].date").value(d))
+                .andExpect(jsonPath("$[0].slots.length()").value(21))
+                .andExpect(jsonPath("$[0].slots[0].start").value("07:00"))
+                .andExpect(jsonPath("$[0].slots[0].label").value("7:00 AM"))
+                .andExpect(jsonPath("$[0].slots[-1].start").value("17:00"));
+        // A 4-hour wedding has fewer starts (7:00 … 14:00 = 15).
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "weddings"))
+                .andExpect(jsonPath("$[0].slots.length()").value(15));
+
+        // Block 12:00–14:00 (a private note the public never sees) → the 10:30–13:30 starts disappear for a 1-hour session.
+        mvc.perform(post("/api/admin/availability/blocks").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"" + d + "\",\"startTime\":\"12:00\",\"endTime\":\"14:00\",\"note\":\"Dentist\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.note").value("Dentist"));
+        var slots = json.readTree(mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+                .andReturn().getResponse().getContentAsString()).get(0).get("slots");
+        var starts = new java.util.ArrayList<String>();
+        slots.forEach(sl -> starts.add(sl.get("start").asText()));
+        assertThat(starts).contains("11:00", "14:00").doesNotContain("11:30", "12:00", "13:30");
+        assertThat(slots.toString()).doesNotContain("Dentist");
+
+        // Book 09:00; the slot (and the overlapping 08:30/09:30 starts) go away while the request is pending.
+        var body = Map.of("sessionType", "families", "name", "Noah Bell", "email", "noah@example.com", "date", d, "time", "09:00");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.time").value("9:00 AM"))
+                .andExpect(jsonPath("$.startTime").value("09:00"))
+                .andExpect(jsonPath("$.endTime").value("10:00"));
+        slots = json.readTree(mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+                .andReturn().getResponse().getContentAsString()).get(0).get("slots");
+        starts.clear();
+        slots.forEach(sl -> starts.add(sl.get("start").asText()));
+        assertThat(starts).contains("08:00", "10:00").doesNotContain("08:30", "09:00", "09:30");
+
+        // A second request for the same time is refused (409), as is one outside hours or in the block.
+        var again = Map.of("sessionType", "couples", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "09:30");
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(again)))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "couples", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "19:00"))))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "couples", "name", "Liv Park", "email", "liv@example.com", "date", d, "time", "12:30"))))
+                .andExpect(status().isConflict());
+
+        // Closing that weekday removes every slot; reopening 09:00–12:00 narrows them.
+        int wd = day.getDayOfWeek().getValue() % 7;
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/availability/hours")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"weekday\":" + wd + ",\"open\":false,\"start\":\"07:00\",\"end\":\"18:00\"}]"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/availability/hours")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"weekday\":" + wd + ",\"open\":true,\"start\":\"09:00\",\"end\":\"12:00\"}]"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families"))
+                .andExpect(jsonPath("$[0].slots[0].start").value("10:00"))   // 09:00 is Noah's
+                .andExpect(jsonPath("$[0].slots[-1].start").value("11:00"));
+
+        // Admin: moving Noah to 10:30 frees 09:00; approving then claims 10:30 for real.
+        var noahId = bookings.findAll().stream().filter(b -> b.getName().equals("Noah Bell")).findFirst().orElseThrow().getId();
+        mvc.perform(post("/api/admin/bookings/" + noahId + "/reschedule").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"date\":\"" + d + "\",\"time\":\"10:30\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.time").value("10:30 AM"));
+        mvc.perform(post("/api/admin/bookings/" + noahId + "/approve").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"sendEmail\":false}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"));
+        // Approving another request that overlaps a confirmed session is refused with a reason.
+        var other = new Booking();
+        other.setSessionTypeKey("couples"); other.setName("Zoe Hart"); other.setEmail("zoe@example.com");
+        other.setDate(day); other.setStartTime(java.time.LocalTime.of(11, 0)); other.setEndTime(java.time.LocalTime.of(12, 0));
+        other.setTime("11:00 AM"); other.setStatus(BookingStatus.PENDING);
+        var otherId = bookings.save(other).getId();
+        mvc.perform(post("/api/admin/bookings/" + otherId + "/approve").header("Authorization", auth)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"sendEmail\":false}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Noah Bell's confirmed session")));
+
+        // Clean up the block and reopen the weekday for the other tests.
+        var blockId = json.readTree(mvc.perform(get("/api/admin/availability/blocks").header("Authorization", auth))
+                .andReturn().getResponse().getContentAsString()).get(0).get("id").asLong();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/admin/availability/blocks/" + blockId).header("Authorization", auth))
+                .andExpect(status().isNoContent());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/availability/hours")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"weekday\":" + wd + ",\"open\":true,\"start\":\"07:00\",\"end\":\"18:00\"}]"))
+                .andExpect(status().isOk());
     }
 }
