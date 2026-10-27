@@ -20,13 +20,26 @@
         <p class="plan-desc">{{ s.description }}</p>
         <div class="plan-from"><span class="from-label">From</span><span class="from-price">{{ s.from }}</span></div>
         <div class="tiers">
-          @for (t of s.tiers; track $index) {
+          @for (t of s.tiers; track $index; let ti = $index) {
             <div class="tier">
-              <div>
-                <div class="tier-name">{{ t.name }}</div>
-                <div class="tier-detail">{{ t.detail }}</div>
+              <div class="tier-row">
+                <div>
+                  <div class="tier-name">{{ t.name }}</div>
+                  <div class="tier-detail">{{ t.detail }}</div>
+                </div>
+                <div class="tier-price">{{ t.price }}</div>
               </div>
-              <div class="tier-price">{{ t.price }}</div>
+              @if (t.includes.length) {
+                <button type="button" class="tier-more" [attr.aria-expanded]="isOpen(s.key, ti)" (click)="toggle(s.key, ti)">
+                  {{ isOpen(s.key, ti) ? 'Hide details' : 'See what’s included' }}
+                  <span class="chev" [class.is-open]="isOpen(s.key, ti)" aria-hidden="true">›</span>
+                </button>
+                @if (isOpen(s.key, ti)) {
+                  <ul class="tier-includes">
+                    @for (item of t.includes; track $index) { <li>{{ item }}</li> }
+                  </ul>
+                }
+              }
             </div>
           }
         </div>

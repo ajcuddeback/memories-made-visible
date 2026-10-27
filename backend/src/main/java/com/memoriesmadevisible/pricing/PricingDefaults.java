@@ -9,37 +9,60 @@ public final class PricingDefaults {
 
     public static List<SessionType> sessionTypes() {
         return List.of(
-                type("families", "Families & solo portraits",
+                type("families", "Families & solo portraits", "Families & solo",
                         "Relaxed sessions at home, at the park or by the lake, for the whole family or just you.", "$150", 0,
-                        new PricingTier("Solo", "30 minutes · 15 edited photos", "$150"),
-                        new PricingTier("Family", "1 hour · up to 6 people · 30 edited photos", "$225")),
-                type("couples", "Couples & engagements",
+                        new PricingTier("Solo", "30 minutes · 15 edited photos", "$150", List.of(
+                                "30-minute session at one location", "15 professionally edited photos",
+                                "Private online gallery", "Print release", "Travel within Polk County")),
+                        new PricingTier("Family", "1 hour · up to 6 people · 30 edited photos", "$225", List.of(
+                                "1-hour session at one location", "Up to 6 people", "30 professionally edited photos",
+                                "Private online gallery", "Print release", "Travel within Polk County"))),
+                type("couples", "Couples & engagements", "Couples",
                         "Engagements, anniversaries and the everyday moments in between.", "$150", 1,
-                        new PricingTier("Mini", "30 minutes · 20 edited photos", "$150"),
-                        new PricingTier("Full session", "1 hour · 2 locations · 40 edited photos", "$225")),
-                type("weddings", "Weddings",
+                        new PricingTier("Mini", "30 minutes · 20 edited photos", "$150", List.of(
+                                "30-minute session", "20 professionally edited photos", "Private online gallery", "Print release")),
+                        new PricingTier("Full session", "1 hour · 2 locations · 40 edited photos", "$225", List.of(
+                                "1-hour session", "Up to 2 locations", "40 professionally edited photos",
+                                "Private online gallery", "Print release"))),
+                type("weddings", "Weddings", "Weddings",
                         "Wedding-day coverage with a lead and a second photographer.", "$800", 2,
-                        new PricingTier("Intimate", "2 hours · lead photographer", "$800"),
-                        new PricingTier("Classic", "6 hours · two photographers", "$1,800"),
-                        new PricingTier("Full day", "8 hours · two photographers", "$2,400")),
-                type("maternity", "Maternity & newborn",
+                        new PricingTier("Intimate", "2 hours · lead photographer", "$800", List.of(
+                                "2 hours of coverage", "Lead photographer", "Private online gallery", "Print release")),
+                        new PricingTier("Classic", "6 hours · two photographers", "$1,800", List.of(
+                                "6 hours of coverage", "Lead and second photographer", "Getting ready through reception",
+                                "Private online gallery", "Print release")),
+                        new PricingTier("Full day", "8 hours · two photographers", "$2,400", List.of(
+                                "8 hours of coverage", "Lead and second photographer", "Full day, first look to send-off",
+                                "Private online gallery", "Print release"))),
+                type("maternity", "Maternity & newborn", "Maternity & newborn",
                         "Calm, unhurried sessions for the newest chapter of your family.", "$200", 3,
-                        new PricingTier("Maternity", "1 hour · 25 edited photos", "$200"),
-                        new PricingTier("Newborn", "Up to 2 hours at home · 25 edited photos", "$250"),
-                        new PricingTier("Bump to baby", "Both sessions", "$400")),
-                type("seniors", "Seniors & graduation",
+                        new PricingTier("Maternity", "1 hour · 25 edited photos", "$200", List.of(
+                                "1-hour session", "25 professionally edited photos", "Private online gallery", "Print release")),
+                        new PricingTier("Newborn", "Up to 2 hours at home · 25 edited photos", "$250", List.of(
+                                "Up to 2 hours in your home", "Baby-led pace with feeding breaks", "25 professionally edited photos",
+                                "Private online gallery", "Print release")),
+                        new PricingTier("Bump to baby", "Both sessions", "$400", List.of(
+                                "Maternity session", "Newborn session", "50 professionally edited photos across both",
+                                "Private online gallery", "Print release"))),
+                type("seniors", "Seniors & graduation", "Seniors",
                         "Senior portraits and graduation milestones, styled to the student.", "$150", 4,
-                        new PricingTier("Mini", "30 minutes · 1 outfit · 15 edited photos", "$150"),
-                        new PricingTier("Classic", "1 hour · 3 outfits · 2 locations · 35 edited photos", "$250")),
-                type("events", "Events",
+                        new PricingTier("Mini", "30 minutes · 1 outfit · 15 edited photos", "$150", List.of(
+                                "30-minute session", "1 outfit", "15 professionally edited photos", "Private online gallery", "Print release")),
+                        new PricingTier("Classic", "1 hour · 3 outfits · 2 locations · 35 edited photos", "$250", List.of(
+                                "1-hour session", "Up to 3 outfits", "Up to 2 locations", "35 professionally edited photos",
+                                "Private online gallery", "Print release"))),
+                type("events", "Events", "Events",
                         "Birthdays, showers, parties and community events across Polk County.", "$150/hr", 5,
-                        new PricingTier("Event coverage", "2-hour minimum", "$150/hr"),
-                        new PricingTier("Second photographer", "Added coverage", "+$75/hr"))
+                        new PricingTier("Event coverage", "2-hour minimum", "$150/hr", List.of(
+                                "2-hour minimum", "Candid and group photos", "Private online gallery", "Print release")),
+                        new PricingTier("Second photographer", "Added coverage", "+$75/hr", List.of(
+                                "Second angle for larger events", "Added per hour of coverage")))
         );
     }
 
-    private static SessionType type(String key, String name, String desc, String from, int order, PricingTier... tiers) {
-        var t = new SessionType(key, name, desc, from, order);
+    private static SessionType type(String key, String name, String shortName, String desc, String from, int order,
+                                    PricingTier... tiers) {
+        var t = new SessionType(key, name, shortName, desc, from, order);
         t.replaceTiers(List.of(tiers));
         return t;
     }

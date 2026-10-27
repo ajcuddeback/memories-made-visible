@@ -1,5 +1,6 @@
 package com.memoriesmadevisible.pricing;
 
+import com.memoriesmadevisible.common.NotFoundException;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,33 +37,58 @@ public class PricingService {
         return key == null ? Optional.empty() : types.findById(key.trim().toLowerCase());
     }
 
+    @Transactional(readOnly = true)
+    public boolean exists(String key) {
+        return key != null && types.existsById(key);
+    }
+
+    /** New category appended to the end; key is a slug of the name, de-duplicated. */
+    @Transactional
+    public List<PricingDtos.SessionTypeView> create(PricingDtos.TypeCreate c) {
+        String base = SessionType.slugify(c.name());
+        String key = base;
+        for (int i = 2; types.existsById(key); i++) key = base + "-" + i;
+        int order = (int) types.count();
+        types.save(new SessionType(key, c.name().strip(), blankToNull(c.shortName()),
+                c.description() == null ? "" : c.description().strip(), c.from().strip(), order));
+        return list();
+    }
+
+    /** Full save: every category in the list, in list order. Categories not in the list are left alone. */
     @Transactional
     public List<PricingDtos.SessionTypeView> update(List<PricingDtos.TypeUpdate> updates) {
-        for (var u : updates) {
+        for (int i = 0; i < updates.size(); i++) {
+            var u = updates.get(i);
             var t = types.findWithTiersByKey(u.key())
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown session type: " + u.key()));
-            t.setFromPrice(u.from().trim());
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown category: " + u.key()));
+            t.setName(u.name().strip());
+            t.setShortName(blankToNull(u.shortName()));
+            t.setDescription(u.description() == null ? "" : u.description().strip());
+            t.setFromPrice(u.from().strip());
+            t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
-                    .map(x -> new PricingTier(x.name().trim(), x.detail() == null ? "" : x.detail().trim(), x.price().trim()))
+                    .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),
+                            x.price().strip(), x.includes()))
                     .toList());
             types.save(t);
         }
         return list();
     }
 
+    /** Removes a category and its packages. Existing bookings keep their record (they store the key). */
+    @Transactional
+    public List<PricingDtos.SessionTypeView> delete(String key) {
+        var t = types.findById(key).orElseThrow(() -> new NotFoundException("Category " + key + " not found"));
+        types.delete(t);
+        return list();
+    }
+
+    /** Back to the launch price list: defaults restored, anything else removed. */
     @Transactional
     public List<PricingDtos.SessionTypeView> resetToDefaults() {
-        for (var dflt : PricingDefaults.sessionTypes()) {
-            var t = types.findWithTiersByKey(dflt.getKey()).orElse(null);
-            if (t == null) {
-                types.save(dflt);
-            } else {
-                t.setFromPrice(dflt.getFromPrice());
-                t.replaceTiers(dflt.getTiers().stream()
-                        .map(x -> new PricingTier(x.getName(), x.getDetail(), x.getPrice())).toList());
-                types.save(t);
-            }
-        }
+        types.deleteAll();
+        types.flush();
+        types.saveAll(PricingDefaults.sessionTypes());
         return list();
     }
 
@@ -76,5 +102,9 @@ public class PricingService {
         } catch (NumberFormatException e) {
             return BigDecimal.ZERO;
         }
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.strip();
     }
 }

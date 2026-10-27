@@ -96,7 +96,7 @@ Dev-only values (passwords, JWT secret, SMTP target, S3 endpoint) live in
 2. Open Mailpit — you should see the notification to `bookings@…` and the customer acknowledgement.
 3. Open `/studio`, sign in as Erica — the request is in **Requests** with a badge. Set a quote, approve it.
 4. **Calendar** and **Overview** now include it.
-5. **Pricing** — change a price, Save; the public `/pricing` page updates.
+5. **Pricing** — change a price, Save; the public `/pricing` page updates. You can also add or remove whole categories (each category gets three portfolio photo slots automatically) and fill in a "What's included" list per package — one item per line — which shows up behind a "See what's included" toggle on the pricing page.
 6. **Photos** — drop an image onto a slot; it's resized, stored in SeaweedFS, and appears on the site.
 
 ## Demo data

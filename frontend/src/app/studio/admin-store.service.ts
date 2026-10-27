@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap } from 'rxjs';
-import { Booking, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, SessionType } from '../core/models';
+import { Booking, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -101,8 +101,14 @@ export class AdminStore {
   }
 
   // ── pricing ──
-  savePricing(updates: { key: string; from: string; tiers: { name: string; detail: string; price: string }[] }[]) {
+  savePricing(updates: SessionType[]) {
     return this.http.put<SessionType[]>('/api/admin/pricing', updates);
+  }
+  createCategory(body: SessionTypeCreate) {
+    return this.http.post<SessionType[]>('/api/admin/pricing', body);
+  }
+  deleteCategory(key: string) {
+    return this.http.delete<SessionType[]>(`/api/admin/pricing/${key}`);
   }
   resetPricing() {
     return this.http.post<SessionType[]>('/api/admin/pricing/reset', {});
@@ -110,6 +116,8 @@ export class AdminStore {
   applyPricing(list: SessionType[]): void {
     this.pricing.set(list);
     this.site.sessionTypes.set(list);
+    // Portfolio photo slots follow the categories; refresh the admin's slot grid too.
+    this.http.get<PhotoGroup[]>('/api/admin/photos').subscribe((g) => this.photoGroups.set(g));
   }
 
   // ── photos ──

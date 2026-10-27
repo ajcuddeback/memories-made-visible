@@ -9,20 +9,30 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-/** One of the studio's offerings (weddings, families, …) with its price packages. */
+/**
+ * A category on the pricing page (weddings, families, …) with its packages.
+ * Admin-managed: created, renamed, reordered and removed from the studio.
+ */
 @Entity
 @Table(name = "session_type")
 public class SessionType {
 
+    /** URL-safe slug, generated from the name on creation and never changed (bookings reference it). */
     @Id
     @Column(name = "type_key", length = 40)
     private String key;
 
     @Column(nullable = false, length = 80)
     private String name;
+
+    /** Short label for filter chips and captions ("Families & solo"); falls back to the name. */
+    @Column(name = "short_name", length = 40)
+    private String shortName;
 
     @Column(nullable = false, length = 300)
     private String description;
@@ -40,9 +50,10 @@ public class SessionType {
 
     protected SessionType() {}
 
-    public SessionType(String key, String name, String description, String fromPrice, int sortOrder) {
+    public SessionType(String key, String name, String shortName, String description, String fromPrice, int sortOrder) {
         this.key = key;
         this.name = name;
+        this.shortName = shortName;
         this.description = description;
         this.fromPrice = fromPrice;
         this.sortOrder = sortOrder;
@@ -50,10 +61,17 @@ public class SessionType {
 
     public String getKey() { return key; }
     public String getName() { return name; }
+    public void setName(String v) { this.name = v; }
+    public String getShortName() { return shortName; }
+    public void setShortName(String v) { this.shortName = v; }
+    /** The label to show where space is tight. */
+    public String displayShortName() { return shortName == null || shortName.isBlank() ? name : shortName; }
     public String getDescription() { return description; }
+    public void setDescription(String v) { this.description = v; }
     public String getFromPrice() { return fromPrice; }
     public void setFromPrice(String v) { this.fromPrice = v; }
     public int getSortOrder() { return sortOrder; }
+    public void setSortOrder(int v) { this.sortOrder = v; }
     public List<PricingTier> getTiers() { return tiers; }
 
     public void replaceTiers(List<PricingTier> fresh) {
@@ -64,5 +82,16 @@ public class SessionType {
             t.setSortOrder(i);
             tiers.add(t);
         }
+    }
+
+    /** "Pets & Animals" → "pets-animals". */
+    public static String slugify(String name) {
+        String s = Normalizer.normalize(name == null ? "" : name, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        if (s.isEmpty()) s = "category";
+        return s.length() > 36 ? s.substring(0, 36).replaceAll("-+$", "") : s;
     }
 }

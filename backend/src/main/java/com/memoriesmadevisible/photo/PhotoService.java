@@ -1,6 +1,7 @@
 package com.memoriesmadevisible.photo;
 
 import com.memoriesmadevisible.common.NotFoundException;
+import com.memoriesmadevisible.pricing.PricingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,11 +26,13 @@ public class PhotoService {
     private final SitePhotoRepository photos;
     private final PhotoStorage storage;
     private final ImageProcessor images;
+    private final PricingService pricing;
 
-    public PhotoService(SitePhotoRepository photos, PhotoStorage storage, ImageProcessor images) {
+    public PhotoService(SitePhotoRepository photos, PhotoStorage storage, ImageProcessor images, PricingService pricing) {
         this.photos = photos;
         this.storage = storage;
         this.images = images;
+        this.pricing = pricing;
     }
 
     public record PhotoView(String slotId, String url, String contentType) {}
@@ -50,7 +53,7 @@ public class PhotoService {
     @Transactional(readOnly = true)
     public List<GroupView> groupsForAdmin() {
         var urls = urlsBySlot();
-        return PhotoSlots.groups().stream()
+        return PhotoSlots.groups(pricing.list()).stream()
                 .map(g -> new GroupView(g.title(), g.slots().stream()
                         .map(s -> new SlotView(s.id(), s.label(), urls.get(s.id()))).toList()))
                 .toList();
@@ -58,7 +61,7 @@ public class PhotoService {
 
     @Transactional
     public PhotoView upload(String slotId, MultipartFile file) {
-        if (!PhotoSlots.isValid(slotId)) {
+        if (!PhotoSlots.isValid(slotId, pricing::exists)) {
             throw new IllegalArgumentException("Unknown photo slot: " + slotId);
         }
         if (file == null || file.isEmpty()) {

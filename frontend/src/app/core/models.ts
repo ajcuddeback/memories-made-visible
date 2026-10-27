@@ -2,14 +2,25 @@ export interface PricingTier {
   name: string;
   detail: string;
   price: string;
+  /** "What's included" bullets, shown behind a toggle on the pricing page. */
+  includes: string[];
 }
 
 export interface SessionType {
   key: string;
   name: string;
+  /** Short label for filter chips and captions. */
+  shortName: string;
   description: string;
   from: string;
   tiers: PricingTier[];
+}
+
+export interface SessionTypeCreate {
+  name: string;
+  shortName: string;
+  description: string;
+  from: string;
 }
 
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED';

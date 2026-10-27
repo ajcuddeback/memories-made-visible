@@ -1,13 +1,23 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
-import { PricingTier, SessionType } from '../../core/models';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { SessionType } from '../../core/models';
 import { AdminStore } from '../admin-store.service';
 import { Icon } from '../../shared/icons';
+
+interface DraftTier {
+  name: string;
+  detail: string;
+  price: string;
+  /** Edited as one item per line; split on save. */
+  includesText: string;
+}
 
 interface Draft {
   key: string;
   name: string;
+  shortName: string;
+  description: string;
   from: string;
-  tiers: PricingTier[];
+  tiers: DraftTier[];
 }
 
 @Component({
@@ -22,78 +32,123 @@ export class PricingAdminSection {
   readonly draft = signal<Draft[]>([]);
   readonly msg = signal('');
   readonly busy = signal(false);
-  private dirty = false;
+  readonly dirty = signal(false);
+
+  // "Add a category" form
+  readonly nc = signal({ name: '', shortName: '', description: '', from: '' });
+  readonly cantAdd = computed(() => !this.nc().name.trim() || !this.nc().from.trim());
+
+  /** How many bookings reference each category — shown before a delete so nobody is surprised. */
+  readonly bookingsByCategory = computed(() => {
+    const m = new Map<string, number>();
+    for (const b of this.store.bookings()) m.set(b.sessionType, (m.get(b.sessionType) ?? 0) + 1);
+    return m;
+  });
 
   constructor() {
-    // Seed the draft from the store once, and again after a reset — never over unsaved edits.
+    // Seed the draft from the store once, and again after a save/reset/add — never over unsaved edits.
     effect(() => {
       const list = this.store.pricing();
-      if (!this.dirty && list.length) this.draft.set(this.toDraft(list));
+      if (!this.dirty() && list.length) this.draft.set(this.toDraft(list));
     });
   }
 
   private toDraft(list: SessionType[]): Draft[] {
-    return list.map((s) => ({ key: s.key, name: s.name, from: s.from, tiers: s.tiers.map((t) => ({ ...t })) }));
+    return list.map((s) => ({
+      key: s.key, name: s.name, shortName: s.shortName === s.name ? '' : s.shortName, description: s.description, from: s.from,
+      tiers: s.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, includesText: (t.includes ?? []).join('\n') })),
+    }));
+  }
+
+  private toPayload(d: Draft[]): SessionType[] {
+    return d.map((c) => ({
+      key: c.key, name: c.name, shortName: c.shortName, description: c.description, from: c.from,
+      tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price,
+        includes: t.includesText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
+    }));
   }
 
   private edit(fn: (d: Draft[]) => void): void {
-    this.draft.update((d) => {
-      const copy = this.toDraft(d as unknown as SessionType[]).map((x, i) => ({ ...x, name: d[i].name }));
-      fn(copy);
-      return copy;
-    });
-    this.dirty = true;
+    this.draft.update((d) => { const copy = structuredClone(d); fn(copy); return copy; });
+    this.dirty.set(true);
     this.msg.set('Unsaved changes');
   }
 
-  val(e: Event): string {
-    return (e.target as HTMLInputElement).value;
+  val(e: Event): string { return (e.target as HTMLInputElement | HTMLTextAreaElement).value; }
+
+  // category fields
+  setCat(i: number, field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
+    const v = this.val(e); this.edit((d) => { d[i][field] = v; });
+  }
+  move(i: number, dir: -1 | 1): void {
+    this.edit((d) => { const j = i + dir; if (j < 0 || j >= d.length) return; [d[i], d[j]] = [d[j], d[i]]; });
+  }
+  // package fields
+  setTier(i: number, ti: number, field: keyof DraftTier, e: Event): void {
+    const v = this.val(e); this.edit((d) => { d[i].tiers[ti][field] = v; });
+  }
+  addTier(i: number): void { this.edit((d) => { d[i].tiers.push({ name: 'New package', detail: '', price: '$', includesText: '' }); }); }
+  removeTier(i: number, ti: number): void { this.edit((d) => { d[i].tiers.splice(ti, 1); }); }
+
+  setNc(field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
+    const v = this.val(e); this.nc.update((n) => ({ ...n, [field]: v }));
   }
 
-  setFrom(i: number, e: Event): void { const v = this.val(e); this.edit((d) => { d[i].from = v; }); }
-  setTier(i: number, ti: number, field: keyof PricingTier, e: Event): void {
-    const v = this.val(e);
-    this.edit((d) => { d[i].tiers[ti][field] = v; });
+  /** Categories are created server-side (the key is a slug of the name) — unsaved edits are kept. */
+  addCategory(): void {
+    if (this.cantAdd() || this.busy()) return;
+    const n = this.nc();
+    this.busy.set(true);
+    this.store.createCategory({ name: n.name.trim(), shortName: n.shortName.trim(), description: n.description.trim(), from: n.from.trim() }).subscribe({
+      next: (list) => {
+        this.busy.set(false);
+        this.nc.set({ name: '', shortName: '', description: '', from: '' });
+        const added = list.find((s) => !this.draft().some((d) => d.key === s.key));
+        if (added) this.draft.update((d) => [...d, ...this.toDraft([added])]);
+        this.store.applyPricing(list);
+        this.msg.set(`Added "${n.name.trim()}". It's live on the site; it also has three portfolio photo slots now.`);
+      },
+      error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t add that category.'); },
+    });
   }
-  addTier(i: number): void { this.edit((d) => { d[i].tiers.push({ name: 'New package', detail: '', price: '$' }); }); }
-  removeTier(i: number, ti: number): void { this.edit((d) => { d[i].tiers.splice(ti, 1); }); }
+
+  removeCategory(i: number): void {
+    const c = this.draft()[i];
+    const n = this.bookingsByCategory().get(c.key) ?? 0;
+    const warn = n ? ` ${n} booking${n === 1 ? '' : 's'} reference it; they keep their records but will show the key "${c.key}".` : '';
+    if (!confirm(`Remove "${c.name}" and its packages from the pricing page?${warn}`)) return;
+    this.busy.set(true);
+    this.store.deleteCategory(c.key).subscribe({
+      next: (list) => {
+        this.busy.set(false);
+        this.draft.update((d) => d.filter((x) => x.key !== c.key));
+        this.store.applyPricing(list);
+        this.msg.set(`Removed "${c.name}".`);
+      },
+      error: () => { this.busy.set(false); this.msg.set('Couldn’t remove that category.'); },
+    });
+  }
 
   save(): void {
     if (this.busy()) return;
-    const bad = this.draft().find((d) => !d.from.trim() || d.tiers.some((t) => !t.name.trim() || !t.price.trim()));
+    const bad = this.draft().find((d) => !d.name.trim() || !d.from.trim() || d.tiers.some((t) => !t.name.trim() || !t.price.trim()));
     if (bad) {
-      this.msg.set(`Every package in "${bad.name}" needs a name and a price.`);
+      this.msg.set(`"${bad.name || 'A category'}" needs a name, a "from" price, and a name and price on every package.`);
       return;
     }
     this.busy.set(true);
-    this.store.savePricing(this.draft().map((d) => ({ key: d.key, from: d.from, tiers: d.tiers }))).subscribe({
-      next: (list) => {
-        this.busy.set(false);
-        this.dirty = false;
-        this.store.applyPricing(list);
-        this.msg.set('Saved — the Pricing page is updated.');
-      },
-      error: (err) => {
-        this.busy.set(false);
-        this.msg.set(err?.error?.message ?? 'Couldn’t save. Please try again.');
-      },
+    this.store.savePricing(this.toPayload(this.draft())).subscribe({
+      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved — the Pricing page is updated.'); },
+      error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t save. Please try again.'); },
     });
   }
 
   reset(): void {
-    if (this.busy() || !confirm('Reset every price and package to the original launch list?')) return;
+    if (this.busy() || !confirm('Reset to the original launch price list? Any categories you added will be removed.')) return;
     this.busy.set(true);
     this.store.resetPricing().subscribe({
-      next: (list) => {
-        this.busy.set(false);
-        this.dirty = false;
-        this.store.applyPricing(list);
-        this.msg.set('Reset to the original prices.');
-      },
-      error: () => {
-        this.busy.set(false);
-        this.msg.set('Couldn’t reset. Please try again.');
-      },
+      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Reset to the original prices.'); },
+      error: () => { this.busy.set(false); this.msg.set('Couldn’t reset. Please try again.'); },
     });
   }
 }

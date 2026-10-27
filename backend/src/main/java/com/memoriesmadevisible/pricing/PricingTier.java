@@ -10,6 +10,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import java.util.Arrays;
+import java.util.List;
+
+/** One package inside a category: a name, a one-line summary, a price, and the full "what's included" list. */
 @Entity
 @Table(name = "pricing_tier")
 public class PricingTier {
@@ -31,15 +35,24 @@ public class PricingTier {
     @Column(nullable = false, length = 20)
     private String price;
 
+    /** One bullet per line. Stored as text so the schema stays simple. */
+    @Column(name = "includes_text", nullable = false, columnDefinition = "text")
+    private String includesText = "";
+
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
     protected PricingTier() {}
 
     public PricingTier(String name, String detail, String price) {
+        this(name, detail, price, List.of());
+    }
+
+    public PricingTier(String name, String detail, String price, List<String> includes) {
         this.name = name;
         this.detail = detail;
         this.price = price;
+        setIncludes(includes);
     }
 
     public Long getId() { return id; }
@@ -50,4 +63,14 @@ public class PricingTier {
     public String getPrice() { return price; }
     public int getSortOrder() { return sortOrder; }
     void setSortOrder(int v) { this.sortOrder = v; }
+
+    public List<String> getIncludes() {
+        if (includesText == null || includesText.isBlank()) return List.of();
+        return Arrays.stream(includesText.split("\\r?\\n")).map(String::strip).filter(s -> !s.isEmpty()).toList();
+    }
+
+    public void setIncludes(List<String> items) {
+        this.includesText = items == null ? "" : String.join("\n",
+                items.stream().map(s -> s == null ? "" : s.strip()).filter(s -> !s.isEmpty()).toList());
+    }
 }

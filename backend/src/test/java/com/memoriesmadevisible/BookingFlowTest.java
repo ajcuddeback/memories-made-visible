@@ -233,17 +233,36 @@ class BookingFlowTest {
                 .andExpect(jsonPath("$[2].tiers.length()").value(3));
 
         var auth = "Bearer " + login("Austin", "test-pass");
+        // Edit a category: rename, new "from", one package with an includes list.
         mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
                         .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
-                        .content("[{\"key\":\"weddings\",\"from\":\"$900\",\"tiers\":[{\"name\":\"Intimate\",\"detail\":\"2 hours\",\"price\":\"$900\"}]}]"))
+                        .content("[{\"key\":\"weddings\",\"name\":\"Weddings & elopements\",\"shortName\":\"Weddings\",\"description\":\"Big or small.\",\"from\":\"$900\","
+                                + "\"tiers\":[{\"name\":\"Intimate\",\"detail\":\"2 hours\",\"price\":\"$900\",\"includes\":[\"2 hours\",\"  \",\"Online gallery\"]}]}]"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[2].from").value("$900"))
-                .andExpect(jsonPath("$[2].tiers.length()").value(1));
+                .andExpect(jsonPath("$[?(@.key=='weddings')].name").value("Weddings & elopements"))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].from").value("$900"))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].tiers.length()").value(1))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].tiers[0].includes.length()").value(2)); // blank item dropped
 
+        // Add a category: slug key, appended last; it gets portfolio photo slots.
+        mvc.perform(post("/api/admin/pricing").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Pets & Animals\",\"shortName\":\"Pets\",\"description\":\"Furry friends.\",\"from\":\"$120\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[6].key").value("pets-animals"))
+                .andExpect(jsonPath("$[6].shortName").value("Pets"));
+        mvc.perform(get("/api/admin/photos").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.title=='Portfolio · Pets')].slots[0].id").value("pf-pets-animals-1"));
+
+        // Remove it again, then reset everything to the launch list.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/admin/pricing/pets-animals").header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(6));
         mvc.perform(post("/api/admin/pricing/reset").header("Authorization", auth))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$[2].key").value("weddings"))
                 .andExpect(jsonPath("$[2].from").value("$800"))
-                .andExpect(jsonPath("$[2].tiers.length()").value(3));
+                .andExpect(jsonPath("$[2].tiers.length()").value(3))
+                .andExpect(jsonPath("$[2].tiers[1].includes.length()").value(5));
     }
 
     private String login(String name, String password) throws Exception {
