@@ -5,6 +5,7 @@ import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import com.memoriesmadevisible.notification.BookingNotificationService;
 import com.memoriesmadevisible.config.AppProperties;
 import com.memoriesmadevisible.pricing.PricingService;
+import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,23 +18,26 @@ public class BookingService {
     private final BookingRepository bookings;
     private final PricingService pricing;
     private final BookingNotificationService notifications;
+    private final PublishService publish;
     private final String siteUrl;
 
     public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
-                          AppProperties props) {
+                          PublishService publish, AppProperties props) {
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
+        this.publish = publish;
         this.siteUrl = props.notifications().siteUrl();
     }
 
     @Transactional
     public BookingDtos.Response create(BookingDtos.CreateRequest req) {
-        var type = pricing.findType(req.sessionType())
+        // The form shows the published price list, so validate and quote against that, not the draft.
+        var type = publish.publishedType(req.sessionType())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown session type: " + req.sessionType()));
 
         var b = new Booking();
-        b.setSessionTypeKey(type.getKey());
+        b.setSessionTypeKey(type.key());
         b.setName(req.name().trim());
         b.setEmail(req.email().trim());
         b.setPhone(blankToNull(req.phone()));
@@ -43,10 +47,10 @@ public class BookingService {
         b.setTime(req.time().trim());
         b.setStatus(BookingStatus.PENDING);
         // Starting quote is the session type's "from" price; the admin tunes it before approving.
-        b.setQuote(PricingService.parseAmount(type.getFromPrice()));
+        b.setQuote(PricingService.parseAmount(type.from()));
         b = bookings.save(b);
 
-        notifications.notifyNewRequest(b, type.getName());
+        notifications.notifyNewRequest(b, type.name());
         return toResponse(b);
     }
 

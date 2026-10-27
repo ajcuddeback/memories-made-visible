@@ -249,6 +249,33 @@ class BookingFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.title=='Portfolio · Weddings')]").isEmpty());
 
+        // Admin edits are a draft: the public list still shows the published three wedding packages.
+        mvc.perform(get("/api/pricing"))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].tiers.length()").value(3));
+        mvc.perform(get("/api/admin/publish").header("Authorization", auth))
+                .andExpect(jsonPath("$.dirty").value(true))
+                .andExpect(jsonPath("$.changes.pricing").value(true));
+        // Discard puts the draft back to what's live…
+        mvc.perform(post("/api/admin/publish/discard").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dirty").value(false));
+        mvc.perform(get("/api/admin/pricing").header("Authorization", auth))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].tiers.length()").value(3))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].showInPortfolio").value(true));
+        // …and Publish pushes a draft live.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"key\":\"weddings\",\"name\":\"Weddings\",\"description\":\"Big or small.\",\"from\":\"$950\",\"showInPortfolio\":true,"
+                                + "\"tiers\":[{\"name\":\"Intimate\",\"detail\":\"2 hours\",\"price\":\"$950\",\"includes\":[]}]}]"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/admin/publish").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dirty").value(false))
+                .andExpect(jsonPath("$.publishedAt").exists());
+        mvc.perform(get("/api/pricing"))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].from").value("$950"))
+                .andExpect(jsonPath("$[?(@.key=='weddings')].tiers.length()").value(1));
+
         // Add a category: slug key, appended last; it gets portfolio photo slots.
         mvc.perform(post("/api/admin/pricing").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Pets & Animals\",\"shortName\":\"Pets\",\"description\":\"Furry friends.\",\"from\":\"$120\"}"))

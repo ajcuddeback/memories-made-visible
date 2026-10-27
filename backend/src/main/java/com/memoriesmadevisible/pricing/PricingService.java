@@ -18,6 +18,24 @@ public class PricingService {
         this.types = types;
     }
 
+    /** Rewrite the draft from a published snapshot (Discard changes). Keys are kept so bookings still resolve. */
+    @Transactional
+    public void restore(List<PricingDtos.SessionTypeView> live) {
+        types.deleteAll();
+        types.flush();
+        List<SessionType> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < live.size(); i++) {
+            var v = live.get(i);
+            var t = new SessionType(v.key(), v.name(), v.shortName().equals(v.name()) ? null : v.shortName(),
+                    v.description(), v.from(), i);
+            t.setShowInPortfolio(v.showInPortfolio());
+            t.replaceTiers(v.tiers().stream()
+                    .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes())).toList());
+            rows.add(t);
+        }
+        types.saveAll(rows);
+    }
+
     /** First boot seeds the price list; after that the admin owns it. */
     @PostConstruct
     @Transactional

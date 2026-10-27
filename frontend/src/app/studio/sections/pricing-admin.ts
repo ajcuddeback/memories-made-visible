@@ -111,7 +111,7 @@ export class PricingAdminSection {
         const added = list.find((s) => !this.draft().some((d) => d.key === s.key));
         if (added) this.draft.update((d) => [...d, ...this.toDraft([added])]);
         this.store.applyPricing(list);
-        this.msg.set(`Added "${n.name.trim()}". It's live on the Pricing page${n.showInPortfolio ? ' and has three Portfolio photo slots under Photos' : ''}.`);
+        this.msg.set(`Added "${n.name.trim()}" to the draft${n.showInPortfolio ? ' (three Portfolio photo slots are waiting under Photos)' : ''}. Publish to make it live.`);
       },
       error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t add that category.'); },
     });
@@ -128,7 +128,7 @@ export class PricingAdminSection {
         this.busy.set(false);
         this.draft.update((d) => d.filter((x) => x.key !== c.key));
         this.store.applyPricing(list);
-        this.msg.set(`Removed "${c.name}".`);
+        this.msg.set(`Removed "${c.name}" from the draft. Publish to take it off the site.`);
       },
       error: () => { this.busy.set(false); this.msg.set('Couldn’t remove that category.'); },
     });
@@ -143,7 +143,7 @@ export class PricingAdminSection {
     }
     this.busy.set(true);
     this.store.savePricing(this.toPayload(this.draft())).subscribe({
-      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved — the Pricing page is updated.'); },
+      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved to the draft. Press Publish (top of the page) when you want it live.'); },
       error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t save. Please try again.'); },
     });
   }
@@ -152,7 +152,7 @@ export class PricingAdminSection {
     if (this.busy() || !confirm('Reset to the original launch price list? Any categories you added will be removed.')) return;
     this.busy.set(true);
     this.store.resetPricing().subscribe({
-      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Reset to the original prices.'); },
+      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Draft reset to the original prices. Publish to make it live.'); },
       error: () => { this.busy.set(false); this.msg.set('Couldn’t reset. Please try again.'); },
     });
   }

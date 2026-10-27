@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap } from 'rxjs';
-import { Booking, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, SessionType, SessionTypeCreate } from '../core/models';
+import { Booking, EmailAction, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -20,6 +20,9 @@ export class AdminStore {
   readonly pricing = signal<SessionType[]>([]);
   readonly photoGroups = signal<PhotoGroup[]>([]);
   readonly loaded = signal(false);
+  /** Draft vs. live. Pricing, pop-ups and photos are a draft until Publish; bookings and galleries are not staged. */
+  readonly publishStatus = signal<PublishStatus | null>(null);
+  readonly publishing = signal(false);
   readonly loadError = signal<string | null>(null);
 
   readonly pending = computed(() => this.bookings().filter((b) => b.status === 'PENDING'));
@@ -33,7 +36,8 @@ export class AdminStore {
       bookings: this.http.get<Booking[]>('/api/admin/bookings'),
       events: this.http.get<PopupEvent[]>('/api/admin/events'),
       galleries: this.http.get<Gallery[]>('/api/admin/galleries'),
-      pricing: this.http.get<SessionType[]>('/api/pricing'),
+      pricing: this.http.get<SessionType[]>('/api/admin/pricing'),
+      publish: this.http.get<PublishStatus>('/api/admin/publish'),
       photos: this.http.get<PhotoGroup[]>('/api/admin/photos'),
     }).subscribe({
       next: (r) => {
@@ -42,6 +46,7 @@ export class AdminStore {
         this.galleries.set(r.galleries);
         this.pricing.set(r.pricing);
         this.photoGroups.set(r.photos);
+        this.publishStatus.set(r.publish);
         this.loaded.set(true);
       },
       error: () => this.loadError.set('Couldn’t load the studio data. Check that the API is running.'),
@@ -50,7 +55,32 @@ export class AdminStore {
 
   reset(): void {
     this.bookings.set([]); this.events.set([]); this.galleries.set([]); this.photoGroups.set([]);
+    this.publishStatus.set(null);
     this.loaded.set(false);
+  }
+
+  // ── publish ──
+  refreshPublishStatus(): void {
+    this.http.get<PublishStatus>('/api/admin/publish').subscribe((s) => this.publishStatus.set(s));
+  }
+  publish() {
+    this.publishing.set(true);
+    return this.http.post<PublishStatus>('/api/admin/publish', {}).pipe(
+      tap({
+        next: (s) => { this.publishStatus.set(s); this.publishing.set(false); this.site.invalidate(); },
+        error: () => this.publishing.set(false),
+      }),
+    );
+  }
+  /** Throw away the draft and reload the admin from what's live. */
+  discard() {
+    this.publishing.set(true);
+    return this.http.post<PublishStatus>('/api/admin/publish/discard', {}).pipe(
+      tap({
+        next: (s) => { this.publishStatus.set(s); this.publishing.set(false); this.load(); },
+        error: () => this.publishing.set(false),
+      }),
+    );
   }
 
   // ── bookings ──
@@ -78,7 +108,7 @@ export class AdminStore {
   addEvent(body: PopupEventUpsert): void {
     this.http.post<PopupEvent>('/api/admin/events', body).subscribe((e) => {
       this.events.update((list) => [...list, e].sort((a, b) => a.date.localeCompare(b.date)));
-      this.site.upcoming.set([]); // public cache is stale now; it reloads on next visit
+      this.refreshPublishStatus();
     });
   }
   setPrints(id: number, patch: { prints?: number; printPrice?: number }): void {
@@ -87,7 +117,10 @@ export class AdminStore {
     );
   }
   removeEvent(id: number): void {
-    this.http.delete(`/api/admin/events/${id}`).subscribe(() => this.events.update((list) => list.filter((x) => x.id !== id)));
+    this.http.delete(`/api/admin/events/${id}`).subscribe(() => {
+      this.events.update((list) => list.filter((x) => x.id !== id));
+      this.refreshPublishStatus();
+    });
   }
 
   // ── galleries ──
@@ -115,9 +148,9 @@ export class AdminStore {
   }
   applyPricing(list: SessionType[]): void {
     this.pricing.set(list);
-    this.site.sessionTypes.set(list);
     // Portfolio photo slots follow the categories; refresh the admin's slot grid too.
     this.http.get<PhotoGroup[]>('/api/admin/photos').subscribe((g) => this.photoGroups.set(g));
+    this.refreshPublishStatus();
   }
 
   // ── photos ──
@@ -133,10 +166,6 @@ export class AdminStore {
     this.photoGroups.update((groups) =>
       groups.map((g) => ({ ...g, slots: g.slots.map((s) => (s.id === slotId ? { ...s, url } : s)) })),
     );
-    this.site.photos.update((map) => {
-      const next = { ...map };
-      if (url) next[slotId] = url; else delete next[slotId];
-      return next;
-    });
+    this.refreshPublishStatus();
   }
 }

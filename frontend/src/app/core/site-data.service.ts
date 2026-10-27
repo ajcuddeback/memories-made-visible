@@ -49,6 +49,14 @@ export class SiteDataService {
     this.http.get<Record<string, string>>('/api/photos').pipe(catchError(() => of({}))).subscribe((map) => this.photos.set(map));
   }
 
+  /** After a publish: forget the cached lists so the next page visit refetches what's live. */
+  invalidate(): void {
+    this.loadedPricing = this.loadedEvents = this.loadedPhotos = false;
+    this.sessionTypes.set([]);
+    this.upcoming.set([]);
+    this.photos.set({});
+  }
+
   submitBooking(req: BookingRequest) {
     return this.http.post<Booking>('/api/bookings', req);
   }

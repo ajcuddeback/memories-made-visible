@@ -99,6 +99,13 @@ export interface PhotoGroup {
 
 export type EmailAction = 'approve' | 'decline' | 'cancel' | 'message';
 
+/** Draft vs. live: which kinds of site content have unpublished changes. */
+export interface PublishStatus {
+  dirty: boolean;
+  changes: { pricing: boolean; events: boolean; photos: boolean };
+  publishedAt: string | null;
+}
+
 export interface EmailDraft {
   subject: string;
   body: string;

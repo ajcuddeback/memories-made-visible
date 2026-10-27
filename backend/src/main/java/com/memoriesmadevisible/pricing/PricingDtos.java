@@ -26,7 +26,7 @@ public final class PricingDtos {
                              @Size(max = 300) String description, @NotBlank @Size(max = 20) String from,
                              Boolean showInPortfolio) {}
 
-    static SessionTypeView toView(SessionType t) {
+    public static SessionTypeView toView(SessionType t) {
         return new SessionTypeView(t.getKey(), t.getName(), t.displayShortName(), t.getDescription(), t.getFromPrice(),
                 t.isShowInPortfolio(), t.getTiers().stream().map(x -> new Tier(x.getName(), x.getDetail(), x.getPrice(), x.getIncludes())).toList());
     }

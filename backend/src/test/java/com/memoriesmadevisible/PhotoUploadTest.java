@@ -64,6 +64,16 @@ class PhotoUploadTest {
         org.assertj.core.api.Assertions.assertThat(stored.getWidth()).isEqualTo(1800);
         org.assertj.core.api.Assertions.assertThat(stored.getHeight()).isEqualTo(1200);
 
+        // A fresh upload is a draft: the public map doesn't have it until Publish.
+        mvc.perform(get("/api/photos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['home-hero']").doesNotExist());
+        mvc.perform(get("/api/admin/publish").header("Authorization", auth))
+                .andExpect(jsonPath("$.dirty").value(true))
+                .andExpect(jsonPath("$.changes.photos").value(true)); // pricing may be dirty too: tests share one context
+        mvc.perform(post("/api/admin/publish").header("Authorization", auth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dirty").value(false));
         mvc.perform(get("/api/photos"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$['home-hero']").exists());

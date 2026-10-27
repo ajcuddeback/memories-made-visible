@@ -27,7 +27,7 @@ public final class PopupEventDtos {
     public record AdminResponse(Long id, LocalDate date, String title, String theme, String venue, String time,
                                 int prints, BigDecimal printPrice) {}
 
-    static PublicResponse toPublic(PopupEvent e) {
+    public static PublicResponse toPublic(PopupEvent e) {
         return new PublicResponse(e.getId(), e.getDate(), e.getTitle(), e.getTheme(), e.getVenue(), e.getTime());
     }
 
