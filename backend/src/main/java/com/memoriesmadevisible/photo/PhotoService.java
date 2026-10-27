@@ -57,7 +57,7 @@ public class PhotoService {
     @Transactional(readOnly = true)
     public List<GroupView> groupsForAdmin() {
         var urls = urlsBySlot();
-        return PhotoSlots.groups(pricing.list()).stream()
+        return PhotoSlots.groups(pricing.list(), urls.keySet()).stream()
                 .map(g -> new GroupView(g.title(), g.slots().stream()
                         .map(s -> new SlotView(s.id(), s.label(), urls.get(s.id()))).toList()))
                 .toList();

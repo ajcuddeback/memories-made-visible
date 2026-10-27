@@ -78,6 +78,13 @@ class PhotoUploadTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$['home-hero']").exists());
 
+        // Portfolio slots are open-ended: filling pf-families-1 makes pf-families-2 appear; pf-families-99 is out of range.
+        mvc.perform(multipart("/api/admin/photos/pf-families-1").file(file).header("Authorization", auth)).andExpect(status().isOk());
+        mvc.perform(get("/api/admin/photos").header("Authorization", auth))
+                .andExpect(jsonPath("$[?(@.title=='Portfolio · Families & solo')].slots.length()").value(2))
+                .andExpect(jsonPath("$[?(@.title=='Portfolio · Families & solo')].slots[1].id").value("pf-families-2"));
+        mvc.perform(multipart("/api/admin/photos/pf-families-99").file(file).header("Authorization", auth)).andExpect(status().isBadRequest());
+
         // Unknown slot and non-image content are both refused.
         mvc.perform(multipart("/api/admin/photos/not-a-slot").file(file).header("Authorization", auth))
                 .andExpect(status().isBadRequest());

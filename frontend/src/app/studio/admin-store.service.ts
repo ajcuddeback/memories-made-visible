@@ -209,6 +209,8 @@ export class AdminStore {
     this.photoGroups.update((groups) =>
       groups.map((g) => ({ ...g, slots: g.slots.map((s) => (s.id === slotId ? { ...s, url } : s)) })),
     );
+    // Portfolio groups grow by one empty slot per upload; ask the server for the fresh grid.
+    this.http.get<PhotoGroup[]>('/api/admin/photos').subscribe((g) => this.photoGroups.set(g));
     this.refreshPublishStatus();
   }
 }
