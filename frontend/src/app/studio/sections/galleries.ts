@@ -61,13 +61,17 @@ export class GalleriesSection {
       .sort((a, b) => Number(a.nextOff) - Number(b.nextOff));
   });
 
-  /** Confirmed sessions that have already happened and don't have a gallery yet. */
+  /** Every confirmed session without a gallery yet: shot ones first, upcoming ones after (you can prep early). */
   readonly options = computed(() => {
     const has = new Set(this.store.galleries().map((g) => g.bookingId));
+    const names = this.store.typeName();
     return this.store.confirmed()
-      .filter((b) => fromISO(b.date) <= this.today && !has.has(b.id))
-      .map((b) => ({ id: b.id, label: `${b.name} · ${fmtDate(b.date)}` }));
+      .filter((b) => !has.has(b.id))
+      .map((b) => ({ id: b.id, upcoming: fromISO(b.date) > this.today, label: `${b.name} · ${names.get(b.sessionType) ?? b.sessionTypeName} · ${fmtDate(b.date)}` }))
+      .sort((a, b) => Number(a.upcoming) - Number(b.upcoming));
   });
+  readonly readyOptions = computed(() => this.options().filter((o) => !o.upcoming));
+  readonly upcomingOptions = computed(() => this.options().filter((o) => o.upcoming));
 
   pick(e: Event): void {
     const v = (e.target as HTMLSelectElement).value;

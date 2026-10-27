@@ -2,14 +2,24 @@
   <label class="field field--sm start-field">Start a gallery for a completed session
     <select class="input md" [value]="newGal() ?? ''" (change)="pick($event)">
       <option value="">Choose a session…</option>
-      @for (o of options(); track o.id) { <option [value]="o.id">{{ o.label }}</option> }
+      @if (readyOptions().length) {
+        <optgroup label="Shot — ready for editing">
+          @for (o of readyOptions(); track o.id) { <option [value]="o.id">{{ o.label }}</option> }
+        </optgroup>
+      }
+      @if (upcomingOptions().length) {
+        <optgroup label="Upcoming — not shot yet">
+          @for (o of upcomingOptions(); track o.id) { <option [value]="o.id">{{ o.label }}</option> }
+        </optgroup>
+      }
     </select>
   </label>
   <button type="submit" class="btn btn-primary start-btn" [disabled]="newGal() == null">Create gallery</button>
 </form>
 
 @if (notice(); as n) { <p class="notice" role="status">{{ n }}</p> }
-@if (rows().length === 0) { <p class="empty">No galleries yet — approve a session, then start its gallery here once it's been shot.</p> }
+<p class="explain">Approved sessions live in <strong>Requests → Confirmed</strong> and on the <strong>Calendar</strong>. A gallery tracks the editing and delivery of one session; start it here once it's shot (or early, to prep).</p>
+@if (rows().length === 0) { <p class="empty">No galleries yet — pick a confirmed session above to start one.</p> }
 
 <div class="list">
   @for (g of rows(); track g.id) {
