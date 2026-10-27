@@ -58,6 +58,14 @@ public class AdminBookingController {
         return service.setStatus(id, BookingStatus.DECLINED, email);
     }
 
+    /** Pre-filled "please confirm the new time" email for a move the admin is about to make. */
+    @GetMapping("/{id}/reschedule-draft")
+    public BookingDtos.EmailDraft rescheduleDraft(@PathVariable Long id, @RequestParam BookingEmailDrafts.MoveReason reason,
+                                                  @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
+                                                  @RequestParam String time) {
+        return service.rescheduleDraft(id, reason, date, time);
+    }
+
     @PostMapping("/{id}/reschedule")
     public BookingDtos.Response reschedule(@PathVariable Long id, @Valid @RequestBody BookingDtos.Reschedule body) {
         return service.reschedule(id, body);

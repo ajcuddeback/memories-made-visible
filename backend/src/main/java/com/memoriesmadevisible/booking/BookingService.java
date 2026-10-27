@@ -121,10 +121,28 @@ public class BookingService {
         return s != null && !s.isBlank();
     }
 
-    /** Admin moves a session; a confirmed one must land on a free slot, a pending one just moves. */
+    /** The "please confirm the new time" email, as it would read for this move, for the admin to edit. */
+    @Transactional(readOnly = true)
+    public BookingDtos.EmailDraft rescheduleDraft(Long id, BookingEmailDrafts.MoveReason reason, java.time.LocalDate date, String time) {
+        var b = find(id);
+        // Preview on a detached copy so nothing is written.
+        var preview = new Booking();
+        preview.setName(b.getName());
+        preview.setDate(date);
+        preview.setTime(AvailabilityDtos.label(AvailabilityDtos.parse(time)));
+        var d = BookingEmailDrafts.reschedule(reason, preview, typeName(b), b.getDate(), b.getTime());
+        return new BookingDtos.EmailDraft(d.subject(), d.body(), b.getEmail());
+    }
+
+    /**
+     * Admin moves a session to a free slot and the customer is asked to confirm the new time
+     * (a move is never silent unless the admin explicitly turns the email off).
+     */
     @Transactional
     public BookingDtos.Response reschedule(Long id, BookingDtos.Reschedule r) {
         var b = find(id);
+        var oldDate = b.getDate();
+        var oldTime = b.getTime();
         LocalTime start = AvailabilityDtos.parse(r.time());
         LocalTime end = availability.reserve(r.date(), start, minutes(b), b.getId(),
                 b.getStatus() != BookingStatus.DECLINED, false);
@@ -132,7 +150,15 @@ public class BookingService {
         b.setStartTime(start);
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
-        return toResponse(bookings.save(b));
+        b = bookings.save(b);
+        if (r.shouldSend()) {
+            String typeName = typeName(b);
+            var dflt = BookingEmailDrafts.reschedule(r.reason(), b, typeName, oldDate, oldTime);
+            String subject = notBlank(r.subject()) ? r.subject().strip() : dflt.subject();
+            String body = notBlank(r.body()) ? r.body().strip() : dflt.body();
+            notifications.sendCustomerEmail(b, typeName, subject, body, b.getStatus() == BookingStatus.CONFIRMED);
+        }
+        return toResponse(b);
     }
 
     private int minutes(Booking b) {

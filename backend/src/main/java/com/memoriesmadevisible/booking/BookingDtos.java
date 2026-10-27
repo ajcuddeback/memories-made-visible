@@ -1,5 +1,6 @@
 package com.memoriesmadevisible.booking;
 
+import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
@@ -35,8 +36,15 @@ public final class BookingDtos {
             BookingStatus status, BigDecimal quote, Instant createdAt
     ) {}
 
-    /** Admin: move a booking to another slot. */
-    public record Reschedule(@NotNull LocalDate date, @NotBlank @Pattern(regexp = "^\\d{1,2}:\\d{2}$") String time) {}
+    /**
+     * Admin: move a booking to another slot. The customer gets a "please confirm" email built
+     * from {@code reason}'s template unless the admin edits it or sets {@code sendEmail=false}.
+     */
+    public record Reschedule(@NotNull LocalDate date, @NotBlank @Pattern(regexp = "^\\d{1,2}:\\d{2}$") String time,
+                             @NotNull BookingEmailDrafts.MoveReason reason, Boolean sendEmail,
+                             @Size(max = 200) String subject, @Size(max = 8000) String body) {
+        public boolean shouldSend() { return sendEmail == null || sendEmail; }
+    }
 
     public record QuoteUpdate(@NotNull BigDecimal quote) {}
 

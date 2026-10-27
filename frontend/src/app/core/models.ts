@@ -157,6 +157,18 @@ export interface PhotoGroup {
 
 export type EmailAction = 'approve' | 'decline' | 'cancel' | 'message';
 
+export type MoveReason = 'CLIENT_REQUEST' | 'WEATHER' | 'STUDIO' | 'OTHER';
+
+export interface RescheduleRequest {
+  date: string;
+  /** "HH:mm" */
+  time: string;
+  reason: MoveReason;
+  sendEmail: boolean;
+  subject: string;
+  body: string;
+}
+
 /** Draft vs. live: which kinds of site content have unpublished changes. */
 export interface PublishStatus {
   dirty: boolean;

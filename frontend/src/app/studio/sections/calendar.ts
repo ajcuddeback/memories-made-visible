@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MONTHS, WEEKDAYS, fmtLongDate, fmtRange, fmtTime, fromISO, toISO, today } from '../../core/dates';
-import { AvailabilityHours, BookingStatus } from '../../core/models';
+import { AvailabilityHours, BookingStatus, MoveReason } from '../../core/models';
 import { ViewportService } from '../../core/viewport.service';
 import { Icon } from '../../shared/icons';
 import { AdminStore } from '../admin-store.service';
@@ -29,8 +29,18 @@ interface CalDay {
 
 /** Inline "block time" form. */
 interface BlockForm { startDate: string; endDate: string; allDay: boolean; startTime: string; endTime: string; note: string; busy: boolean; error: string | null; }
-/** Inline "move session" form. */
-interface MoveForm { bookingId: number; date: string; time: string; busy: boolean; error: string | null; }
+/** Inline "move session" form: the new slot, why, and the confirmation email the customer gets. */
+interface MoveForm {
+  bookingId: number; to: string; date: string; time: string; reason: MoveReason;
+  sendEmail: boolean; subject: string; body: string; loading: boolean; busy: boolean; error: string | null;
+}
+
+export const MOVE_REASONS: { key: MoveReason; label: string }[] = [
+  { key: 'CLIENT_REQUEST', label: 'Client asked to reschedule' },
+  { key: 'WEATHER', label: 'Weather' },
+  { key: 'STUDIO', label: 'Conflict on our end' },
+  { key: 'OTHER', label: 'Other' },
+];
 
 const KIND_LABEL: Record<Kind, string> = { confirmed: 'Confirmed', pending: 'Pending', declined: 'Declined', popup: 'Pop-up', block: 'Unavailable' };
 const STATUS_KIND: Record<BookingStatus, Kind> = { CONFIRMED: 'confirmed', PENDING: 'pending', DECLINED: 'declined' };
@@ -47,6 +57,7 @@ export class CalendarSection {
   readonly viewport = inject(ViewportService);
   readonly weekdays = WEEKDAYS;
   readonly kindLabel = KIND_LABEL;
+  readonly moveReasons = MOVE_REASONS;
   private readonly today = today();
   private readonly todayIso = toISO(this.today);
 
@@ -168,18 +179,45 @@ export class CalendarSection {
   openMove(bookingId: number): void {
     const b = this.store.bookingById().get(bookingId);
     if (!b) return;
-    this.move.set({ bookingId, date: b.date, time: b.startTime ?? '09:00', busy: false, error: null });
+    this.move.set({
+      bookingId, to: b.email, date: b.date, time: b.startTime ?? '09:00', reason: 'CLIENT_REQUEST',
+      sendEmail: true, subject: '', body: '', loading: false, busy: false, error: null,
+    });
     this.block.set(null);
+    this.loadMoveDraft();
   }
   closeMove(): void { this.move.set(null); }
   setMove<K extends keyof MoveForm>(field: K, value: MoveForm[K]): void { this.move.update((m) => (m ? { ...m, [field]: value } : m)); }
+  /** Date, time or reason changed → refresh the template (unless the admin has started editing it). */
+  setMoveSlot(field: 'date' | 'time' | 'reason', value: string): void {
+    this.setMove(field, value as never);
+    this.loadMoveDraft();
+  }
+  private draftEdited = false;
+  private loadMoveDraft(): void {
+    const m = this.move();
+    if (!m || !m.date || !m.time) return;
+    if (this.draftEdited && (m.subject || m.body)) return;
+    this.draftEdited = false;
+    this.setMove('loading', true);
+    const id = m.bookingId;
+    this.store.rescheduleDraft(id, m.reason, m.date, m.time).subscribe({
+      next: (d) => this.move.update((x) => (x && x.bookingId === id ? { ...x, subject: d.subject, body: d.body, to: d.to, loading: false } : x)),
+      error: () => this.setMove('loading', false),
+    });
+  }
+  editMoveText(field: 'subject' | 'body', value: string): void { this.draftEdited = true; this.setMove(field, value); }
   saveMove(): void {
     const m = this.move();
     if (!m || m.busy) return;
     if (!m.date || !m.time) { this.setMove('error', 'Pick a date and a start time.'); return; }
+    if (m.sendEmail && (!m.subject.trim() || !m.body.trim())) { this.setMove('error', 'Add a subject and a message, or untick the email.'); return; }
     this.setMove('busy', true); this.setMove('error', null);
-    this.store.reschedule(m.bookingId, m.date, m.time).subscribe({
-      next: (b) => { this.move.set(null); this.selected.set(b.date); this.say(`${b.name} moved to ${fmtLongDate(fromISO(b.date))} at ${fmtTime(b.startTime)}.`); },
+    this.store.reschedule(m.bookingId, { date: m.date, time: m.time, reason: m.reason, sendEmail: m.sendEmail, subject: m.subject.trim(), body: m.body.trim() }).subscribe({
+      next: (b) => {
+        this.move.set(null); this.draftEdited = false; this.selected.set(b.date);
+        this.say(`${b.name} moved to ${fmtLongDate(fromISO(b.date))} at ${fmtTime(b.startTime)}${m.sendEmail ? ` — confirmation request emailed to ${m.to}` : ' — no email sent'}.`);
+      },
       error: (e) => { this.setMove('busy', false); this.setMove('error', e?.error?.message ?? 'Couldn’t move that session.'); },
     });
   }

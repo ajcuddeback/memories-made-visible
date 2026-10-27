@@ -405,9 +405,24 @@ class BookingFlowTest {
 
         // Admin: moving Noah to 10:30 frees 09:00; approving then claims 10:30 for real.
         var noahId = bookings.findAll().stream().filter(b -> b.getName().equals("Noah Bell")).findFirst().orElseThrow().getId();
+        mvc.perform(get("/api/admin/bookings/" + noahId + "/reschedule-draft").header("Authorization", auth)
+                        .param("reason", "WEATHER").param("date", d).param("time", "10:30"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject").value("New time for your Families & solo portraits session — please confirm"))
+                .andExpect(jsonPath("$.body").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("forecast"), org.hamcrest.Matchers.containsString("9:00 AM"),
+                        org.hamcrest.Matchers.containsString("10:30 AM"), org.hamcrest.Matchers.containsString("reply to this email to confirm"))));
+        var moveSent = ArgumentCaptor.forClass(MimeMessage.class);
+        int before = org.mockito.Mockito.mockingDetails(mailSender).getInvocations().size();
         mvc.perform(post("/api/admin/bookings/" + noahId + "/reschedule").header("Authorization", auth)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"date\":\"" + d + "\",\"time\":\"10:30\"}"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"date\":\"" + d + "\",\"time\":\"10:30\",\"reason\":\"CLIENT_REQUEST\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.time").value("10:30 AM"));
+        Thread.sleep(500);
+        verify(mailSender, org.mockito.Mockito.atLeastOnce()).send(moveSent.capture());
+        var moveMail = bySubject(moveSent, "please confirm");
+        assertThat(addresses(moveMail.getRecipients(MimeMessage.RecipientType.TO))).containsExactly("noah@example.com");
+        assertThat(bodies(moveMail)[0]).contains("As you asked").contains("10:30 AM");
         mvc.perform(post("/api/admin/bookings/" + noahId + "/approve").header("Authorization", auth)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"sendEmail\":false}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"));

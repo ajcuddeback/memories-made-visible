@@ -112,3 +112,8 @@
   .move { grid-template-columns: 1fr; }
   .lg-toggle { margin-left: 0; }
 }
+
+.move-reason select.input { min-height: 38px; }
+.move-send { grid-column: 1 / -1; align-self: start; }
+.move-wide { grid-column: 1 / -1; }
+.move-body { font-size: 14px; line-height: 1.55; min-height: 150px; border-radius: 18px; }

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap } from 'rxjs';
-import { AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
+import { AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -78,8 +78,12 @@ export class AdminStore {
   removeBlock(id: number) {
     return this.http.delete<void>(`/api/admin/availability/blocks/${id}`).pipe(tap(() => this.blocks.update((list) => list.filter((b) => b.id !== id))));
   }
-  reschedule(id: number, date: string, time: string) {
-    return this.http.post<Booking>(`/api/admin/bookings/${id}/reschedule`, { date, time }).pipe(tap((b) => this.replaceBooking(b)));
+  /** The "please confirm the new time" email for a move, pre-filled from the reason's template. */
+  rescheduleDraft(id: number, reason: MoveReason, date: string, time: string) {
+    return this.http.get<EmailDraft>(`/api/admin/bookings/${id}/reschedule-draft`, { params: { reason, date, time } });
+  }
+  reschedule(id: number, body: RescheduleRequest) {
+    return this.http.post<Booking>(`/api/admin/bookings/${id}/reschedule`, body).pipe(tap((b) => this.replaceBooking(b)));
   }
 
   // ── publish ──

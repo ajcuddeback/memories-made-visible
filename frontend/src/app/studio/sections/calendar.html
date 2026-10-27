@@ -119,14 +119,23 @@
             @if (move(); as mv) {
               @if (mv.bookingId === it.bookingId) {
                 <form class="move" (submit)="$event.preventDefault(); saveMove()">
-                  <label class="field field--sm">Date<input class="input" type="date" [value]="mv.date" (change)="setMove('date', val($event))" /></label>
-                  <label class="field field--sm">Start<input class="input" type="time" step="1800" [value]="mv.time" (change)="setMove('time', val($event))" /></label>
+                  <label class="field field--sm">New date<input class="input" type="date" [value]="mv.date" (change)="setMoveSlot('date', val($event))" /></label>
+                  <label class="field field--sm">New start<input class="input" type="time" step="1800" [value]="mv.time" (change)="setMoveSlot('time', val($event))" /></label>
+                  <label class="field field--sm move-reason">Reason
+                    <select class="input" [value]="mv.reason" (change)="setMoveSlot('reason', val($event))">
+                      @for (r of moveReasons; track r.key) { <option [value]="r.key" [selected]="r.key === mv.reason">{{ r.label }}</option> }
+                    </select>
+                  </label>
+                  <label class="toggle move-send"><input type="checkbox" [checked]="mv.sendEmail" (change)="setMove('sendEmail', checked($event))" /> Email {{ mv.to }} to confirm the new time</label>
+                  @if (mv.loading) { <p class="panel-hint move-wide">Loading email…</p> }
+                  <label class="field field--sm move-wide">Subject<input class="input" [value]="mv.subject" (input)="editMoveText('subject', val($event))" [disabled]="!mv.sendEmail" /></label>
+                  <label class="field field--sm move-wide">Message<textarea class="input move-body" rows="8" [value]="mv.body" (input)="editMoveText('body', val($event))" [disabled]="!mv.sendEmail"></textarea></label>
                   <div class="panel-actions">
-                    <button type="submit" class="btn btn-primary sm" [disabled]="mv.busy">{{ mv.busy ? 'Moving…' : 'Move session' }}</button>
+                    <button type="submit" class="btn btn-primary sm" [disabled]="mv.busy || mv.loading">{{ mv.busy ? 'Moving…' : (mv.sendEmail ? 'Move & send confirmation request' : 'Move without emailing') }}</button>
                     <button type="button" class="btn btn-secondary sm" (click)="closeMove()">Cancel</button>
                   </div>
                   @if (mv.error) { <p class="panel-error" role="alert">{{ mv.error }}</p> }
-                  <p class="panel-hint">A confirmed session can only move to a free time; the customer isn’t emailed automatically — send them a note from Requests.</p>
+                  <p class="panel-hint">The new time has to be free. The email asks the client to reply and confirm; a copy goes to the studio inbox.</p>
                 </form>
               }
             }
