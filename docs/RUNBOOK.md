@@ -14,8 +14,10 @@ pointed at it; you have the Namecheap mailbox details. Replace `www.memoriesmade
 
 ### A0. A fresh server (if this is a new box)
 
-Any 2 vCPU / 2 GB VPS is plenty (Hetzner CX22, DigitalOcean $12 droplet, Linode 2 GB). Pick a region near Florida
-if the host offers one. Create it with an SSH key, not a password, under the **business** account, and set a
+Any 2 vCPU / 2 GB VPS is plenty. Closest US regions to Florida: Linode **Atlanta** (2 GB, ~$12/mo), DigitalOcean
+**New York** (2 GB, ~$12/mo), Hetzner **Ashburn, VA** (CPX21, ~$8/mo; US pricing is a little above its EU pricing and
+its Object Storage is EU-only, which doesn't matter here). Latency differences at this distance are a few
+milliseconds; pick on price and the dashboard you like. Create it with an SSH key, not a password, under the **business** account, and set a
 monthly billing alert on it. Then, as the first steps:
 
 ```bash
