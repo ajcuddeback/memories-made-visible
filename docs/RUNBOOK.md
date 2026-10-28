@@ -5,12 +5,54 @@ Postgres and photo storage (MinIO) on the same box, and metrics into your existi
 photos (and optionally the database) to AWS later without downtime. `docs/DEPLOYMENT.md` has the background for
 each piece; this is the ordered checklist.
 
-Assumptions: Ubuntu-ish server with Docker, nginx and certbot already on it; the domain's `A` records can be
+Assumptions: an Ubuntu server (A0 sets up a brand-new one); the domain's `A` records can be
 pointed at it; you have the Namecheap mailbox details. Replace `www.memoriesmadevisible.com` if the domain differs.
 
 ---
 
 ## Part A — go live on your server
+
+### A0. A fresh server (if this is a new box)
+
+Any 2 vCPU / 2 GB VPS is plenty (Hetzner CX22, DigitalOcean $12 droplet, Linode 2 GB). Pick a region near Florida
+if the host offers one. Create it with an SSH key, not a password, under the **business** account, and set a
+monthly billing alert on it. Then, as the first steps:
+
+```bash
+# as root on the new box
+adduser mmv && usermod -aG sudo mmv
+rsync --archive --chown=mmv:mmv ~/.ssh /home/mmv          # copy your key to the new user
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/; s/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+systemctl restart ssh
+# from here on, log in as mmv
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx ufw unattended-upgrades fail2ban
+curl -fsSL https://get.docker.com | sh && sudo usermod -aG docker $USER && newgrp docker
+sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable
+```
+
+`unattended-upgrades` keeps security patches flowing; `fail2ban` bans SSH brute force. Docker publishes 8080 on
+all interfaces and bypasses ufw, so either leave the host's cloud firewall allowing only 22/80/443 (do this; every
+provider has one), or change `${HTTP_PORT:-80}:8080` in the compose file to `127.0.0.1:${HTTP_PORT:-80}:8080`.
+
+**Grafana on another server.** The metrics port is loopback-only on purpose. To scrape it from the Prometheus
+on your other box, don't open 9091 to the world; tunnel it instead. On the Grafana box:
+```bash
+# /etc/systemd/system/mmv-metrics-tunnel.service
+[Unit]
+Description=SSH tunnel to mmv metrics
+After=network-online.target
+[Service]
+User=prometheus
+ExecStart=/usr/bin/ssh -N -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes -L 127.0.0.1:9091:127.0.0.1:9091 mmv@<business-server-ip>
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
+```
+(Give the `prometheus` user an SSH key the business box accepts, `systemctl enable --now mmv-metrics-tunnel`,
+and the scrape target stays `127.0.0.1:9091`.) Tailscale or WireGuard between the two boxes is the tidier
+long-term version of the same idea. Alternatively run a second small Prometheus on the business box and add it as
+a second data source in your Grafana; the dashboard's data-source picker handles that.
 
 ### A1. Get the code and build the images
 
