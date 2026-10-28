@@ -37,6 +37,12 @@ public class AdminGalleryController {
         this.access = access;
     }
 
+    /** Delivering is for owner/admin or the session's lead photographer. */
+    private void requireLead(Long galleryId, java.security.Principal me) {
+        var g = galleries.findById(galleryId).orElseThrow(() -> new NotFoundException("Gallery " + galleryId + " not found"));
+        access.requireMayRun(me, bookings.findById(g.getBookingId()).orElse(null));
+    }
+
     /** Employees may only touch galleries of sessions they're assigned to. */
     private void requireAssigned(Long bookingId, java.security.Principal me) {
         if (!access.limited(me)) return;
@@ -94,16 +100,16 @@ public class AdminGalleryController {
     }
 
     /** The "photos are ready" email, pre-filled for the admin to edit before delivering. */
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @GetMapping("/{id}/draft")
-    public BookingDtos.EmailDraft draft(@PathVariable Long id) {
+    public BookingDtos.EmailDraft draft(@PathVariable Long id, java.security.Principal me) {
+        requireLead(id, me);
         return service.draft(id);
     }
 
     /** Mark delivered: record the link + final price and email the client (unless sendEmail=false). */
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/deliver")
-    public GalleryDtos.Delivered deliver(@PathVariable Long id, @Valid @RequestBody GalleryDtos.DeliverRequest body) {
+    public GalleryDtos.Delivered deliver(@PathVariable Long id, @Valid @RequestBody GalleryDtos.DeliverRequest body, java.security.Principal me) {
+        requireLead(id, me);
         return service.deliver(id, body);
     }
 }

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, of, tap } from 'rxjs';
-import { Access, AnalyticsReport, AvailabilityHours, Booking, TeamMember, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
+import { Access, AnalyticsReport, AvailabilityHours, Booking, HoursWeek, TeamMember, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -88,6 +88,16 @@ export class AdminStore {
   }
 
   // ── availability ──
+  /** A person's week (their own or the studio's); staff null = the studio's. */
+  week(staff: string | null) {
+    return this.http.get<HoursWeek>('/api/admin/availability/week', { params: staff ? { staff } : {} });
+  }
+  saveWeek(staff: string, hours: AvailabilityHours[]) {
+    return this.http.put<HoursWeek>('/api/admin/availability/week', hours, { params: { staff } });
+  }
+  clearWeek(staff: string) {
+    return this.http.delete<HoursWeek>('/api/admin/availability/week', { params: { staff } });
+  }
   saveHours(hours: AvailabilityHours[]) {
     return this.http.put<AvailabilityHours[]>('/api/admin/availability/hours', hours).pipe(tap((h) => this.hours.set(h)));
   }

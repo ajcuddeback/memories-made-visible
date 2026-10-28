@@ -79,6 +79,10 @@ export class CalendarSection {
 
   // Booking-hours editor (a draft of the store's hours until saved)
   readonly hoursOpen = signal(false);
+  /** Whose week the editor shows: '' = the studio's. Employees can only see their own. */
+  readonly hoursFor = signal('');
+  readonly hoursCustom = signal(false);
+  readonly hoursLoading = signal(false);
   readonly hoursDraft = signal<AvailabilityHours[]>([]);
   readonly hoursMsg = signal('');
   readonly hoursBusy = signal(false);
@@ -235,9 +239,31 @@ export class CalendarSection {
 
   // ── booking hours ──
   toggleHours(): void {
-    if (!this.hoursOpen()) this.hoursDraft.set(this.store.hours().map((h) => ({ ...h })));
     this.hoursMsg.set('');
+    if (!this.hoursOpen()) {
+      // Owner/admin start on the studio's week; employees only ever see their own.
+      this.hoursFor.set(this.canManage() ? '' : (this.auth.user()?.name ?? ''));
+      this.loadWeek();
+    }
     this.hoursOpen.update((v) => !v);
+  }
+  pickHoursFor(e: Event): void { this.hoursFor.set((e.target as HTMLSelectElement).value); this.hoursMsg.set(''); this.loadWeek(); }
+  private loadWeek(): void {
+    this.hoursLoading.set(true);
+    this.store.week(this.hoursFor() || null).subscribe({
+      next: (w) => { this.hoursDraft.set(w.hours.map((h) => ({ ...h }))); this.hoursCustom.set(w.custom); this.hoursLoading.set(false); },
+      error: () => { this.hoursLoading.set(false); this.hoursMsg.set('Couldn’t load those hours.'); },
+    });
+  }
+  /** Back to the studio's week for the selected person. */
+  useStudioHours(): void {
+    const who = this.hoursFor();
+    if (!who || !confirm(`Drop ${who}'s own hours and use the studio's?`)) return;
+    this.hoursBusy.set(true);
+    this.store.clearWeek(who).subscribe({
+      next: (w) => { this.hoursBusy.set(false); this.hoursDraft.set(w.hours.map((h) => ({ ...h }))); this.hoursCustom.set(false); this.hoursMsg.set(`${who} now follows the studio's hours.`); },
+      error: (e) => { this.hoursBusy.set(false); this.hoursMsg.set(e?.error?.message ?? 'Couldn’t change that.'); },
+    });
   }
   setHour(weekday: number, field: 'open' | 'start' | 'end', value: boolean | string): void {
     this.hoursDraft.update((list) => list.map((h) => (h.weekday === weekday ? { ...h, [field]: value } : h)));
@@ -247,10 +273,15 @@ export class CalendarSection {
     const bad = this.hoursDraft().find((h) => h.open && h.start >= h.end);
     if (bad) { this.hoursMsg.set(`${WEEKDAYS[bad.weekday]}: the end time needs to be after the start time.`); return; }
     this.hoursBusy.set(true);
-    this.store.saveHours(this.hoursDraft()).subscribe({
-      next: () => { this.hoursBusy.set(false); this.hoursMsg.set('Saved. The booking page offers times inside these hours.'); },
-      error: (e) => { this.hoursBusy.set(false); this.hoursMsg.set(e?.error?.message ?? 'Couldn’t save the hours.'); },
-    });
+    const who = this.hoursFor();
+    const done = () => {
+      this.hoursBusy.set(false);
+      if (who) { this.hoursCustom.set(true); this.hoursMsg.set(`Saved — ${who} now has their own hours; the booking page offers times inside them.`); }
+      else this.hoursMsg.set('Saved. The booking page offers times inside these hours (for anyone without their own).');
+    };
+    const fail = (e: { error?: { message?: string } }) => { this.hoursBusy.set(false); this.hoursMsg.set(e?.error?.message ?? 'Couldn’t save the hours.'); };
+    if (who) this.store.saveWeek(who, this.hoursDraft()).subscribe({ next: done, error: fail });
+    else this.store.saveHours(this.hoursDraft()).subscribe({ next: done, error: fail });
   }
   hoursSummary(h: AvailabilityHours): string { return h.open ? fmtRange(h.start, h.end) : 'Closed'; }
 

@@ -21,6 +21,9 @@ public final class AvailabilityDtos {
     /** One weekday's booking window. Times are "HH:mm". */
     public record Hours(@Min(0) @Max(6) int weekday, boolean open, @NotNull String start, @NotNull String end) {}
 
+    /** A week of hours: the studio's (staffName null) or one person's. {@code custom} = the person has their own week set. */
+    public record Week(String staffName, boolean custom, List<Hours> hours) {}
+
     /** Admin: block time. {@code endDate} null = same day; times null = all day. */
     /** {@code staffName} null/blank = the whole studio. Employees can only block their own time. */
     public record BlockCreate(@NotNull LocalDate startDate, LocalDate endDate, String startTime, String endTime,

@@ -64,7 +64,10 @@ password in the studio (account menu → Change password) and the owner/admins a
 
 Access levels: **Owner** (one account, can do everything including managing admins), **Admin** (everything in the studio),
 **Employee** (sessions pipeline, calendar blocks, pop-up print sales only — no prices, photos, publishing, revenue, insights
-or team). An employee only ever sees the sessions an admin has assigned to them (Sessions → Booked card → **Assign…**);
+or team). An employee only ever sees the sessions an admin has assigned to them; as **lead** on a session they run it end to end
+(quote, approve, decline, email, deliver), as **second** they work the pipeline only. Booking hours are the studio's by
+default; any person can have their own week (Calendar → Booking hours → "Hours for", or "My hours" for an employee), which
+replaces the studio's for them on the booking page. An employee only ever sees the sessions an admin has assigned to them (Sessions → Booked card → **Assign…**);
 they get an email when they're put on one. Mark a person **Bookable by customers** on Team and the booking page offers them as a photographer; availability is then tracked per photographer (their sessions and their own blocked time), and "No preference" lands on whoever is free with the lightest day. New people get an email with a temporary password and must choose their own at first sign-in.
 
 ### 5. Container images

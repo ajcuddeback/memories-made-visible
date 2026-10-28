@@ -294,6 +294,10 @@ public class BookingService {
         bookings.delete(find(id));
     }
 
+    /** The raw entity, for permission checks in controllers. */
+    @Transactional(readOnly = true)
+    public Booking get(Long id) { return find(id); }
+
     private Booking find(Long id) {
         return bookings.findById(id).orElseThrow(() -> new NotFoundException("Booking " + id + " not found"));
     }

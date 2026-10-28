@@ -50,6 +50,40 @@ test.describe('choosing a photographer', () => {
     expect(pat.assignees).toEqual(['Austin']);
   });
 
+  test('a person’s own booking hours apply only to them', async ({ page }) => {
+    const target = futureWeekday(56);
+    const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    await signIn(page, OWNER);
+    await page.goto('/studio/calendar');
+    await page.getByRole('button', { name: 'Booking hours' }).click();
+    await page.getByLabel('Hours for').selectOption('Erica');
+    await expect(page.locator('.panel-hint').first()).toContainText("Erica follows the studio's hours");
+    const row = page.locator('.hour-row', { hasText: names[target.date.getDay()] });
+    await row.getByRole('button', { name: /opens/ }).click();
+    await page.getByRole('option', { name: '1:00 PM', exact: true }).click();
+    await page.getByRole('button', { name: 'Save hours' }).click();
+    await expect(page.locator('.panel-msg')).toContainText('Erica now has their own hours');
+
+    await page.goto('/book');
+    await page.getByRole('radio', { name: 'Families & solo portraits' }).click();
+    await page.getByRole('radio', { name: /^Solo/ }).click();
+    const who = page.getByRole('radiogroup', { name: 'Photographer' });
+    await who.getByRole('radio', { name: /Erica/ }).click();
+    await pickPublicDate(page, target);
+    const times = page.getByRole('radiogroup', { name: 'Start time' });
+    await expect(times.getByRole('radio', { name: '1:00 PM', exact: true })).toBeVisible();
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toHaveCount(0);
+    await who.getByRole('radio', { name: /Austin/ }).click();
+    await expect(times.getByRole('radio', { name: '9:00 AM', exact: true })).toBeVisible();
+
+    await page.goto('/studio/calendar');
+    await page.getByRole('button', { name: 'Booking hours' }).click();
+    await page.getByLabel('Hours for').selectOption('Erica');
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('button', { name: 'Use studio hours' }).click();
+    await expect(page.locator('.panel-msg')).toContainText("follows the studio's hours");
+  });
+
   test('handing the session to someone who is busy is refused; the studio books as one again when unflagged', async ({ page }) => {
     await signIn(page, OWNER);
     const list = await (await api(page.request, 'get', '/api/admin/bookings')).json();

@@ -53,6 +53,13 @@ export interface AvailabilityHours {
   end: string;
 }
 
+/** A week of booking hours: the studio's (staffName null) or one person's own (custom = they have their own week). */
+export interface HoursWeek {
+  staffName: string | null;
+  custom: boolean;
+  hours: AvailabilityHours[];
+}
+
 /** Time the studio is unavailable. Times null = whole day(s). The note is private. */
 export interface TimeBlock {
   id: number;

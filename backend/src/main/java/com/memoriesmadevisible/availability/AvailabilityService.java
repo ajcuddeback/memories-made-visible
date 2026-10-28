@@ -45,10 +45,12 @@ public class AvailabilityService {
     private final PublishService publish;
     private final StudioClock clock;
     private final com.memoriesmadevisible.auth.AdminUserRepository staff;
+    private final StaffHoursRepository staffHours;
 
     public AvailabilityService(AvailabilityHoursRepository hours, TimeBlockRepository blocks, BookingRepository bookings,
                                CalendarDayRepository days, PublishService publish, StudioClock clock,
-                               com.memoriesmadevisible.auth.AdminUserRepository staff) {
+                               com.memoriesmadevisible.auth.AdminUserRepository staff, StaffHoursRepository staffHours) {
+        this.staffHours = staffHours;
         this.hours = hours;
         this.blocks = blocks;
         this.bookings = bookings;
@@ -81,6 +83,65 @@ public class AvailabilityService {
     @Transactional(readOnly = true)
     public List<AvailabilityDtos.Hours> hours() {
         return hours.findAllByOrderByWeekdayAsc().stream().map(AvailabilityDtos::toHours).toList();
+    }
+
+    /** The week that applies to a person: their own if set, else the studio's. */
+    @Transactional(readOnly = true)
+    public AvailabilityDtos.Week week(String staffName) {
+        if (staffName == null || staffName.isBlank()) return new AvailabilityDtos.Week(null, false, hours());
+        var own = staffHours.findAllByIdStaffNameIgnoreCaseOrderByIdWeekdayAsc(staffName.strip());
+        if (own.isEmpty()) return new AvailabilityDtos.Week(staffName.strip(), false, hours());
+        return new AvailabilityDtos.Week(staffName.strip(), true, own.stream()
+                .map(h -> new AvailabilityDtos.Hours(h.getWeekday(), h.isOpen(), AvailabilityDtos.hm(h.getStart()), AvailabilityDtos.hm(h.getEnd()))).toList());
+    }
+
+    /** Give a person their own week (every weekday they didn't send keeps its current/studio value). */
+    @Transactional
+    public AvailabilityDtos.Week saveStaffHours(String staffName, List<AvailabilityDtos.Hours> updates) {
+        var u = staff.findByNameIgnoreCase(staffName.strip()).orElseThrow(() -> new NotFoundException("No account called " + staffName));
+        var current = week(u.getName()).hours();
+        for (int wd = 0; wd < 7; wd++) {
+            final int d = wd;
+            var row = staffHours.findById(new StaffHours.Key(u.getName(), d)).orElseGet(() -> new StaffHours(u.getName(), d));
+            var src = updates.stream().filter(x -> x.weekday() == d).findFirst()
+                    .orElseGet(() -> current.stream().filter(x -> x.weekday() == d).findFirst().orElse(new AvailabilityDtos.Hours(d, true, "07:00", "18:00")));
+            var start = AvailabilityDtos.parse(src.start());
+            var end = AvailabilityDtos.parse(src.end());
+            if (start == null || end == null) throw new IllegalArgumentException("Each day needs a start and end time.");
+            if (!start.isBefore(end)) throw new IllegalArgumentException("A day's end time has to be after its start time.");
+            row.setOpen(src.open());
+            row.setStart(start);
+            row.setEnd(end);
+            staffHours.save(row);
+        }
+        return week(u.getName());
+    }
+
+    /** Back to the studio's hours for this person. */
+    @Transactional
+    public AvailabilityDtos.Week clearStaffHours(String staffName) {
+        staffHours.deleteAllByIdStaffNameIgnoreCase(staffName.strip());
+        return week(staffName);
+    }
+
+    /** A weekday's window for a photographer (null = the studio). */
+    private Window windowFor(String photographer, int weekday, Map<Integer, AvailabilityHours> studio, Map<String, Map<Integer, StaffHours>> own) {
+        if (photographer != null) {
+            var mine = own.computeIfAbsent(photographer.toLowerCase(), k -> {
+                Map<Integer, StaffHours> m = new HashMap<>();
+                staffHours.findAllByIdStaffNameIgnoreCaseOrderByIdWeekdayAsc(photographer).forEach(h -> m.put(h.getWeekday(), h));
+                return m;
+            });
+            if (!mine.isEmpty()) {
+                var h = mine.get(weekday);
+                return h == null || !h.isOpen() ? null : new Window(h.getStart(), h.getEnd());
+            }
+        }
+        var h = studio.get(weekday);
+        return h == null || !h.isOpen() ? null : new Window(h.getStart(), h.getEnd());
+    }
+    private record Window(LocalTime start, LocalTime end) {
+        boolean contains(LocalTime s, LocalTime e) { return !s.isBefore(start) && !e.isAfter(end); }
     }
 
     @Transactional
@@ -246,15 +307,29 @@ public class AvailabilityService {
 
     private List<LocalTime> openStarts(LocalDate day, int minutes, Map<Integer, AvailabilityHours> hoursByDay,
                                        List<TimeBlock> blockList, List<Booking> sameDay, List<String> candidates) {
-        var h = hoursByDay.get(day.getDayOfWeek().getValue() % 7);
-        if (h == null || !h.isOpen()) return List.of();
+        int weekday = day.getDayOfWeek().getValue() % 7;
+        Map<String, Map<Integer, StaffHours>> own = new HashMap<>();
+        // Each candidate inside their own window; a start is offered if any candidate can take it.
+        Map<String, Window> windows = new HashMap<>();
+        LocalTime earliest = null, latest = null;
+        for (String c : candidates) {
+            var w = windowFor(c, weekday, hoursByDay, own);
+            if (w == null) continue;
+            windows.put(c == null ? "" : c, w);
+            if (earliest == null || w.start().isBefore(earliest)) earliest = w.start();
+            if (latest == null || w.end().isAfter(latest)) latest = w.end();
+        }
+        if (windows.isEmpty()) return List.of();
         LocalDateTime cutoff = clock.now().plus(NOTICE);
         List<LocalTime> out = new ArrayList<>();
-        for (LocalTime t = h.getStart(); ; t = t.plus(STEP)) {
+        for (LocalTime t = earliest; ; t = t.plus(STEP)) {
             LocalTime end = t.plusMinutes(minutes);
-            if (end.isAfter(h.getEnd()) || end.isBefore(t) /* wrapped past midnight */) break;
-            if (LocalDateTime.of(day, t).isBefore(cutoff)) continue;
-            if (freeFor(candidates, day, t, end, blockList, sameDay, null, true) != null) out.add(t);
+            if (end.isAfter(latest) || end.isBefore(t) /* wrapped past midnight */) break;
+            if (!LocalDateTime.of(day, t).isBefore(cutoff)) {
+                final LocalTime s = t, e = end;
+                var inWindow = candidates.stream().filter(c -> { var w = windows.get(c == null ? "" : c); return w != null && w.contains(s, e); }).toList();
+                if (!inWindow.isEmpty() && freeFor(inWindow, day, t, end, blockList, sameDay, null, true) != null) out.add(t);
+            }
             if (t.plus(STEP).isBefore(t)) break;
         }
         return out;
@@ -329,12 +404,16 @@ public class AvailabilityService {
         if (!end.isAfter(start)) { // wrapped past midnight (or zero length): never bookable
             throw new ConflictException("That session would run past midnight. Please pick an earlier start.");
         }
+        var candidates = candidates(photographer);
         if (enforceHours) {
-            // Public requests: inside the day's hours, on the slot grid, with notice, and not absurdly far out —
-            // exactly the rules the slot list was built with, so a hand-crafted request can't do more than the form.
-            var h = hours.findById(day.getDayOfWeek().getValue() % 7).orElse(null);
-            if (h == null || !h.isOpen() || start.isBefore(h.getStart()) || end.isAfter(h.getEnd())) {
-                throw new ConflictException("That time isn't within the studio's booking hours. Please pick another.");
+            // Public requests: inside the hours of whoever takes it, on the slot grid, with notice, and not absurdly far
+            // out — exactly the rules the slot list was built with, so a hand-crafted request can't do more than the form.
+            var studio = hours.findAll().stream().collect(Collectors.toMap(AvailabilityHours::getWeekday, Function.identity()));
+            Map<String, Map<Integer, StaffHours>> own = new HashMap<>();
+            int weekday = day.getDayOfWeek().getValue() % 7;
+            candidates = candidates.stream().filter(c -> { var w = windowFor(c, weekday, studio, own); return w != null && w.contains(start, end); }).toList();
+            if (candidates.isEmpty()) {
+                throw new ConflictException("That time isn't within the booking hours. Please pick another.");
             }
             if (start.getMinute() % STEP.toMinutes() != 0 || start.getSecond() != 0) {
                 throw new ConflictException("Start times are on the half hour. Please pick a time from the list.");
@@ -348,7 +427,6 @@ public class AvailabilityService {
         }
         var blockList = blocks.findAllByEndDateGreaterThanEqualAndStartDateLessThanEqualOrderByStartDateAscStartTimeAsc(day, day);
         var sameDay = bookings.findAllByDateBetweenAndStatusNot(day, day, BookingStatus.DECLINED);
-        var candidates = candidates(photographer);
         String who = freeFor(candidates, day, start, end, blockList, sameDay, ignoreBookingId, includePending);
         if (who == null) {
             String what = clash(candidates.get(0), photographers(), day, start, end, blockList, sameDay, ignoreBookingId, includePending).orElse("another session");

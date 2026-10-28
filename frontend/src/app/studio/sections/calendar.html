@@ -8,7 +8,7 @@
     </div>
     <div class="cal-tools">
       <button type="button" class="btn btn-primary sm" (click)="openBlock()">Block time</button>
-      @if (canManage()) { <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">Booking hours</button> }
+      <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">{{ canManage() ? 'Booking hours' : 'My hours' }}</button>
     </div>
   </div>
   <div class="legend" aria-label="Legend">
@@ -22,8 +22,23 @@
 
   @if (hoursOpen()) {
     <section class="panel hours" aria-label="Booking hours">
-      <h3 class="panel-title">Booking hours</h3>
-      <p class="panel-hint">Customers can only pick start times inside these windows (a session must also finish inside them). Use <em>Block time</em> for one-offs like appointments or holidays.</p>
+      <div class="hours-head">
+        <h3 class="panel-title">Booking hours</h3>
+        @if (canManage()) {
+          <label class="field field--sm hours-for">Hours for
+            <select class="input" [value]="hoursFor()" (change)="pickHoursFor($event)">
+              <option value="" [selected]="!hoursFor()">The studio (default for everyone)</option>
+              @for (p of staff(); track p.name) { <option [value]="p.name" [selected]="hoursFor() === p.name">{{ p.name }} · {{ p.role }}</option> }
+            </select>
+          </label>
+        }
+      </div>
+      <p class="panel-hint">
+        @if (!hoursFor()) { Customers can only pick start times inside these windows (a session must also finish inside them). Anyone without their own week follows these. }
+        @else if (hoursCustom()) { {{ hoursFor() }} has their own week — it replaces the studio's hours for them on the booking page. }
+        @else { {{ hoursFor() }} follows the studio's hours. Change anything and save to give them their own week. }
+        Use <em>Block time</em> for one-offs like appointments or holidays.
+      </p>
       <div class="hours-grid">
         @for (h of hoursDraft(); track h.weekday) {
           <div class="hour-row" [class.is-closed]="!h.open">
@@ -36,6 +51,7 @@
       </div>
       <div class="panel-actions">
         <button type="button" class="btn btn-primary sm" [disabled]="hoursBusy()" (click)="saveHours()">{{ hoursBusy() ? 'Saving…' : 'Save hours' }}</button>
+        @if (hoursFor() && hoursCustom()) { <button type="button" class="btn btn-ghost sm" [disabled]="hoursBusy()" (click)="useStudioHours()">Use studio hours</button> }
         <button type="button" class="btn btn-secondary sm" (click)="toggleHours()">Close</button>
         <span class="panel-msg" aria-live="polite">{{ hoursMsg() }}</span>
       </div>

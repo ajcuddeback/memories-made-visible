@@ -41,16 +41,16 @@ public class AdminBookingController {
         return service.assign(id, body.lead(), body.second(), me.getName());
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PatchMapping("/{id}/quote")
-    public BookingDtos.Response quote(@PathVariable Long id, @Valid @RequestBody BookingDtos.QuoteUpdate body) {
+    public BookingDtos.Response quote(@PathVariable Long id, @Valid @RequestBody BookingDtos.QuoteUpdate body, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         return service.setQuote(id, body.quote());
     }
 
     /** Pre-filled email for an action, so the admin can review/edit before sending. */
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @GetMapping("/{id}/draft")
-    public BookingDtos.EmailDraft draft(@PathVariable Long id, @RequestParam("action") String action) {
+    public BookingDtos.EmailDraft draft(@PathVariable Long id, @RequestParam("action") String action, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         BookingEmailDrafts.Action a;
         try {
             a = BookingEmailDrafts.Action.valueOf(action.trim().toUpperCase());
@@ -61,43 +61,43 @@ public class AdminBookingController {
         return service.draft(id, a);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/approve")
-    public BookingDtos.Response approve(@PathVariable Long id, @Valid @RequestBody(required = false) BookingDtos.EmailRequest email) {
+    public BookingDtos.Response approve(@PathVariable Long id, @Valid @RequestBody(required = false) BookingDtos.EmailRequest email, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         return service.setStatus(id, BookingStatus.CONFIRMED, email);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/decline")
-    public BookingDtos.Response decline(@PathVariable Long id, @Valid @RequestBody(required = false) BookingDtos.EmailRequest email) {
+    public BookingDtos.Response decline(@PathVariable Long id, @Valid @RequestBody(required = false) BookingDtos.EmailRequest email, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         return service.setStatus(id, BookingStatus.DECLINED, email);
     }
 
     /** Pre-filled "please confirm the new time" email for a move the admin is about to make. */
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @GetMapping("/{id}/reschedule-draft")
     public BookingDtos.EmailDraft rescheduleDraft(@PathVariable Long id, @RequestParam BookingEmailDrafts.MoveReason reason,
                                                   @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
-                                                  @RequestParam String time) {
+                                                  @RequestParam String time, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         return service.rescheduleDraft(id, reason, date, time);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/reschedule")
-    public BookingDtos.Response reschedule(@PathVariable Long id, @Valid @RequestBody BookingDtos.Reschedule body) {
+    public BookingDtos.Response reschedule(@PathVariable Long id, @Valid @RequestBody BookingDtos.Reschedule body, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         return service.reschedule(id, body);
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/restore")
-    public BookingDtos.Response restore(@PathVariable Long id) {
+    public BookingDtos.Response restore(@PathVariable Long id, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         return service.setStatus(id, BookingStatus.PENDING, null);
     }
 
     /** Send the customer a note without changing anything. */
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @PostMapping("/{id}/message")
-    public ResponseEntity<Void> message(@PathVariable Long id, @Valid @RequestBody BookingDtos.EmailRequest email) {
+    public ResponseEntity<Void> message(@PathVariable Long id, @Valid @RequestBody BookingDtos.EmailRequest email, java.security.Principal me) {
+        access.requireMayRun(me, service.get(id));
         service.message(id, email);
         return ResponseEntity.accepted().build();
     }

@@ -118,3 +118,7 @@
 .move-send { grid-column: 1 / -1; align-self: start; }
 .move-wide { grid-column: 1 / -1; }
 .move-body { font-size: 14px; line-height: 1.55; min-height: 150px; border-radius: 18px; }
+
+.hours-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hours-for { min-width: 260px; }
+.hours-for select.input { min-height: 36px; font-size: 13.5px; }

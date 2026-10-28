@@ -80,8 +80,20 @@ test.describe('team, roles and passwords', () => {
     await page.goto('/studio/sessions');
     await page.getByRole('tab', { name: /Delivered \(1\)/ }).click();
     await expect(page.locator('.req', { hasText: 'Taylor Reyes' })).toBeVisible();
-    // No admin actions on it
-    await expect(page.getByRole('button', { name: 'Email customer…' })).toHaveCount(0);
+    // As lead, Sam runs the session: the email action is there (the Delivered card's resend is lead-or-admin)
+    await expect(page.getByRole('button', { name: 'Email customer…' })).toBeVisible();
+    await expect(page.locator('.tab-hint')).toContainText('As lead you run the session');
+    // …and can set their own hours but sees nobody else's
+    await page.goto('/studio/calendar');
+    await page.getByRole('button', { name: 'My hours' }).click();
+    await expect(page.locator('.hours-for')).toHaveCount(0);
+    await expect(page.locator('.panel-hint').first()).toContainText('Sam follows the studio');
+    await page.locator('.hour-row', { hasText: 'Mon' }).getByRole('checkbox').uncheck();
+    await page.getByRole('button', { name: 'Save hours' }).click();
+    await expect(page.locator('.panel-msg')).toContainText('Sam now has their own hours');
+    page.once('dialog', (d) => d.accept());
+    await page.getByRole('button', { name: 'Use studio hours' }).click();
+    await expect(page.locator('.panel-msg')).toContainText("follows the studio's hours");
   });
 
   test('forgot password: the emailed link sets a new one and signs Sam in', async ({ page, request }) => {

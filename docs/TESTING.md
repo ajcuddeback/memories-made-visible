@@ -37,8 +37,8 @@ What happens on `npm test`:
 | `03-sessions` | Approve with the reviewed email (price and photographer in it); decline/restore; shot → editing → proofing → delivered with link and final price; Overview revenue. |
 | `04-pricing-publish` | Edit a package, Save (draft, not live), Publish (live, booking page follows), Discard. |
 | `05-calendar` | Block a morning through the styled pickers and see the slots vanish; the block on the day view and its removal; closing a weekday in booking hours. |
-| `06-team` | Owner/admin full nav; add an employee → invite email with temporary password → forced password change; reduced studio and 403s; assign as lead → email → employee sees only that session; forgot-password link; deactivate/reactivate; admin can't touch the owner. |
-| `07-photographers` | No step until someone is bookable; per-person block affects only them; "no preference"; request assigned to the chosen photographer; hand-off to a busy person refused; unflagging restores the single calendar. |
+| `06-team` | Owner/admin full nav; add an employee → invite email with temporary password → forced password change; reduced studio and 403s; assign as lead → email → employee sees only that session and can run it (email action, own hours); forgot-password link; deactivate/reactivate; admin can't touch the owner. |
+| `07-photographers` | No step until someone is bookable; per-person block affects only them; "no preference"; request assigned to the chosen photographer; a person's own booking hours apply only to them; hand-off to a busy person refused; unflagging restores the single calendar. |
 | `08-insights` | A visit shows up as visitors, pages and the booking funnel; employees get 403. |
 | `09-mobile` | iPhone-sized viewport: every public and studio page has no horizontal overflow; the phone calendar and account menu work. |
 

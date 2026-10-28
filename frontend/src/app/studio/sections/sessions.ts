@@ -51,7 +51,12 @@ const ACTION_LABEL: Record<EmailAction, { title: string; button: string }> = {
 })
 export class SessionsSection {
   readonly store = inject(AdminStore);
-  readonly canManage = inject(AuthService).canManage;
+  private readonly auth = inject(AuthService);
+  readonly canManage = this.auth.canManage;
+  /** Owner/admin, or the session's lead photographer: may quote, approve, decline, email, deliver. */
+  canRun(r: { lead: string | null }): boolean {
+    return this.canManage() || (!!r.lead && r.lead.toLowerCase() === (this.auth.user()?.name ?? '').toLowerCase());
+  }
   /** Active staff who can be put on a session (loaded for owner/admin only). */
   readonly staff = signal<TeamMember[]>([]);
   /** Which card has its assignment picker open. */

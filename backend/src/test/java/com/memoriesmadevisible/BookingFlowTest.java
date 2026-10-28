@@ -728,6 +728,28 @@ class BookingFlowTest {
         Thread.sleep(400);
         verify(mailSender, org.mockito.Mockito.atLeastOnce()).send(sent.capture());
         assertThat(bySubject(sent, "You're on ")).isNotNull();
+        // As lead, Sam may run the session (quote, approve with no email); as second, Sam may not.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/bookings/" + someId + "/quote")
+                        .header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON).content("{\"quote\":180}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.quote").value(180));
+        mvc.perform(post("/api/admin/bookings/" + someId + "/approve").header("Authorization", sam2)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"sendEmail\":false}"))
+                .andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + otherId + "/assignees")
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{\"lead\":\"Erica\",\"second\":\"Sam\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/admin/bookings/" + otherId + "/quote")
+                        .header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON).content("{\"quote\":1}"))
+                .andExpect(status().isForbidden());
+        // An employee may edit their own week but nobody else's.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/availability/week").param("staff", "Sam")
+                        .header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON).content("[{\"weekday\":1,\"open\":false,\"start\":\"07:00\",\"end\":\"18:00\"}]"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.custom").value(true));
+        mvc.perform(get("/api/admin/availability/week").param("staff", "Erica").header("Authorization", sam2)).andExpect(status().isForbidden());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/bookings/" + otherId + "/assignees")
+                        .header("Authorization", admin).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk());
+
         // Sam can't start a gallery on a session they're not on.
         mvc.perform(post("/api/admin/galleries").header("Authorization", sam2).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"bookingId\":" + otherId + "}"))
@@ -820,6 +842,26 @@ class BookingFlowTest {
                 .andExpect(status().isCreated());
         mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Solo").param("photographer", "Austin"))
                 .andExpect(jsonPath("$[0].slots[?(@.start=='16:00')]").isEmpty());
+
+        // Per-person hours: Erica only works 13:00–18:00 that weekday → her 12:30 start is gone, Austin's isn't,
+        // and a hand-crafted request for Erica at 12:30 is refused. Clearing her week restores the studio's.
+        int wd = day.getDayOfWeek().getValue() % 7;
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/availability/week").param("staff", "Erica")
+                        .header("Authorization", owner).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"weekday\":" + wd + ",\"open\":true,\"start\":\"13:00\",\"end\":\"18:00\"}]"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.custom").value(true)).andExpect(jsonPath("$.staffName").value("Erica"));
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Solo").param("photographer", "Erica"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='12:30')]").isEmpty())
+                .andExpect(jsonPath("$[0].slots[?(@.start=='13:00')]").isNotEmpty());
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Solo").param("photographer", "Austin"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='12:30')]").isNotEmpty());
+        mvc.perform(post("/api/bookings").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("sessionType", "families", "packageName", "Solo", "name", "Early Bird", "email", "early@example.com", "date", d, "time", "12:30", "photographer", "Erica"))))
+                .andExpect(status().isConflict());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/admin/availability/week").param("staff", "Erica").header("Authorization", owner))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.custom").value(false));
+        mvc.perform(get("/api/availability").param("from", d).param("to", d).param("type", "families").param("package", "Solo").param("photographer", "Erica"))
+                .andExpect(jsonPath("$[0].slots[?(@.start=='12:30')]").isNotEmpty());
 
         // Tidy: unflag both so the other tests see a single-capacity studio again.
         for (String n : List.of("Erica", "Austin")) {
