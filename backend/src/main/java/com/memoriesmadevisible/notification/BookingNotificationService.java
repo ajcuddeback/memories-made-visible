@@ -130,9 +130,14 @@ public class BookingNotificationService {
         h.setTo(to);
         if (replyTo != null && !replyTo.isBlank()) h.setReplyTo(replyTo);
         if (bcc != null && !bcc.isBlank()) h.setBcc(bcc);
-        h.setSubject(subject);
+        h.setSubject(headerSafe(subject));
         h.setText(r.text(), r.html());
         mail.send(msg);
+    }
+
+    /** Header values are one line: strip CR/LF and other control characters from anything customer- or admin-typed. */
+    static String headerSafe(String s) {
+        return s == null ? "" : s.replaceAll("[\\p{Cntrl}]+", " ").strip();
     }
 
     private String customerSender() {

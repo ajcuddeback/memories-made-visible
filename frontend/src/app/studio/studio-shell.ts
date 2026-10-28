@@ -78,8 +78,9 @@ export class StudioShell {
     });
     // Fetch fresh studio data every time the admin opens (sign-in or return from the site);
     // the store is only a cache of API responses, never a source of data.
+    // A temporary password only unlocks the password screen, so wait until a real one is set.
     effect(() => {
-      if (this.auth.isLoggedIn()) {
+      if (this.auth.isLoggedIn() && !this.auth.mustChangePassword()) {
         this.store.load(this.auth.canManage());
       } else {
         this.store.reset();

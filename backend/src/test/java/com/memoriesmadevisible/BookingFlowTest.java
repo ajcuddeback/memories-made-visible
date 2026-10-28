@@ -692,18 +692,23 @@ class BookingFlowTest {
                         .content(json.writeValueAsString(Map.of("name", "Sam", "password", temp))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.user.mustChangePassword").value(true))
                 .andReturn().getResponse().getContentAsString());
-        String sam = "Bearer " + samLogin.get("token").asText();
+        String samTemp = "Bearer " + samLogin.get("token").asText();
+        // Until the temporary password is replaced, nothing but "me" and "change password" is open.
+        mvc.perform(get("/api/admin/auth/me").header("Authorization", samTemp)).andExpect(status().isOk());
+        mvc.perform(get("/api/admin/bookings").header("Authorization", samTemp)).andExpect(status().isForbidden());
+
+        // Sam sets a real password; the temporary one stops working and a fresh token comes back.
+        var samChanged = json.readTree(mvc.perform(post("/api/admin/auth/password").header("Authorization", samTemp).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("current", temp, "next", "sams-new-password"))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.user.mustChangePassword").value(false))
+                .andReturn().getResponse().getContentAsString());
+        String sam = "Bearer " + samChanged.get("token").asText();
         mvc.perform(get("/api/admin/bookings").header("Authorization", sam)).andExpect(status().isOk());
         mvc.perform(get("/api/admin/availability/blocks").header("Authorization", sam)).andExpect(status().isOk());
         mvc.perform(get("/api/admin/pricing").header("Authorization", sam)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/analytics").header("Authorization", sam)).andExpect(status().isForbidden());
         mvc.perform(get("/api/admin/users").header("Authorization", sam)).andExpect(status().isForbidden());
         mvc.perform(post("/api/admin/publish").header("Authorization", sam)).andExpect(status().isForbidden());
-
-        // Sam sets a real password; the temporary one stops working.
-        mvc.perform(post("/api/admin/auth/password").header("Authorization", sam).contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("current", temp, "next", "sams-new-password"))))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.mustChangePassword").value(false));
         mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("name", "Sam", "password", temp))))
                 .andExpect(status().isUnauthorized());

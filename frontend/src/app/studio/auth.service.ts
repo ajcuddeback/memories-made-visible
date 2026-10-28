@@ -49,10 +49,9 @@ export class AuthService {
     try { sessionStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ }
   }
 
+  /** Changing the password revokes every token issued before it; the API hands back a fresh one for this session. */
   changePassword(current: string, next: string) {
-    return this.http.post<AdminUser>('/api/admin/auth/password', { current, next }).pipe(
-      tap((u) => { const s = this.session(); if (s) this.store({ token: s.token, expiresInSeconds: (s.expiresAt - Date.now()) / 1000, user: u }); }),
-    );
+    return this.http.post<LoginResponse>('/api/admin/auth/password', { current, next }).pipe(tap((res) => this.store(res)));
   }
   forgot(email: string) { return this.http.post<void>('/api/admin/auth/forgot', { email }); }
   /** Finish a reset from the emailed link; signs the person in. */

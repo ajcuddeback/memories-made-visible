@@ -82,7 +82,10 @@ public class AuthController {
         return summary(users.findByNameIgnoreCase(principal.getName()).orElseThrow());
     }
 
-    /** Change your own password (also how a temporary password is replaced at first sign-in). */
+    /**
+     * Change your own password (also how a temporary password is replaced at first sign-in). Every token issued
+     * against the old password stops working, so the response carries a fresh one for this session.
+     */
     @PostMapping("/password")
     public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePassword body, Principal principal) {
         var user = users.findByNameIgnoreCase(principal.getName()).orElseThrow();
@@ -96,7 +99,7 @@ public class AuthController {
         user.setMustChangePassword(false);
         user.setReset(null, null);
         users.save(user);
-        return ResponseEntity.ok(summary(user));
+        return ResponseEntity.ok(new LoginResponse(jwt.issue(user), jwt.ttlSeconds(), summary(user)));
     }
 
     /** Public: email a reset link. Always answers 204 so the form can't be used to find out who has an account. */

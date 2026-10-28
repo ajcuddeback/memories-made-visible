@@ -40,11 +40,13 @@ public class RateLimiter {
         return w.count <= max;
     }
 
+    /**
+     * The address to count against. Never read from X-Forwarded-For here: anyone can send that header and pick a
+     * fresh bucket per request. {@code server.forward-headers-strategy=native} already resolves the real client
+     * address through trusted (private-network) proxies such as the bundled nginx; a proxy on a public address
+     * needs listing in {@code server.tomcat.remoteip.trusted-proxies} for the limiter to see individual clients.
+     */
     public static String clientKey(HttpServletRequest request) {
-        String fwd = request.getHeader("X-Forwarded-For");
-        if (fwd != null && !fwd.isBlank()) {
-            return fwd.split(",")[0].trim();
-        }
         return request.getRemoteAddr();
     }
 }
