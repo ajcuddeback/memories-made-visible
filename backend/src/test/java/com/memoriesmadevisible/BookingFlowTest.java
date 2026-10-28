@@ -362,6 +362,37 @@ class BookingFlowTest {
     }
 
     @Test
+    void discardClearsUnpublishedChangesEvenAgainstAnOlderSnapshot() throws Exception {
+        String auth = token("Austin", "test-pass");
+        // Start clean.
+        mvc.perform(post("/api/admin/publish").header("Authorization", auth)).andExpect(jsonPath("$.dirty").value(false));
+        // Rewrite the published pricing in the shape an older version stored it: no lengths, models, hour ranges or add-ons.
+        var row = snapshots.findById("pricing").orElseThrow();
+        var stripped = json.readTree(row.getPayload());
+        for (var type : stripped) {
+            ((com.fasterxml.jackson.databind.node.ObjectNode) type).remove("durationMinutes");
+            for (var tier : type.get("tiers")) for (String f : List.of("durationMinutes", "pricingModel", "minHours", "maxHours", "addons"))
+                ((com.fasterxml.jackson.databind.node.ObjectNode) tier).remove(f);
+        }
+        row.setPayload(stripped.toString());
+        snapshots.save(row);
+        // After an edit + Discard the banner must clear, not stay stuck until a Publish (the draft is rebuilt from
+        // the old snapshot with today's defaults filled in, and the comparison fills them in the same way).
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/admin/pricing")
+                        .header("Authorization", auth).contentType(MediaType.APPLICATION_JSON)
+                        .content("[{\"key\":\"couples\",\"name\":\"Couples\",\"description\":\"x\",\"from\":\"$1\",\"showInPortfolio\":true,\"tiers\":[]}]"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/admin/publish").header("Authorization", auth)).andExpect(jsonPath("$.changes.pricing").value(true));
+        mvc.perform(post("/api/admin/publish/discard").header("Authorization", auth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.changes.pricing").value(false)).andExpect(jsonPath("$.dirty").value(false));
+        mvc.perform(get("/api/admin/pricing").header("Authorization", auth))
+                .andExpect(jsonPath("$[?(@.key=='couples')].tiers.length()").value(2)); // the draft is back to what's live
+        // Tidy: the old snapshot carried no package lengths, so put the launch list back and publish it for the other tests.
+        mvc.perform(post("/api/admin/pricing/reset").header("Authorization", auth)).andExpect(status().isOk());
+        mvc.perform(post("/api/admin/publish").header("Authorization", auth)).andExpect(jsonPath("$.changes.pricing").value(false));
+    }
+
+    @Test
     void availabilityDrivesSlotsAndBlocksDoubleBooking() throws Exception {
         var res = mvc.perform(post("/api/admin/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Austin\",\"password\":\"test-pass\"}"))

@@ -92,7 +92,8 @@ public class PricingTier {
     public int getMinHours() { return minHours; }
     public int getMaxHours() { return maxHours; }
     public void setHourRange(Integer min, Integer max) {
-        int lo = min == null || min < 1 ? 1 : Math.min(min, 12);
+        // Defaults match PricingDtos.Tier.normalized() so a restored snapshot compares equal to its draft.
+        int lo = min == null ? 2 : Math.max(1, Math.min(min, 12));
         int hi = max == null || max < lo ? Math.max(lo, 8) : Math.min(max, 12);
         this.minHours = lo;
         this.maxHours = hi;

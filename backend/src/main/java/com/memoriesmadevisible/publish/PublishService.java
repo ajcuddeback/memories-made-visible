@@ -38,6 +38,7 @@ import java.util.TreeMap;
  * galleries are operational data, not site content, so they are not staged.
  */
 @Service
+@SuppressWarnings("unchecked")
 public class PublishService {
 
     private static final Logger log = LoggerFactory.getLogger(PublishService.class);
@@ -139,7 +140,7 @@ public class PublishService {
     public Status publish() {
         Set<String> previouslyLive = publishedPhotoKeys();
         var draftPhotos = draftPhotos();
-        write(PRICING, pricing.list());
+        write(PRICING, pricing.list().stream().map(PricingDtos.SessionTypeView::normalized).toList());
         write(EVENTS, draftEvents());
         write(PHOTOS, draftPhotos);
         // Objects the old snapshot used that nothing references any more.
@@ -224,8 +225,27 @@ public class PublishService {
         }
     }
 
+    /**
+     * Does the draft differ from what's published? Both sides are parsed and re-serialized through the
+     * current DTOs, so a snapshot written by an older version (missing fields that now have defaults)
+     * compares equal once the draft matches it in substance — otherwise "Unpublished changes" could never clear.
+     */
     private boolean differs(String kind, Object draft) {
-        return snapshots.findById(kind).map(s -> !s.getPayload().equals(serialize(draft))).orElse(true);
+        var row = snapshots.findById(kind).orElse(null);
+        if (row == null) return true;
+        try {
+            Object published = switch (kind) {
+                case PRICING -> json.readValue(row.getPayload(), PRICING_T).stream().map(PricingDtos.SessionTypeView::normalized).toList();
+                case EVENTS -> json.readValue(row.getPayload(), EVENTS_T);
+                default -> json.readValue(row.getPayload(), PHOTOS_T);
+            };
+            Object current = PRICING.equals(kind)
+                    ? ((List<PricingDtos.SessionTypeView>) draft).stream().map(PricingDtos.SessionTypeView::normalized).toList()
+                    : draft;
+            return !serialize(published).equals(serialize(current));
+        } catch (java.io.IOException e) {
+            return true;
+        }
     }
 
     private String serialize(Object value) {
