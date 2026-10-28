@@ -26,18 +26,21 @@ public class BookingService {
     private final AvailabilityService availability;
     private final com.memoriesmadevisible.auth.AdminUserRepository staff;
     private final String siteUrl;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
     /** Who leads a session when no photographer was chosen (app.default-photographer). */
     private final String defaultPhotographer;
 
     public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
                           PublishService publish, AvailabilityService availability,
-                          com.memoriesmadevisible.auth.AdminUserRepository staff, AppProperties props) {
+                          com.memoriesmadevisible.auth.AdminUserRepository staff, AppProperties props,
+                          com.memoriesmadevisible.common.StudioMetrics metrics) {
         this.staff = staff;
         this.defaultPhotographer = props.defaultPhotographer() == null || props.defaultPhotographer().isBlank() ? null : props.defaultPhotographer().strip();
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
         this.publish = publish;
+        this.metrics = metrics;
         this.availability = availability;
         this.siteUrl = props.notifications().siteUrl() == null ? "" : props.notifications().siteUrl().replaceAll("/+$", "");
     }
@@ -117,6 +120,7 @@ public class BookingService {
         b.setQuote(quote);
         b = bookings.save(b);
 
+        metrics.bookingRequested();
         notifications.notifyNewRequest(b, type.name());
         return toResponse(b);
     }
@@ -200,6 +204,7 @@ public class BookingService {
         }
         b.setStatus(status);
         b = bookings.save(b);
+        if (previous != status) metrics.bookingStatus(status);
         var action = previous == status ? null : BookingEmailDrafts.actionFor(previous, status);
         if (action != null && (email == null || email.shouldSend())) {
             String typeName = typeName(b);
@@ -260,6 +265,7 @@ public class BookingService {
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
         b = bookings.save(b);
+        metrics.bookingRescheduled();
         if (r.shouldSend()) {
             String typeName = typeName(b);
             var dflt = BookingEmailDrafts.reschedule(r.reason(), b, typeName, oldDate, oldTime);

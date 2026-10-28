@@ -17,21 +17,27 @@ public class AnalyticsController {
 
     private final AnalyticsService analytics;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
     private final RateLimiter limiter = new RateLimiter(300, Duration.ofMinutes(15));
     /** A full batch (50 events) is well under 20 KB; anything bigger isn't the site talking. */
     static final int MAX_BODY_BYTES = 64 * 1024;
 
-    public AnalyticsController(AnalyticsService analytics, com.fasterxml.jackson.databind.ObjectMapper json) {
+    public AnalyticsController(AnalyticsService analytics, com.fasterxml.jackson.databind.ObjectMapper json,
+                               com.memoriesmadevisible.common.StudioMetrics metrics) {
         this.analytics = analytics;
         this.json = json;
+        this.metrics = metrics;
     }
 
     /** Bodies arrive as application/json (fetch) or text/plain (sendBeacon on page leave); both are the same JSON. */
     @PostMapping(consumes = {"application/json", "text/plain"})
     public ResponseEntity<Void> record(@RequestBody String raw, HttpServletRequest http) {
-        if (raw != null && raw.length() <= MAX_BODY_BYTES && limiter.tryAcquire(RateLimiter.clientKey(http))) {
+        if (raw == null || raw.length() > MAX_BODY_BYTES) return ResponseEntity.noContent().build();
+        if (!limiter.tryAcquire(RateLimiter.clientKey(http))) {
+            metrics.rateLimited("analytics");
+        } else {
             try {
-                analytics.record(json.readValue(raw, AnalyticsDtos.Batch.class));
+                metrics.analyticsEvents(analytics.record(json.readValue(raw, AnalyticsDtos.Batch.class)));
             } catch (Exception ignored) {
                 // malformed or oversized: drop it; analytics never surfaces errors to visitors
             }

@@ -25,9 +25,11 @@ public class BookingNotificationService {
 
     private final JavaMailSender mail;
     private final AppProperties.Notifications cfg;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
 
-    public BookingNotificationService(JavaMailSender mail, AppProperties props) {
+    public BookingNotificationService(JavaMailSender mail, AppProperties props, com.memoriesmadevisible.common.StudioMetrics metrics) {
         this.mail = mail;
+        this.metrics = metrics;
         this.cfg = props.notifications();
     }
 
@@ -61,7 +63,9 @@ public class BookingNotificationService {
             send(cfg.from(), studioInbox(), b.getEmail(), null,
                     "New session request: " + sessionTypeName + " · " + b.getName(), r);
             log.info("Booking #{} notification sent to {}", b.getId(), cfg.to());
+            metrics.email("studio", true);
         } catch (Exception e) {
+            metrics.email("studio", false);
             log.error("Failed to send booking notification for #{}", b.getId(), e);
         }
 
@@ -79,7 +83,9 @@ public class BookingNotificationService {
                         "Reply to this email any time if you have questions.");
                 send(customerSender(), new String[]{b.getEmail()}, studioInbox()[0], null,
                         "We received your session request — Memories Made Visible", r);
+                metrics.email("customer", true);
             } catch (Exception e) {
+                metrics.email("customer", false);
                 log.error("Failed to send customer acknowledgement for #{}", b.getId(), e);
             }
         }
@@ -104,7 +110,9 @@ public class BookingNotificationService {
                     ctaLabel, ctaUrl, ctaUrl == null ? null : "If the button doesn't work, copy this link: " + ctaUrl);
             send(customerSender(), new String[]{b.getEmail()}, studioInbox()[0], studioInbox()[0], subject, r);
             log.info("Email \"{}\" sent to {} for booking #{}", subject, b.getEmail(), b.getId());
+            metrics.email("customer", true);
         } catch (Exception e) {
+            metrics.email("customer", false);
             log.error("Failed to send email \"{}\" for booking #{}", subject, b.getId(), e);
         }
     }
@@ -117,7 +125,9 @@ public class BookingNotificationService {
             var r = EmailTemplates.render(siteUrl(), subject, body, List.of(), ctaLabel, ctaUrl, null);
             send(cfg.from(), new String[]{to}, null, null, subject, r);
             log.info("Staff email \"{}\" sent to {}", subject, to);
+            metrics.email("staff", true);
         } catch (Exception e) {
+            metrics.email("staff", false);
             log.error("Failed to send staff email \"{}\" to {}", subject, to, e);
         }
     }

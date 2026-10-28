@@ -8,5 +8,6 @@ import java.util.List;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllByOrderByDateAscTimeAsc();
     long countByStatus(BookingStatus status);
+    long countByStatusAndDateGreaterThanEqual(BookingStatus status, LocalDate date);
     List<Booking> findAllByDateBetweenAndStatusNot(LocalDate from, LocalDate to, BookingStatus status);
 }

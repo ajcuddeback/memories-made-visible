@@ -24,7 +24,7 @@ export default defineConfig({
   webServer: [
     {
       command: 'bash scripts/run-backend.sh',
-      url: 'http://localhost:8080/actuator/health',
+      url: 'http://localhost:8080/readyz',
       timeout: 240_000,
       reuseExistingServer: false,
       stdout: 'ignore',

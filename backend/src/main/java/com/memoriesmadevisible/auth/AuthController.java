@@ -33,12 +33,15 @@ public class AuthController {
     private final String siteUrl;
     /** Sign-in attempts per client per 10 minutes (app.login-rate-limit; tests raise it). */
     private final RateLimiter loginLimiter;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
     private final RateLimiter forgotLimiter = new RateLimiter(5, Duration.ofMinutes(15));
 
     public AuthController(AdminUserRepository users, PasswordEncoder encoder, JwtService jwt, BookingNotificationService mail,
                           com.memoriesmadevisible.config.AppProperties props,
-                          @org.springframework.beans.factory.annotation.Value("${app.login-rate-limit:10}") int loginLimit) {
+                          @org.springframework.beans.factory.annotation.Value("${app.login-rate-limit:10}") int loginLimit,
+                          com.memoriesmadevisible.common.StudioMetrics metrics) {
         this.loginLimiter = new RateLimiter(loginLimit, Duration.ofMinutes(10));
+        this.metrics = metrics;
         this.users = users;
         this.encoder = encoder;
         this.jwt = jwt;
@@ -66,14 +69,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
         if (!loginLimiter.tryAcquire(RateLimiter.clientKey(http))) {
+            metrics.rateLimited("login");
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Too many sign-in attempts. Try again in a few minutes."));
         }
         var user = users.findByNameIgnoreCase(req.name()).orElse(null);
         if (user == null || !user.isActive() || !encoder.matches(req.password(), user.getPasswordHash())) {
+            metrics.login(false);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "That password doesn't match."));
         }
+        metrics.login(true);
         return ResponseEntity.ok(new LoginResponse(jwt.issue(user), jwt.ttlSeconds(), summary(user)));
     }
 
@@ -105,7 +111,9 @@ public class AuthController {
     /** Public: email a reset link. Always answers 204 so the form can't be used to find out who has an account. */
     @PostMapping("/forgot")
     public ResponseEntity<Void> forgot(@Valid @RequestBody Forgot body, HttpServletRequest http) {
-        if (forgotLimiter.tryAcquire(RateLimiter.clientKey(http))) {
+        if (!forgotLimiter.tryAcquire(RateLimiter.clientKey(http))) {
+            metrics.rateLimited("forgot");
+        } else {
             users.findByEmailIgnoreCase(body.email().strip()).filter(AdminUser::isActive).ifPresent(user -> {
                 String token = Passwords.token();
                 user.setReset(token, Instant.now().plus(Duration.ofHours(2)));

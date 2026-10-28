@@ -41,10 +41,31 @@ server:
     enabled: true
 
 management:
+  # Health and Prometheus metrics live on their own port so nginx never exposes them. Prometheus on the same box
+  # scrapes http://127.0.0.1:9091/actuator/prometheus (see docs/DEPLOYMENT.md → Metrics).
+  server:
+    port: ${MANAGEMENT_PORT:9091}
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        # Also answer /livez and /readyz on the API port itself, for the container healthcheck and hosts that
+        # only reach one port (Railway). Readiness includes the database.
+        enabled: true
+        add-additional-paths: true
+      group:
+        readiness:
+          include: readinessState,db
+  metrics:
+    tags:
+      application: mmv
+    distribution:
+      # Histogram buckets so Grafana can plot p50/p95/p99 request latency.
+      percentiles-histogram:
+        http.server.requests: true
   health:
     # A slow SMTP server shouldn't take the whole app out of the load balancer.
     mail:

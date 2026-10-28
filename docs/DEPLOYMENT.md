@@ -2,10 +2,11 @@
 
 Step-by-step from "nothing" to a live site. Two hosting shapes are covered; pick one.
 
-- **A. One small VPS with Docker Compose** — cheapest, fully under your control, ~$6–12/mo.
+- **A. One small VPS with Docker Compose** — cheapest, fully under your control, ~$6–12/mo (or a server you already have).
 - **B. Managed platform (Railway)** — no server to maintain, ~$10–20/mo.
 
-Both use the same images, the same env vars, real S3 and your Namecheap mailbox. Do the **shared setup** first.
+Both use the same images, the same env vars, S3-compatible photo storage (AWS, or self-hosted MinIO, see 2b) and your
+Namecheap mailbox. Do the **shared setup** first.
 
 ---
 
@@ -40,6 +41,40 @@ You'll point the domain at the host in the last step. For now, note that the sit
    - **CloudFront (recommended)**: create a distribution with the bucket as origin (Origin Access Control), then set
      `S3_PUBLIC_BASE_URL=https://<your-distribution>.cloudfront.net`. Fast, cached, HTTPS, no public bucket.
    - **No CDN**: leave `S3_PUBLIC_BASE_URL` blank. The API hands out 12-hour presigned URLs. Works, slightly slower.
+
+### 2b. Photos without AWS (self-hosted MinIO)
+
+If an AWS account isn't an option, the server can hold the photos itself. MinIO speaks the S3 API, so the
+backend code path is identical to AWS; only the endpoint changes. It is built into the production compose file
+behind a profile:
+
+1. In `.env` set `MINIO_ROOT_USER=mmv`, `MINIO_ROOT_PASSWORD=<generated>` and point the backend at it:
+   ```
+   S3_ENDPOINT=http://storage:9000
+   S3_PATH_STYLE=true
+   S3_BUCKET=mmv-photos
+   AWS_ACCESS_KEY_ID=mmv                 # same as MINIO_ROOT_USER
+   AWS_SECRET_ACCESS_KEY=<MINIO_ROOT_PASSWORD>
+   S3_PUBLIC_BASE_URL=https://www.memoriesmadevisible.com/photos/mmv-photos
+   ```
+2. Start with the profile: `docker compose -f docker-compose.prod.yml --profile storage up -d`.
+   `storage-init` creates the bucket and makes it readable without a key (uploads still need one).
+3. Serve the photos through your TLS proxy so visitors get HTTPS and caching. MinIO listens on loopback `:9000`
+   only. nginx:
+   ```nginx
+   location /photos/ {
+       proxy_pass         http://127.0.0.1:9000/;
+       proxy_set_header   Host $host;
+       proxy_hide_header  x-amz-request-id;
+       expires            30d;
+       add_header         Cache-Control "public";
+   }
+   ```
+   Caddy: `handle_path /photos/* { reverse_proxy localhost:9000 }`.
+4. Back up the `photos` volume with the database (`docker run --rm -v mmv_photos:/data -v $PWD:/out alpine tar czf /out/photos-$(date +%F).tgz /data`).
+
+Everything else (upload, resize, publish, delete of unpublished objects) works unchanged. Moving to AWS S3 or
+Cloudflare R2 later is a matter of copying the bucket with `mc mirror` and changing the four variables.
 
 ### 3. Email (Namecheap Private Email)
 
@@ -150,10 +185,51 @@ Works on any Ubuntu box (DigitalOcean/Hetzner/Lightsail, 1 vCPU / 2 GB is plenty
 3. **Frontend service** → Docker image `…-frontend:1.0.0`. Variables: `BACKEND_URL=http://backend.railway.internal:8080`.
    Generate a public domain, then add the custom domain `www.memoriesmadevisible.com` and create the CNAME Railway
    shows you in Namecheap. Railway handles TLS.
-4. Health checks: backend `/actuator/health`, frontend `/healthz`.
+4. Health checks: backend `/readyz`, frontend `/healthz`.
 5. Updating: change the image tag on each service (or point both at `:main` for auto-deploys from CI).
 
 ---
+
+## Metrics (Prometheus + Grafana)
+
+The backend publishes Prometheus metrics at `/actuator/prometheus` on a separate **management port** (`9091`,
+`MANAGEMENT_PORT`). The compose file binds it to loopback only, so it is never reachable from the internet and
+needs no auth. The API port (`8080`) serves only `/livez` and `/readyz` for health.
+
+**Prometheus** on the same box:
+```yaml
+scrape_configs:
+  - job_name: mmv-backend
+    scrape_interval: 30s
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9091"]
+```
+If Prometheus runs in a container, use `host.docker.internal:9091` (add `extra_hosts: ["host.docker.internal:host-gateway"]`),
+or attach it to the compose network and target `backend:9091`.
+
+**Grafana**: import `docs/grafana/mmv-backend.json` (Dashboards → New → Import) and pick your Prometheus data source.
+It shows traffic and latency, errors, the booking funnel, email delivery, sign-ins, rate limiting, JVM memory and
+the DB pool. Every metric is tagged `application="mmv"`.
+
+The studio's own metrics (all prefixed `mmv_`), alongside the standard JVM, Tomcat, HikariCP and HTTP ones:
+
+| Metric | Type | Labels | Meaning |
+| --- | --- | --- | --- |
+| `mmv_bookings_pending` | gauge | | Requests waiting for a decision |
+| `mmv_bookings_upcoming` | gauge | | Confirmed sessions from today on |
+| `mmv_booking_requests_total` | counter | | Requests submitted from the website |
+| `mmv_booking_status_changes_total` | counter | `to=confirmed/declined/pending` | Decisions made in the studio |
+| `mmv_booking_reschedules_total` | counter | | Sessions moved |
+| `mmv_gallery_deliveries_total` | counter | | Galleries delivered |
+| `mmv_emails_total` | counter | `kind=studio/customer/staff`, `outcome=sent/failed` | Email attempts; alert on `failed` |
+| `mmv_logins_total` | counter | `outcome=ok/failed` | Studio sign-ins; a burst of `failed` is someone guessing |
+| `mmv_rate_limited_total` | counter | `limiter=booking/login/forgot/analytics` | Requests refused by a limiter |
+| `mmv_site_publishes_total`, `mmv_site_discards_total` | counter | | Publish / Discard clicks |
+| `mmv_analytics_events_total` | counter | | Visitor events accepted into Insights |
+
+Useful alerts: `increase(mmv_emails_total{outcome="failed"}[1h]) > 0`, `mmv_bookings_pending > 0 for 2d`,
+`rate(http_server_requests_seconds_count{status=~"5.."}[5m]) > 0`, and `up{job="mmv-backend"} == 0`.
 
 ## Go-live checklist
 

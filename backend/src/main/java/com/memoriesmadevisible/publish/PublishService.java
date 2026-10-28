@@ -63,11 +63,13 @@ public class PublishService {
     private final SitePhotoRepository photos;
     private final PhotoStorage storage;
     private final com.memoriesmadevisible.common.StudioClock clock;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
 
     public PublishService(PublishedSiteRepository snapshots, ObjectMapper json, PricingService pricing,
                           PopupEventRepository events, SitePhotoRepository photos, PhotoStorage storage,
-                          com.memoriesmadevisible.common.StudioClock clock) {
+                          com.memoriesmadevisible.common.StudioClock clock, com.memoriesmadevisible.common.StudioMetrics metrics) {
         this.clock = clock;
+        this.metrics = metrics;
         this.snapshots = snapshots;
         this.json = json;
         this.pricing = pricing;
@@ -147,6 +149,7 @@ public class PublishService {
         Set<String> stillUsed = new HashSet<>();
         draftPhotos.values().forEach(r -> stillUsed.add(r.key()));
         previouslyLive.stream().filter(k -> !stillUsed.contains(k)).forEach(this::safeDelete);
+        metrics.sitePublished();
         return status();
     }
 
@@ -156,6 +159,7 @@ public class PublishService {
         read(PRICING, PRICING_T).ifPresent(pricing::restore);
         read(EVENTS, EVENTS_T).ifPresent(this::restoreEvents);
         read(PHOTOS, PHOTOS_T).ifPresent(this::restorePhotos);
+        metrics.siteDiscarded();
         return status();
     }
 

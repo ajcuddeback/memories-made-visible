@@ -96,7 +96,7 @@ Both apps ship a multi-stage `Dockerfile`:
 
 | Image | Base | Serves |
 | --- | --- | --- |
-| `backend/Dockerfile` | Temurin 21 JRE (alpine), non-root, layered Spring Boot jar | API on `:8080`, health at `/actuator/health` |
+| `backend/Dockerfile` | Temurin 21 JRE (alpine), non-root, layered Spring Boot jar | API on `:8080`, health at `/readyz`; metrics on `:9091/actuator/prometheus` |
 | `frontend/Dockerfile` | nginx-unprivileged (alpine) | Angular build on `:8080`, SPA fallback, `/api/*` proxied to `BACKEND_URL` |
 
 **Single host with Compose** (site + API + Postgres; photos on S3, mail via your SMTP provider):

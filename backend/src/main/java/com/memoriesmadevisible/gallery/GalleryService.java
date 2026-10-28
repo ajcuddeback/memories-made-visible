@@ -19,6 +19,8 @@ import java.time.Instant;
 @Service
 public class GalleryService {
 
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
+
     private final GalleryRepository galleries;
     private final BookingRepository bookings;
     private final BookingService bookingService;
@@ -27,7 +29,9 @@ public class GalleryService {
     private final String siteUrl;
 
     public GalleryService(GalleryRepository galleries, BookingRepository bookings, BookingService bookingService,
-                          PricingService pricing, BookingNotificationService notifications, AppProperties props) {
+                          PricingService pricing, BookingNotificationService notifications, AppProperties props,
+                          com.memoriesmadevisible.common.StudioMetrics metrics) {
+        this.metrics = metrics;
         this.galleries = galleries;
         this.bookings = bookings;
         this.bookingService = bookingService;
@@ -61,6 +65,7 @@ public class GalleryService {
         g.setStage(Gallery.MAX_STAGE);
         g.setDeliveredAt(Instant.now());
         g = galleries.save(g);
+        metrics.galleryDelivered();
 
         if (req.finalPrice() != null) {
             b.setQuote(req.finalPrice().max(BigDecimal.ZERO));

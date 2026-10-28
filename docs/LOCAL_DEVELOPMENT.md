@@ -81,7 +81,7 @@ npm start                  # http://localhost:4200
 | --- | --- |
 | Website | http://localhost:4200 |
 | Studio admin | http://localhost:4200/studio — **Erica / `erica-dev`**, **Austin / `austin-dev`** |
-| API | http://localhost:8080/api/… · health: http://localhost:8080/actuator/health |
+| API | http://localhost:8080/api/… · health: http://localhost:8080/readyz · metrics: http://localhost:9091/actuator/prometheus |
 | Email inbox (Mailpit) | http://localhost:8025 |
 | Uploaded photos (SeaweedFS) | http://localhost:8888/buckets/mmv-photos/ |
 | Postgres | `localhost:5432`, db/user/password `mmv` / `mmv` / `mmv` |
