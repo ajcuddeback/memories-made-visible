@@ -1,5 +1,8 @@
 # Production deployment
 
+> Deploying to a server you already run, with nginx/Let's Encrypt, bundled Postgres and MinIO? Follow
+> **`docs/RUNBOOK.md`**: an ordered checklist for that shape, plus the later migration to AWS.
+
 Step-by-step from "nothing" to a live site. Two hosting shapes are covered; pick one.
 
 - **A. One small VPS with Docker Compose** — cheapest, fully under your control, ~$6–12/mo (or a server you already have).
