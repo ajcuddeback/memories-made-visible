@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { catchError, of } from 'rxjs';
-import { BookingRequest, Booking, ContactInfo, DaySlots, Photographer, PublicPopupEvent, SessionType } from './models';
+import { BookingRequest, Booking, ContactInfo, DaySlots, Photographer, PhotoSrc, PublicPopupEvent, SessionType } from './models';
 
 /**
  * Public-site data: price list, upcoming pop-ups and the slot → photo URL map.
@@ -18,7 +18,7 @@ export class SiteDataService {
   readonly sessionTypes = signal<SessionType[]>([]);
   readonly pricingError = signal(false);
   readonly upcoming = signal<PublicPopupEvent[]>([]);
-  readonly photos = signal<Record<string, string>>({});
+  readonly photos = signal<Record<string, PhotoSrc>>({});
   /** Until the API answers, the prerendered page shows the studio's known address. */
   readonly contact = signal<ContactInfo>({ email: 'hello@memoriesmadevisible.com', phone: null, instagram: null, location: 'Winter Haven, FL · Serving all of Polk County' });
   private loadedContact = false;
@@ -55,7 +55,19 @@ export class SiteDataService {
   loadPhotos(): void {
     if (!this.isBrowser || this.loadedPhotos) return;
     this.loadedPhotos = true;
-    this.http.get<Record<string, string>>('/api/photos').pipe(catchError(() => of({}))).subscribe((map) => this.photos.set(map));
+    // index.html starts this request before the app bundle has even downloaded (and preloads the page's hero
+    // from it), so reuse that response rather than asking again.
+    const early = (window as unknown as { __mmvPhotos?: Promise<Record<string, PhotoSrc>> }).__mmvPhotos;
+    if (early) {
+      delete (window as unknown as { __mmvPhotos?: unknown }).__mmvPhotos;
+      early.then((map) => this.photos.set(map ?? {}), () => this.fetchPhotos());
+      return;
+    }
+    this.fetchPhotos();
+  }
+
+  private fetchPhotos(): void {
+    this.http.get<Record<string, PhotoSrc>>('/api/photos').pipe(catchError(() => of({}))).subscribe((map) => this.photos.set(map));
   }
 
   /** After a publish: forget the cached lists so the next page visit refetches what's live. */

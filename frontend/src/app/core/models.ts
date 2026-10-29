@@ -210,6 +210,14 @@ export interface DeliverRequest {
   body: string;
 }
 
+/** A published photo as the public site renders it. */
+export interface PhotoSrc {
+  src: string;
+  /** Responsive candidates ("…-480.jpg 480w, …"); null for photos uploaded before renditions existed. */
+  srcset: string | null;
+  width: number | null;
+}
+
 export interface PhotoSlotView {
   id: string;
   label: string;

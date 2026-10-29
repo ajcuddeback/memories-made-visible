@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { PhotoSrc } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -7,14 +8,15 @@ import { SiteDataService } from '../core/site-data.service';
  * layout never jumps while the API loads. The parent fixes the aspect ratio,
  * so swapping placeholder → photo costs no layout shift.
  *
- * `priority` marks the page's LCP image: eager + high fetch priority instead of lazy.
+ * `priority` marks the page's LCP image: eager + high fetch priority instead of lazy. `sizes` tells the browser
+ * how wide the slot renders so it can pick the smallest adequate rendition from the srcset.
  */
 @Component({
   selector: 'app-photo-slot',
   template: `
     @if (src(); as url) {
-      <img [src]="url" [alt]="alt()" [attr.loading]="priority() ? null : 'lazy'"
-           [attr.fetchpriority]="priority() ? 'high' : null" decoding="async" />
+      <img [src]="url.src" [attr.srcset]="url.srcset" [attr.sizes]="url.srcset ? sizes() : null" [alt]="alt()"
+           [attr.loading]="priority() ? null : 'lazy'" [attr.fetchpriority]="priority() ? 'high' : null" decoding="async" />
     } @else {
       <div class="placeholder" aria-hidden="true"><span>{{ placeholder() }}</span></div>
     }
@@ -40,8 +42,14 @@ export class PhotoSlot {
   readonly fallback = input<string | null>(null);
   readonly alt = input('');
   readonly priority = input(false);
+  readonly sizes = input('100vw');
 
-  readonly src = computed(() => this.data.photos()[this.slot()] ?? this.fallback());
+  readonly src = computed<PhotoSrc | null>(() => {
+    const p = this.data.photos()[this.slot()];
+    if (p) return p;
+    const fb = this.fallback();
+    return fb ? { src: fb, srcset: null, width: null } : null;
+  });
 
   constructor() {
     this.data.loadPhotos();

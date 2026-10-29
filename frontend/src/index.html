@@ -82,6 +82,25 @@
     }
     </script>
     <script>
+      // Start fetching the published photo map before the app bundle has downloaded, and preload this page's
+      // hero image from it, so the LCP image isn't waiting on HTML → JS → API → image. The app picks up the
+      // same promise (SiteDataService.loadPhotos) instead of fetching twice.
+      (function () {
+        try {
+          var hero = { '/': 'home-hero', '/about': 'about-erica', '/events': 'events-set-1' }[location.pathname.replace(/\/+$/, '') || '/'];
+          var sizes = { '/': '(max-width: 919px) calc(100vw - 80px), min(560px, 45vw)', '/about': '(max-width: 819px) 100vw, 40vw', '/events': '(max-width: 819px) 100vw, 50vw' };
+          window.__mmvPhotos = fetch('/api/photos', { priority: 'high' }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (map) {
+            var p = hero && map && map[hero];
+            if (p && p.src) {
+              var l = document.createElement('link');
+              l.rel = 'preload'; l.as = 'image'; l.href = p.src; l.fetchPriority = 'high';
+              if (p.srcset) { l.imageSrcset = p.srcset; l.imageSizes = sizes[location.pathname.replace(/\/+$/, '') || '/']; }
+              document.head.appendChild(l);
+            }
+            return map || {};
+          }).catch(function () { return {}; });
+        } catch (e) {}
+      })();
       // Apply the saved theme before first paint to avoid a flash.
       try {
         var t = localStorage.getItem('mmv-theme');

@@ -46,7 +46,7 @@ public class PublishService {
     static final String EVENTS = "events";
     static final String PHOTOS = "photos";
 
-    public record PhotoRef(String key, String contentType) {}
+    public record PhotoRef(String key, String contentType, String widths) {}
     public record Changes(boolean pricing, boolean events, boolean photos) {
         public boolean any() { return pricing || events || photos; }
     }
@@ -111,9 +111,9 @@ public class PublishService {
     }
 
     @Transactional(readOnly = true)
-    public Map<String, String> publishedPhotoUrls() {
-        Map<String, String> out = new LinkedHashMap<>();
-        read(PHOTOS, PHOTOS_T).orElseGet(this::draftPhotos).forEach((slot, ref) -> out.put(slot, storage.urlFor(ref.key())));
+    public Map<String, com.memoriesmadevisible.photo.PhotoDtos.PhotoUrls> publishedPhotoUrls() {
+        Map<String, com.memoriesmadevisible.photo.PhotoDtos.PhotoUrls> out = new LinkedHashMap<>();
+        read(PHOTOS, PHOTOS_T).orElseGet(this::draftPhotos).forEach((slot, ref) -> out.put(slot, storage.urlsFor(ref.key(), ref.widths())));
         return out;
     }
 
@@ -140,7 +140,7 @@ public class PublishService {
     /** Draft → live, for all three kinds at once. */
     @Transactional
     public Status publish() {
-        Set<String> previouslyLive = publishedPhotoKeys();
+        var previouslyLive = read(PHOTOS, PHOTOS_T).map(Map::values).orElse(List.of());
         var draftPhotos = draftPhotos();
         write(PRICING, pricing.list().stream().map(PricingDtos.SessionTypeView::normalized).toList());
         write(EVENTS, draftEvents());
@@ -148,7 +148,7 @@ public class PublishService {
         // Objects the old snapshot used that nothing references any more.
         Set<String> stillUsed = new HashSet<>();
         draftPhotos.values().forEach(r -> stillUsed.add(r.key()));
-        previouslyLive.stream().filter(k -> !stillUsed.contains(k)).forEach(this::safeDelete);
+        previouslyLive.stream().filter(r -> !stillUsed.contains(r.key())).forEach(this::safeDelete);
         metrics.sitePublished();
         return status();
     }
@@ -186,11 +186,11 @@ public class PublishService {
         Set<String> liveKeys = new HashSet<>();
         live.values().forEach(r -> liveKeys.add(r.key()));
         for (var p : photos.findAll()) {
-            if (!liveKeys.contains(p.getS3Key())) safeDelete(p.getS3Key()); // draft-only upload
+            if (!liveKeys.contains(p.getS3Key())) safeDelete(new PhotoRef(p.getS3Key(), p.getContentType(), p.getWidths())); // draft-only upload
             if (!live.containsKey(p.getSlotId())) photos.delete(p);
         }
         List<SitePhoto> rows = new ArrayList<>();
-        live.forEach((slot, ref) -> rows.add(new SitePhoto(slot, ref.key(), ref.contentType())));
+        live.forEach((slot, ref) -> rows.add(new SitePhoto(slot, ref.key(), ref.contentType(), ref.widths())));
         photos.saveAll(rows);
     }
 
@@ -204,7 +204,7 @@ public class PublishService {
 
     private TreeMap<String, PhotoRef> draftPhotos() {
         TreeMap<String, PhotoRef> m = new TreeMap<>();
-        photos.findAll().forEach(p -> m.put(p.getSlotId(), new PhotoRef(p.getS3Key(), p.getContentType())));
+        photos.findAll().forEach(p -> m.put(p.getSlotId(), new PhotoRef(p.getS3Key(), p.getContentType(), p.getWidths())));
         return m;
     }
 
@@ -260,11 +260,11 @@ public class PublishService {
         }
     }
 
-    private void safeDelete(String key) {
+    private void safeDelete(PhotoRef ref) {
         try {
-            storage.delete(key);
+            storage.deleteWithVariants(ref.key(), ref.widths());
         } catch (Exception e) {
-            log.warn("Could not delete photo object {}", key, e);
+            log.warn("Could not delete photo object {}", ref.key(), e);
         }
     }
 }

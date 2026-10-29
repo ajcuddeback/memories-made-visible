@@ -75,32 +75,40 @@ public class PhotoService {
         if (!ALLOWED.contains(contentType)) {
             throw new IllegalArgumentException("Please upload a JPEG, PNG, WebP or AVIF image.");
         }
-        // Resize + re-encode before it ever reaches the bucket; the original is never stored.
-        ImageProcessor.Processed web;
+        // Resize + re-encode before it ever reaches the bucket (full size plus smaller srcset renditions);
+        // the original is never stored.
+        List<ImageProcessor.Processed> renditions;
         try (var in = file.getInputStream()) {
-            web = images.toWebJpeg(in);
+            renditions = images.renditions(in);
         } catch (IOException | RuntimeException e) {
             throw new IllegalArgumentException("That file doesn't look like a readable image.");
         }
-        contentType = web.contentType();
+        var full = renditions.get(renditions.size() - 1);
+        contentType = full.contentType();
         String key = storage.keyPrefix() + "site/" + slotId + "/" + UUID.randomUUID() + ".jpg";
+        String widths = String.join(",", renditions.stream().map(r -> String.valueOf(r.width())).toList());
         try {
-            storage.put(key, new ByteArrayInputStream(web.bytes()), web.bytes().length, contentType);
+            for (var r : renditions) {
+                String k = r == full ? key : PhotoStorage.variantKey(key, r.width());
+                storage.put(k, new ByteArrayInputStream(r.bytes()), r.bytes().length, r.contentType());
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
 
         var existing = photos.findById(slotId).orElse(null);
         String oldKey = existing == null ? null : existing.getS3Key();
+        String oldWidths = existing == null ? null : existing.getWidths();
         if (existing == null) {
-            existing = new SitePhoto(slotId, key, contentType);
+            existing = new SitePhoto(slotId, key, contentType, widths);
         } else {
             existing.setS3Key(key);
             existing.setContentType(contentType);
+            existing.setWidths(widths);
         }
         photos.save(existing);
         if (oldKey != null && !publish.publishedPhotoKeys().contains(oldKey)) {
-            safeDelete(oldKey); // a draft-only object; a live one is cleaned up on Publish
+            safeDelete(oldKey, oldWidths); // a draft-only object; a live one is cleaned up on Publish
         }
         return new PhotoView(slotId, storage.urlFor(key), contentType);
     }
@@ -110,13 +118,13 @@ public class PhotoService {
         var existing = photos.findById(slotId).orElseThrow(() -> new NotFoundException("No photo in slot " + slotId));
         photos.delete(existing);
         if (!publish.publishedPhotoKeys().contains(existing.getS3Key())) {
-            safeDelete(existing.getS3Key());
+            safeDelete(existing.getS3Key(), existing.getWidths());
         }
     }
 
-    private void safeDelete(String key) {
+    private void safeDelete(String key, String widths) {
         try {
-            storage.delete(key);
+            storage.deleteWithVariants(key, widths);
         } catch (Exception e) {
             // An orphaned object is a cleanup chore, not a failure the admin should see.
             log.warn("Could not delete old photo object {}", key, e);

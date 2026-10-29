@@ -21,6 +21,7 @@ export class AnalyticsService {
   private session = '';
   private enabled = false;
   private started = false;
+  private ready: Promise<void> = Promise.resolve();
 
   init(): void {
     if (!this.isBrowser || this.started) return;
@@ -34,6 +35,13 @@ export class AnalyticsService {
       return; // storage blocked: don't track at all rather than count every page as a new visitor
     }
     this.enabled = true;
+    // Nothing is sent until the page has finished loading and the browser is idle: analytics must never
+    // compete with the hero image or the first API calls for bandwidth.
+    const loaded = document.readyState === 'complete' ? Promise.resolve() : new Promise<void>((r) => window.addEventListener('load', () => r(), { once: true }));
+    this.ready = loaded.then(() => new Promise<void>((r) => {
+      const idle = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
+      idle ? idle(() => r(), { timeout: 4000 }) : setTimeout(r, 1500);
+    }));
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe((e) => this.pageChanged((e as NavigationEnd).urlAfterRedirects));
     this.pageChanged(this.router.url);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.leave(true); });
@@ -67,7 +75,7 @@ export class AnalyticsService {
 
   private push(e: Record<string, unknown>): void {
     this.queue.push({ visitor: this.visitor, session: this.session, device: window.innerWidth < 820 ? 'mobile' : 'desktop', ...e });
-    if (!this.flushTimer) this.flushTimer = setTimeout(() => this.flush(false), 2500);
+    if (!this.flushTimer) this.flushTimer = setTimeout(() => this.ready.then(() => this.flush(false)), 2500);
   }
 
   private flush(beacon: boolean): void {
@@ -78,7 +86,7 @@ export class AnalyticsService {
       if (beacon && navigator.sendBeacon) {
         navigator.sendBeacon('/api/analytics', new Blob([body], { type: 'text/plain' }));
       } else {
-        fetch('/api/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => undefined);
+        fetch('/api/analytics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true, priority: 'low' } as RequestInit).catch(() => undefined);
       }
     } catch { /* analytics never breaks the page */ }
   }

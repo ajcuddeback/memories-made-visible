@@ -1,5 +1,7 @@
 import { Routes } from '@angular/router';
 import { SeoData } from './core/seo.service';
+import { HomePage } from './site/home/home';
+import { SiteShell } from './site/site-shell';
 
 const seo = (title: string, description: string, image?: string): { seo: SeoData } => ({ seo: { title, description, image } });
 
@@ -11,11 +13,12 @@ export const routes: Routes = [
   },
   {
     path: '',
-    loadComponent: () => import('./site/site-shell').then((m) => m.SiteShell),
+    // The shell and the landing page ship in the main bundle: two fewer round trips before the home hero can render.
+    component: SiteShell,
     children: [
       {
         path: '',
-        loadComponent: () => import('./site/home/home').then((m) => m.HomePage),
+        component: HomePage,
         data: seo(
           'Memories Made Visible | Photographer in Winter Haven & Polk County, FL',
           'Family-run photography studio in Winter Haven, Florida. Wedding, family, couples, maternity, newborn, senior and event photography across Polk County. Book a session online.',
