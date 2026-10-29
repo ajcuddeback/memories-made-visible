@@ -11,7 +11,7 @@
     @for (it of items(); track it.id) {
       <figure class="item">
         <div class="frame washed" [style.aspect-ratio]="it.ratio">
-          <app-photo-slot [slot]="'pf-' + it.id" [placeholder]="it.cat + ' photo'" [alt]="it.cat + ' session'" />
+          <app-photo-slot [slot]="'pf-' + it.id" [placeholder]="it.cat + ' photo'" [alt]="it.cat + ' session'" sizes="(max-width: 819px) 50vw, 33vw" />
         </div>
         <figcaption class="caption">{{ it.cat }}</figcaption>
       </figure>

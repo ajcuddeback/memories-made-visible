@@ -20,7 +20,7 @@ public class PhotoController {
 
     /** Published slot → URL map. */
     @GetMapping
-    public Map<String, String> all() {
+    public Map<String, PhotoDtos.PhotoUrls> all() {
         return publish.publishedPhotoUrls();
     }
 }

@@ -56,13 +56,19 @@ class PhotoUploadTest {
 
         var putReq = org.mockito.ArgumentCaptor.forClass(PutObjectRequest.class);
         var putBody = org.mockito.ArgumentCaptor.forClass(RequestBody.class);
-        verify(s3Client).putObject(putReq.capture(), putBody.capture());
-        // Stored object is a resized JPEG, not the original PNG
-        org.assertj.core.api.Assertions.assertThat(putReq.getValue().contentType()).isEqualTo("image/jpeg");
-        org.assertj.core.api.Assertions.assertThat(putReq.getValue().key()).endsWith(".jpg");
-        var stored = javax.imageio.ImageIO.read(putBody.getValue().contentStreamProvider().newStream());
-        org.assertj.core.api.Assertions.assertThat(stored.getWidth()).isEqualTo(1800);
-        org.assertj.core.api.Assertions.assertThat(stored.getHeight()).isEqualTo(1200);
+        // Full size plus the 480 and 960 renditions for srcset, all resized JPEGs rather than the original PNG
+        verify(s3Client, org.mockito.Mockito.times(3)).putObject(putReq.capture(), putBody.capture());
+        java.util.List<Integer> widths = new java.util.ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            org.assertj.core.api.Assertions.assertThat(putReq.getAllValues().get(i).contentType()).isEqualTo("image/jpeg");
+            org.assertj.core.api.Assertions.assertThat(putReq.getAllValues().get(i).key()).endsWith(".jpg");
+            var stored = javax.imageio.ImageIO.read(putBody.getAllValues().get(i).contentStreamProvider().newStream());
+            widths.add(stored.getWidth());
+            org.assertj.core.api.Assertions.assertThat(stored.getHeight() * 3).isEqualTo(stored.getWidth() * 2);
+        }
+        org.assertj.core.api.Assertions.assertThat(widths).containsExactly(480, 960, 1800);
+        org.assertj.core.api.Assertions.assertThat(putReq.getAllValues().get(0).key()).endsWith("-480.jpg");
+        org.assertj.core.api.Assertions.assertThat(putReq.getAllValues().get(2).key()).doesNotContain("-1800");
 
         // A fresh upload is a draft: the public map doesn't have it until Publish.
         mvc.perform(get("/api/photos"))
@@ -76,7 +82,12 @@ class PhotoUploadTest {
                 .andExpect(jsonPath("$.dirty").value(false));
         mvc.perform(get("/api/photos"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$['home-hero']").exists());
+                .andExpect(jsonPath("$['home-hero'].src").value(org.hamcrest.Matchers.startsWith("http://cdn.test/photos/site/home-hero/")))
+                .andExpect(jsonPath("$['home-hero'].width").value(1800))
+                .andExpect(jsonPath("$['home-hero'].srcset").value(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("-480.jpg 480w"),
+                        org.hamcrest.Matchers.containsString("-960.jpg 960w"),
+                        org.hamcrest.Matchers.endsWith(".jpg 1800w"))));
 
         // Portfolio slots are open-ended: filling pf-families-1 makes pf-families-2 appear; pf-families-99 is out of range.
         mvc.perform(multipart("/api/admin/photos/pf-families-1").file(file).header("Authorization", auth)).andExpect(status().isOk());

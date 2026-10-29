@@ -25,15 +25,24 @@ public class SitePhoto {
     @Column(name = "content_type", nullable = false, length = 80)
     private String contentType;
 
+    /** Available widths, ascending and comma-separated ("480,960,1800"); the last is the object at s3Key. Null = full size only. */
+    @Column(name = "widths", length = 60)
+    private String widths;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
     protected SitePhoto() {}
 
     public SitePhoto(String slotId, String s3Key, String contentType) {
+        this(slotId, s3Key, contentType, null);
+    }
+
+    public SitePhoto(String slotId, String s3Key, String contentType, String widths) {
         this.slotId = slotId;
         this.s3Key = s3Key;
         this.contentType = contentType;
+        this.widths = widths;
         this.updatedAt = Instant.now();
     }
 
@@ -41,6 +50,8 @@ public class SitePhoto {
     public String getS3Key() { return s3Key; }
     public void setS3Key(String v) { this.s3Key = v; this.updatedAt = Instant.now(); }
     public String getContentType() { return contentType; }
+    public String getWidths() { return widths; }
+    public void setWidths(String v) { this.widths = v; }
     public void setContentType(String v) { this.contentType = v; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

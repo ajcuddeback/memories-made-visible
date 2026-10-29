@@ -10,10 +10,10 @@
   <div class="hero-art">
     <div class="hero-blob" aria-hidden="true"></div>
     <div class="hero-photo washed">
-      <app-photo-slot slot="home-hero" placeholder="Signature photo" alt="A recent session by Memories Made Visible" [priority]="true" />
+      <app-photo-slot slot="home-hero" placeholder="Signature photo" alt="A recent session by Memories Made Visible" [priority]="true" sizes="(max-width: 919px) calc(100vw - 80px), min(560px, 45vw)" />
     </div>
     <div class="hero-badge">
-      <img src="images/logo.webp" alt="" width="400" height="400" loading="lazy" decoding="async" />
+      <img src="images/logo.webp" srcset="images/logo-200.webp 200w, images/logo.webp 400w" sizes="(max-width: 819px) 140px, 190px" alt="" width="400" height="400" loading="lazy" decoding="async" />
     </div>
   </div>
 </section>
@@ -52,15 +52,15 @@
     <a routerLink="/portfolio" class="btn btn-ghost see-all">See the full portfolio →</a>
   </div>
   <div class="favorites">
-    <div class="fav washed"><app-photo-slot slot="home-feat-1" placeholder="Wedding photo" alt="Wedding photo" /></div>
-    <div class="fav fav--offset washed"><app-photo-slot slot="home-feat-2" placeholder="Family photo" alt="Family photo" /></div>
-    <div class="fav washed"><app-photo-slot slot="home-feat-3" placeholder="Newborn photo" alt="Newborn photo" /></div>
+    <div class="fav washed"><app-photo-slot slot="home-feat-1" placeholder="Wedding photo" alt="Wedding photo" sizes="(max-width: 819px) 100vw, 33vw" /></div>
+    <div class="fav fav--offset washed"><app-photo-slot slot="home-feat-2" placeholder="Family photo" alt="Family photo" sizes="(max-width: 819px) 100vw, 33vw" /></div>
+    <div class="fav washed"><app-photo-slot slot="home-feat-3" placeholder="Newborn photo" alt="Newborn photo" sizes="(max-width: 819px) 100vw, 33vw" /></div>
   </div>
 </section>
 
 <section class="container meet">
   <div class="meet-photo washed">
-    <app-photo-slot slot="home-erica" fallback="images/erica-home.webp" placeholder="Photo of Erica" alt="Erica Cuddeback" />
+    <app-photo-slot slot="home-erica" fallback="images/erica-home.webp" placeholder="Photo of Erica" alt="Erica Cuddeback" sizes="(max-width: 819px) 100vw, 40vw" />
   </div>
   <div>
     <span class="kicker">Behind the camera</span>
