@@ -28,9 +28,29 @@ export class SiteDataService {
   private loadedEvents = false;
   private loadedPhotos = false;
 
+  /**
+   * index.html starts the page's API requests before the app bundle has even downloaded; each loader takes
+   * that response if it is there (once) rather than asking again.
+   */
+  private early<T>(name: 'pricing' | 'contact' | 'photos' | 'upcoming'): Promise<T> | null {
+    const w = window as unknown as { __mmvEarly?: Record<string, Promise<T> | undefined> };
+    const p = w.__mmvEarly?.[name];
+    if (p && w.__mmvEarly) delete w.__mmvEarly[name];
+    return p ?? null;
+  }
+
   loadPricing(): void {
     if (!this.isBrowser || this.loadedPricing) return;
     this.loadedPricing = true;
+    const early = this.early<SessionType[] | null>('pricing');
+    if (early) {
+      early.then((list) => { if (list) this.sessionTypes.set(list); else this.fetchPricing(); }, () => this.fetchPricing());
+      return;
+    }
+    this.fetchPricing();
+  }
+
+  private fetchPricing(): void {
     this.http.get<SessionType[]>('/api/pricing').subscribe({
       next: (list) => this.sessionTypes.set(list),
       error: () => {
@@ -43,26 +63,24 @@ export class SiteDataService {
   loadUpcoming(): void {
     if (!this.isBrowser || this.loadedEvents) return;
     this.loadedEvents = true;
+    const early = this.early<PublicPopupEvent[]>('upcoming');
+    if (early) { early.then((l) => this.upcoming.set(l ?? []), () => this.upcoming.set([])); return; }
     this.http.get<PublicPopupEvent[]>('/api/events/upcoming').pipe(catchError(() => of([] as PublicPopupEvent[]))).subscribe((list) => this.upcoming.set(list));
   }
 
   loadContact(): void {
     if (!this.isBrowser || this.loadedContact) return;
     this.loadedContact = true;
+    const early = this.early<ContactInfo | null>('contact');
+    if (early) { early.then((c) => { if (c) this.contact.set(c); }, () => undefined); return; }
     this.http.get<ContactInfo>('/api/site/contact').pipe(catchError(() => of(null))).subscribe((c) => { if (c) this.contact.set(c); });
   }
 
   loadPhotos(): void {
     if (!this.isBrowser || this.loadedPhotos) return;
     this.loadedPhotos = true;
-    // index.html starts this request before the app bundle has even downloaded (and preloads the page's hero
-    // from it), so reuse that response rather than asking again.
-    const early = (window as unknown as { __mmvPhotos?: Promise<Record<string, PhotoSrc>> }).__mmvPhotos;
-    if (early) {
-      delete (window as unknown as { __mmvPhotos?: unknown }).__mmvPhotos;
-      early.then((map) => this.photos.set(map ?? {}), () => this.fetchPhotos());
-      return;
-    }
+    const early = this.early<Record<string, PhotoSrc>>('photos');
+    if (early) { early.then((map) => this.photos.set(map ?? {}), () => this.fetchPhotos()); return; }
     this.fetchPhotos();
   }
 
