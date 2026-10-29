@@ -32,8 +32,16 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-mmv}
       DATABASE_USERNAME: ${POSTGRES_USER:-mmv}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-America/New_York}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-hello@memoriesmadevisible.com}
+      CONTACT_PHONE: ${CONTACT_PHONE:-}
+      CONTACT_INSTAGRAM: ${CONTACT_INSTAGRAM:-}
+      ADMIN_OWNER: ${ADMIN_OWNER:-Austin}
     expose:
       - "8080"
+    ports:
+      # Health + Prometheus metrics, loopback only: Prometheus on this box scrapes 127.0.0.1:9091/actuator/prometheus.
+      - "127.0.0.1:${MANAGEMENT_PORT:-9091}:9091"
 
   frontend:
     build: ./frontend
@@ -46,5 +54,42 @@ services:
     ports:
       - "${HTTP_PORT:-80}:8080"
 
+  # Optional: self-hosted, S3-compatible photo storage (MinIO) instead of AWS S3.
+  #   docker compose -f docker-compose.prod.yml --profile storage up -d
+  # Then in .env: S3_ENDPOINT=http://storage:9000  S3_PATH_STYLE=true  AWS_ACCESS_KEY_ID/SECRET = the MINIO_* values
+  # below, and S3_PUBLIC_BASE_URL=https://www.memoriesmadevisible.com/photos/mmv-photos with nginx proxying
+  # /photos/ → 127.0.0.1:9000/ (see docs/DEPLOYMENT.md → Photos without AWS).
+  storage:
+    image: minio/minio:latest
+    profiles: ["storage"]
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mmv}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - photos:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # Creates the bucket and makes it publicly readable (uploads still need the key), then exits.
+  storage-init:
+    image: minio/mc:latest
+    profiles: ["storage"]
+    depends_on:
+      storage:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "mc alias set local http://storage:9000 ${MINIO_ROOT_USER:-mmv} ${MINIO_ROOT_PASSWORD}
+      && mc mb --ignore-existing local/${S3_BUCKET:-mmv-photos}
+      && mc anonymous set download local/${S3_BUCKET:-mmv-photos}
+      && echo 'photo bucket ready'"
+
 volumes:
   pgdata:
+  photos:

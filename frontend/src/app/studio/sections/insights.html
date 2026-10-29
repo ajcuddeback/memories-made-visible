@@ -1,0 +1,91 @@
+<div class="head">
+  <p class="explain">What's happening on the public site, measured by the site itself — no cookies, no third-party trackers, nothing identifying is stored. Your own visits to the studio aren't counted.</p>
+  <div class="range" role="group" aria-label="Range">
+    @for (r of ranges; track r.d) {
+      <button type="button" class="range-btn" [class.is-on]="days() === r.d" [attr.aria-pressed]="days() === r.d" (click)="days.set(r.d)">{{ r.label }}</button>
+    }
+  </div>
+</div>
+
+@if (error()) { <p class="error">Couldn’t load insights. Please try again.</p> }
+@if (loading() && !report()) { <p class="muted">Loading…</p> }
+
+@if (report(); as r) {
+  <div class="stats" [class.is-stale]="loading()">
+    @for (t of tiles(); track t.label) {
+      <div class="stat">
+        <div class="stat-label">{{ t.label }}</div>
+        <div class="stat-value" [class.is-accent]="t.accent">{{ t.value }}</div>
+        <div class="stat-sub">{{ t.sub }}</div>
+      </div>
+    }
+  </div>
+
+  <div class="panels">
+    <section class="panel panel--wide">
+      <h2 class="panel-title">Visitors</h2>
+      <p class="panel-sub">Unique visitors per {{ r.days > 45 ? 'week' : 'day' }}</p>
+      @if (r.totals.visitors === 0) { <p class="muted">No visits recorded yet. Data starts collecting as soon as the site is live.</p> }
+      <div class="chart" role="img" aria-label="Visitors over time">
+        @for (b of series(); track b.key) {
+          <div class="bar-col" tabindex="0" [attr.aria-label]="b.label + ': ' + b.visitors + ' visitors, ' + b.visits + ' visits'">
+            <div class="tip" role="tooltip">
+              <div class="tip-title">{{ b.label }}</div>
+              <div class="tip-row">Visitors<span class="tip-val">{{ b.visitors }}</span></div>
+              <div class="tip-row">Visits<span class="tip-val">{{ b.visits }}</span></div>
+            </div>
+            <div class="bar" [style.height.%]="b.h"></div>
+            <span class="bar-x">{{ b.label }}</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Booking funnel</h2>
+      <p class="panel-sub">Visits that reached each step of the booking page</p>
+      <ol class="funnel">
+        @for (s of funnel(); track s.key) {
+          <li class="fstep">
+            <div class="fstep-row">
+              <span class="fstep-label">{{ s.label }}</span>
+              <span class="fstep-n">{{ s.visits }} <span class="fstep-pct">· {{ s.pct }}%</span></span>
+            </div>
+            <div class="fbar"><div class="fbar-fill" [style.width.%]="s.pct"></div></div>
+            @if (s.drop) { <div class="fstep-drop">{{ s.drop }} left here</div> }
+          </li>
+        }
+      </ol>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Pages</h2>
+      <p class="panel-sub">Page views</p>
+      <ul class="rows">
+        @for (p of pages(); track p.label) {
+          <li class="row">
+            <span class="row-label">{{ p.name }}</span>
+            <span class="row-bar"><span class="row-fill" [style.width.%]="(p.count / maxPage()) * 100"></span></span>
+            <span class="row-n">{{ p.count }}</span>
+          </li>
+        }
+        @if (!pages().length) { <li class="muted">Nothing yet.</li> }
+      </ul>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Where visits come from</h2>
+      <p class="panel-sub">First page of each visit, by referring site</p>
+      <ul class="rows">
+        @for (p of referrers(); track p.label) {
+          <li class="row">
+            <span class="row-label">{{ p.label }}</span>
+            <span class="row-bar"><span class="row-fill" [style.width.%]="(p.count / maxRef()) * 100"></span></span>
+            <span class="row-n">{{ p.count }}</span>
+          </li>
+        }
+        @if (!referrers().length) { <li class="muted">Nothing yet.</li> }
+      </ul>
+    </section>
+  </div>
+}

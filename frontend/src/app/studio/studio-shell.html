@@ -1,5 +1,7 @@
 @if (!auth.isLoggedIn()) {
   <app-studio-login />
+} @else if (auth.mustChangePassword()) {
+  <app-password-panel [required]="true" />
 } @else {
   <div class="studio">
     @if (viewport.narrow()) {
@@ -12,17 +14,18 @@
         </div>
         @if (menuOpen()) {
           <div class="topbar-menu">
-            <span class="who">{{ auth.user()?.name }} · <span class="who-role">{{ auth.user()?.role }}</span></span>
+            <span class="who">{{ auth.user()?.name }} · <span class="who-role">{{ auth.user()?.role }} · {{ accessLabel() }}</span></span>
+            <button type="button" class="btn btn-secondary sm" (click)="pwOpen.set(true); menuOpen.set(false)">Change password</button>
             <button type="button" class="btn btn-secondary sm" (click)="theme.toggle()">{{ theme.isDark() ? 'Light mode' : 'Dark mode' }}</button>
             <a routerLink="/" class="btn btn-secondary sm">View site</a>
             <button type="button" class="btn btn-ghost sm logout" (click)="logOut()">Log out</button>
           </div>
         }
         <nav class="topnav" aria-label="Studio sections">
-          @for (n of nav; track n.path) {
+          @for (n of nav(); track n.path) {
             <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="topnav-link">
               <span>{{ n.label }}</span>
-              @if (n.label === 'Requests' && pendingCount() > 0) { <span class="badge">{{ pendingCount() }}</span> }
+              @if (n.label === 'Sessions' && pendingCount() > 0) { <span class="badge">{{ pendingCount() }}</span> }
             </a>
           }
         </nav>
@@ -32,10 +35,10 @@
         <div class="logo-crop sidebar-logo">
           <img src="images/logo.webp" alt="Memories Made Visible" />
         </div>
-        @for (n of nav; track n.path) {
+        @for (n of nav(); track n.path) {
           <a [routerLink]="n.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: n.exact }" class="side-link">
             <span>{{ n.label }}</span>
-            @if (n.label === 'Requests' && pendingCount() > 0) { <span class="badge badge--lg">{{ pendingCount() }}</span> }
+            @if (n.label === 'Sessions' && pendingCount() > 0) { <span class="badge badge--lg">{{ pendingCount() }}</span> }
           </a>
         }
         <div class="spacer"></div>
@@ -43,10 +46,11 @@
           <span class="avatar">{{ auth.user()?.initial }}</span>
           <div class="account-text">
             <div class="account-name">{{ auth.user()?.name }}</div>
-            <div class="account-role">{{ auth.user()?.role }}</div>
+            <div class="account-role">{{ auth.user()?.role }} · {{ accessLabel() }}</div>
           </div>
         </div>
         <div class="account-actions">
+          <button type="button" class="btn btn-secondary sm" (click)="pwOpen.set(true)">Change password</button>
           <button type="button" class="btn btn-secondary sm" (click)="theme.toggle()">{{ theme.isDark() ? 'Light mode' : 'Dark mode' }}</button>
           <a routerLink="/" class="btn btn-secondary sm">View site</a>
           <button type="button" class="btn btn-ghost sm logout" (click)="logOut()">Log out</button>
@@ -59,7 +63,8 @@
         <div class="greeting">{{ greeting() }}</div>
         <h1 class="main-title">{{ sectionTitle() }}</h1>
       </div>
-      @if (store.publishStatus(); as ps) {
+      @if (pwOpen()) { <app-password-panel [required]="false" (closed)="pwOpen.set(false)" /> }
+      @if (auth.canManage() && store.publishStatus(); as ps) {
         <div class="publish-bar" [class.is-dirty]="ps.dirty" role="status">
           @if (ps.dirty) {
             <span class="publish-dot" aria-hidden="true"></span>

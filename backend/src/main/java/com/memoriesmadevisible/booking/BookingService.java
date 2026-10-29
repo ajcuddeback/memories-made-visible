@@ -6,6 +6,7 @@ import com.memoriesmadevisible.common.NotFoundException;
 import com.memoriesmadevisible.notification.BookingEmailDrafts;
 import com.memoriesmadevisible.notification.BookingNotificationService;
 import com.memoriesmadevisible.config.AppProperties;
+import com.memoriesmadevisible.pricing.PricingDtos;
 import com.memoriesmadevisible.pricing.PricingService;
 import com.memoriesmadevisible.publish.PublishService;
 import org.springframework.stereotype.Service;
@@ -23,16 +24,25 @@ public class BookingService {
     private final BookingNotificationService notifications;
     private final PublishService publish;
     private final AvailabilityService availability;
+    private final com.memoriesmadevisible.auth.AdminUserRepository staff;
     private final String siteUrl;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
+    /** Who leads a session when no photographer was chosen (app.default-photographer). */
+    private final String defaultPhotographer;
 
     public BookingService(BookingRepository bookings, PricingService pricing, BookingNotificationService notifications,
-                          PublishService publish, AvailabilityService availability, AppProperties props) {
+                          PublishService publish, AvailabilityService availability,
+                          com.memoriesmadevisible.auth.AdminUserRepository staff, AppProperties props,
+                          com.memoriesmadevisible.common.StudioMetrics metrics) {
+        this.staff = staff;
+        this.defaultPhotographer = props.defaultPhotographer() == null || props.defaultPhotographer().isBlank() ? null : props.defaultPhotographer().strip();
         this.bookings = bookings;
         this.pricing = pricing;
         this.notifications = notifications;
         this.publish = publish;
+        this.metrics = metrics;
         this.availability = availability;
-        this.siteUrl = props.notifications().siteUrl();
+        this.siteUrl = props.notifications().siteUrl() == null ? "" : props.notifications().siteUrl().replaceAll("/+$", "");
     }
 
     @Transactional
@@ -41,8 +51,50 @@ public class BookingService {
         var type = publish.publishedType(req.sessionType())
                 .orElseThrow(() -> new IllegalArgumentException("Unknown session type: " + req.sessionType()));
 
+        // The package decides how long the slot is and the starting quote; it's optional for categories without one.
+        PricingDtos.Tier pkg = null;
+        if (req.packageName() != null && !req.packageName().isBlank()) {
+            String want = req.packageName().strip();
+            pkg = type.tiers().stream().filter(t -> t.name().equalsIgnoreCase(want)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("That package isn't offered for " + type.name() + "."));
+        } else if (!type.tiers().isEmpty()) {
+            throw new IllegalArgumentException("Please choose a package.");
+        }
+        // Length and price come from the published price list — the same list the form showed and built its slots from.
+        Integer hours = null;
+        if (pkg != null && pkg.hourly()) {
+            int lo = pkg.minHours() == null ? 1 : pkg.minHours(), hi = pkg.maxHours() == null ? 12 : pkg.maxHours();
+            if (req.hours() == null) throw new IllegalArgumentException("Please choose how many hours you'd like (" + lo + "–" + hi + ").");
+            if (req.hours() < lo || req.hours() > hi) throw new IllegalArgumentException(pkg.name() + " is booked for " + lo + " to " + hi + " hours.");
+            hours = req.hours();
+        }
+        int minutes = availability.durationFor(type.key(), pkg == null ? null : pkg.name(), hours);
+        List<String> addons = new java.util.ArrayList<>();
+        boolean needsSecond = false;
+        java.math.BigDecimal quote = PricingService.parseAmount(pkg == null ? type.from() : pkg.price());
+        if (hours != null) quote = quote.multiply(java.math.BigDecimal.valueOf(hours));
+        if (req.addons() != null && pkg != null) {
+            int billableHours = hours != null ? hours : (int) Math.ceil(minutes / 60.0);
+            for (String want : req.addons()) {
+                if (want == null || want.isBlank()) continue;
+                final PricingDtos.Tier chosen = pkg;
+                var a = chosen.addonsOrEmpty().stream().filter(x -> x.name().equalsIgnoreCase(want.strip())).findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("\"" + want + "\" isn't an add-on for " + chosen.name() + "."));
+                if (addons.contains(a.name())) continue;
+                addons.add(a.name());
+                if (a.extraPhotographer()) needsSecond = true;
+                quote = quote.add(a.perHour() ? a.price().multiply(java.math.BigDecimal.valueOf(billableHours)) : a.price());
+            }
+        } else if (req.addons() != null && !req.addons().isEmpty()) {
+            throw new IllegalArgumentException("Add-ons need a package.");
+        }
+
         var b = new Booking();
         b.setSessionTypeKey(type.key());
+        b.setPackageName(pkg == null ? null : pkg.name());
+        b.setHours(hours);
+        b.setAddons(addons);
+        b.setNeedsSecond(needsSecond);
         b.setName(req.name().trim());
         b.setEmail(req.email().trim());
         b.setPhone(blankToNull(req.phone()));
@@ -51,15 +103,24 @@ public class BookingService {
         b.setDate(req.date());
         // Lock the day, make sure the slot is still open (a pending request holds its slot), then write.
         LocalTime start = AvailabilityDtos.parse(req.time());
-        LocalTime end = availability.reserve(req.date(), start, availability.durationFor(type.key()), null, true, true);
+        var reservation = availability.reserve(req.date(), start, minutes, null, true, true, req.photographer());
+        LocalTime end = reservation.end();
+        // Lead: the photographer the slot was found for, else the studio's default (so emails always say who's coming).
+        String lead = reservation.photographer();
+        if (lead == null && defaultPhotographer != null) {
+            lead = staff.findByNameIgnoreCase(defaultPhotographer).filter(com.memoriesmadevisible.auth.AdminUser::isActive)
+                    .map(com.memoriesmadevisible.auth.AdminUser::getName).orElse(null);
+        }
+        b.setTeam(lead, null);
         b.setStartTime(start);
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
         b.setStatus(BookingStatus.PENDING);
         // Starting quote is the session type's "from" price; the admin tunes it before approving.
-        b.setQuote(PricingService.parseAmount(type.from()));
+        b.setQuote(quote);
         b = bookings.save(b);
 
+        metrics.bookingRequested();
         notifications.notifyNewRequest(b, type.name());
         return toResponse(b);
     }
@@ -67,6 +128,58 @@ public class BookingService {
     @Transactional(readOnly = true)
     public List<BookingDtos.Response> list() {
         return bookings.findAllByOrderByDateAscTimeAsc().stream().map(this::toResponse).toList();
+    }
+
+    /** An employee's view: only the sessions they're assigned to. */
+    @Transactional(readOnly = true)
+    public List<BookingDtos.Response> listAssignedTo(String staffName) {
+        return bookings.findAllByOrderByDateAscTimeAsc().stream().filter(b -> b.isAssignedTo(staffName)).map(this::toResponse).toList();
+    }
+
+    /** Set the lead and second photographer. Bookable people must be free then; newly added people get a heads-up email. */
+    @Transactional
+    public BookingDtos.Response assign(Long id, String leadName, String secondName, String by) {
+        var b = find(id);
+        var before = new java.util.HashSet<>(b.getAssignees());
+        String lead = resolveStaff(leadName);
+        String second = resolveStaff(secondName);
+        if (lead != null && second != null && lead.equalsIgnoreCase(second)) throw new IllegalArgumentException("Lead and second can't be the same person.");
+        var photographers = availability.photographers();
+        for (String n : java.util.Arrays.asList(lead, second)) {
+            if (n == null || before.stream().anyMatch(x -> x.equalsIgnoreCase(n))) continue;
+            if (photographers.stream().noneMatch(p -> p.equalsIgnoreCase(n))) continue; // not bookable: no capacity tracking
+            if (b.getStatus() == BookingStatus.DECLINED || b.getStartTime() == null) continue;
+            try {
+                availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), true, false, n);
+            } catch (com.memoriesmadevisible.common.ConflictException e) {
+                throw new com.memoriesmadevisible.common.ConflictException(n + " isn't free then — " + e.getMessage()
+                        .replace("This overlaps ", "it overlaps ").replace("That time was just taken. Please pick another available time.", "they already have something at that time."));
+            }
+        }
+        b.setTeam(lead, second);
+        final Booking saved = bookings.save(b);
+        String typeName = typeName(saved);
+        for (String n : saved.getAssignees()) {
+            if (before.stream().anyMatch(x -> x.equalsIgnoreCase(n)) || n.equalsIgnoreCase(by)) continue;
+            String role = n.equalsIgnoreCase(saved.getLead()) ? "lead" : "second photographer";
+            staff.findByNameIgnoreCase(n).map(com.memoriesmadevisible.auth.AdminUser::getEmail).ifPresent(email ->
+                    notifications.sendStaffEmail(email, "You're on " + saved.getName() + "'s " + typeName + " session",
+                            """
+                            Hi %s,
+
+                            %s put you on %s's %s session as %s — %s at %s%s. It's in your studio now under Sessions and on your calendar.
+                            """.formatted(n, by, saved.getName(), typeName, role, BookingEmailDrafts.LONG_DATE.format(saved.getDate()), saved.getTime(),
+                                    saved.getLocation() == null ? "" : " (" + saved.getLocation() + ")").strip(),
+                            "Open the studio", siteUrl + "/studio/sessions"));
+        }
+        return toResponse(saved);
+    }
+
+    private String resolveStaff(String name) {
+        if (name == null || name.isBlank()) return null;
+        return staff.findByNameIgnoreCase(name.strip()).filter(com.memoriesmadevisible.auth.AdminUser::isActive)
+                .map(com.memoriesmadevisible.auth.AdminUser::getName)
+                .orElseThrow(() -> new IllegalArgumentException("No active account called \"" + name.strip() + "\"."));
     }
 
     /** What the studio would send for this action, pre-filled, for the admin to edit. */
@@ -87,10 +200,11 @@ public class BookingService {
         var previous = b.getStatus();
         if (status == BookingStatus.CONFIRMED && previous != BookingStatus.CONFIRMED && b.getStartTime() != null) {
             // Approving claims the slot for real: it must not overlap a confirmed session or blocked time.
-            availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), false, false);
+            availability.reserve(b.getDate(), b.getStartTime(), minutes(b), b.getId(), false, false, ownPhotographer(b));
         }
         b.setStatus(status);
         b = bookings.save(b);
+        if (previous != status) metrics.bookingStatus(status);
         var action = previous == status ? null : BookingEmailDrafts.actionFor(previous, status);
         if (action != null && (email == null || email.shouldSend())) {
             String typeName = typeName(b);
@@ -121,18 +235,50 @@ public class BookingService {
         return s != null && !s.isBlank();
     }
 
-    /** Admin moves a session; a confirmed one must land on a free slot, a pending one just moves. */
+    /** The "please confirm the new time" email, as it would read for this move, for the admin to edit. */
+    @Transactional(readOnly = true)
+    public BookingDtos.EmailDraft rescheduleDraft(Long id, BookingEmailDrafts.MoveReason reason, java.time.LocalDate date, String time) {
+        var b = find(id);
+        // Preview on a detached copy so nothing is written.
+        var preview = new Booking();
+        preview.setName(b.getName());
+        preview.setDate(date);
+        preview.setTime(AvailabilityDtos.label(AvailabilityDtos.parse(time)));
+        var d = BookingEmailDrafts.reschedule(reason, preview, typeName(b), b.getDate(), b.getTime());
+        return new BookingDtos.EmailDraft(d.subject(), d.body(), b.getEmail());
+    }
+
+    /**
+     * Admin moves a session to a free slot and the customer is asked to confirm the new time
+     * (a move is never silent unless the admin explicitly turns the email off).
+     */
     @Transactional
     public BookingDtos.Response reschedule(Long id, BookingDtos.Reschedule r) {
         var b = find(id);
+        var oldDate = b.getDate();
+        var oldTime = b.getTime();
         LocalTime start = AvailabilityDtos.parse(r.time());
         LocalTime end = availability.reserve(r.date(), start, minutes(b), b.getId(),
-                b.getStatus() != BookingStatus.DECLINED, false);
+                b.getStatus() != BookingStatus.DECLINED, false, ownPhotographer(b)).end();
         b.setDate(r.date());
         b.setStartTime(start);
         b.setEndTime(end);
         b.setTime(AvailabilityDtos.label(start));
-        return toResponse(bookings.save(b));
+        b = bookings.save(b);
+        metrics.bookingRescheduled();
+        if (r.shouldSend()) {
+            String typeName = typeName(b);
+            var dflt = BookingEmailDrafts.reschedule(r.reason(), b, typeName, oldDate, oldTime);
+            String subject = notBlank(r.subject()) ? r.subject().strip() : dflt.subject();
+            String body = notBlank(r.body()) ? r.body().strip() : dflt.body();
+            notifications.sendCustomerEmail(b, typeName, subject, body, b.getStatus() == BookingStatus.CONFIRMED);
+        }
+        return toResponse(b);
+    }
+
+    /** The photographer this booking's slot belongs to, if it's assigned to a bookable one. */
+    private String ownPhotographer(Booking b) {
+        return AvailabilityService.photographerOf(b, availability.photographers());
     }
 
     private int minutes(Booking b) {
@@ -154,16 +300,21 @@ public class BookingService {
         bookings.delete(find(id));
     }
 
+    /** The raw entity, for permission checks in controllers. */
+    @Transactional(readOnly = true)
+    public Booking get(Long id) { return find(id); }
+
     private Booking find(Long id) {
         return bookings.findById(id).orElseThrow(() -> new NotFoundException("Booking " + id + " not found"));
     }
 
     public BookingDtos.Response toResponse(Booking b) {
         String typeName = pricing.findType(b.getSessionTypeKey()).map(t -> t.getName()).orElse(b.getSessionTypeKey());
-        return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getName(), b.getEmail(),
+        return new BookingDtos.Response(b.getId(), b.getSessionTypeKey(), typeName, b.getPackageName(), b.getHours(), b.getAddons(),
+                b.getName(), b.getEmail(),
                 b.getPhone(), b.getLocation(), b.getNotes(), b.getDate(), b.getTime(),
                 AvailabilityDtos.hm(b.getStartTime()), AvailabilityDtos.hm(b.getEndTime()), b.getStatus(), b.getQuote(),
-                b.getCreatedAt());
+                b.getCreatedAt(), b.getAssignees(), b.getLead(), b.getSecond(), b.isNeedsSecond());
     }
 
     private static String blankToNull(String s) {

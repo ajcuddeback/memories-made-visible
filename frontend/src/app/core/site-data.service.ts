@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { isPlatformBrowser } from '@angular/common';
 import { Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { catchError, of } from 'rxjs';
-import { BookingRequest, Booking, DaySlots, PublicPopupEvent, SessionType } from './models';
+import { BookingRequest, Booking, ContactInfo, DaySlots, Photographer, PublicPopupEvent, SessionType } from './models';
 
 /**
  * Public-site data: price list, upcoming pop-ups and the slot → photo URL map.
@@ -19,6 +19,9 @@ export class SiteDataService {
   readonly pricingError = signal(false);
   readonly upcoming = signal<PublicPopupEvent[]>([]);
   readonly photos = signal<Record<string, string>>({});
+  /** Until the API answers, the prerendered page shows the studio's known address. */
+  readonly contact = signal<ContactInfo>({ email: 'hello@memoriesmadevisible.com', phone: null, instagram: null, location: 'Winter Haven, FL · Serving all of Polk County' });
+  private loadedContact = false;
   readonly typeByKey = computed(() => new Map(this.sessionTypes().map((t) => [t.key, t])));
 
   private loadedPricing = false;
@@ -43,6 +46,12 @@ export class SiteDataService {
     this.http.get<PublicPopupEvent[]>('/api/events/upcoming').pipe(catchError(() => of([] as PublicPopupEvent[]))).subscribe((list) => this.upcoming.set(list));
   }
 
+  loadContact(): void {
+    if (!this.isBrowser || this.loadedContact) return;
+    this.loadedContact = true;
+    this.http.get<ContactInfo>('/api/site/contact').pipe(catchError(() => of(null))).subscribe((c) => { if (c) this.contact.set(c); });
+  }
+
   loadPhotos(): void {
     if (!this.isBrowser || this.loadedPhotos) return;
     this.loadedPhotos = true;
@@ -58,9 +67,20 @@ export class SiteDataService {
   }
 
   /** Open start times per day in [from, to] for a session type (not cached: it changes as people book). */
-  availability(from: string, to: string, type: string | null) {
+  readonly photographers = signal<Photographer[]>([]);
+  private loadedPhotographers = false;
+  loadPhotographers(): void {
+    if (!this.isBrowser || this.loadedPhotographers) return;
+    this.loadedPhotographers = true;
+    this.http.get<Photographer[]>('/api/photographers').pipe(catchError(() => of([] as Photographer[]))).subscribe((l) => this.photographers.set(l));
+  }
+
+  availability(from: string, to: string, type: string | null, pkg: string | null, hours: number | null, photographer: string | null = null) {
     const params: Record<string, string> = { from, to };
     if (type) params['type'] = type;
+    if (pkg) params['package'] = pkg;
+    if (hours) params['hours'] = String(hours);
+    if (photographer) params['photographer'] = photographer;
     return this.http.get<DaySlots[]>('/api/availability', { params });
   }
 

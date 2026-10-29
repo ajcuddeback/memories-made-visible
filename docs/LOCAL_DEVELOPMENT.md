@@ -81,7 +81,7 @@ npm start                  # http://localhost:4200
 | --- | --- |
 | Website | http://localhost:4200 |
 | Studio admin | http://localhost:4200/studio — **Erica / `erica-dev`**, **Austin / `austin-dev`** |
-| API | http://localhost:8080/api/… · health: http://localhost:8080/actuator/health |
+| API | http://localhost:8080/api/… · health: http://localhost:8080/readyz · metrics: http://localhost:9091/actuator/prometheus |
 | Email inbox (Mailpit) | http://localhost:8025 |
 | Uploaded photos (SeaweedFS) | http://localhost:8888/buckets/mmv-photos/ |
 | Postgres | `localhost:5432`, db/user/password `mmv` / `mmv` / `mmv` |
@@ -92,13 +92,23 @@ Dev-only values (passwords, JWT secret, SMTP target, S3 endpoint) live in
 
 ## A good smoke test
 
-1. Open `/book`, pick a session type, then a date — only days with open times are selectable — and a start time (slots run every 30 minutes inside the studio's booking hours, 7am–6pm by default, and last the session type's length). Fill in details, send.
+1. Open `/book`, pick a session type and a package. If anyone on **Team** is marked *Bookable by customers*, a Photographer step appears ("No preference" or a named person) and availability is per photographer. A package is either fixed (its own length, set in Pricing — 30 min, 1 hr, 8 hrs…) or per hour (a rate with a minimum and maximum; the customer picks the hours). Packages can carry add-ons, flat or per hour, ticked when booking — e.g. Events is $150/hr with a 2-hour minimum and a $75/hr second photographer, then a date — only days with open times are selectable — and a start time (slots run every 30 minutes inside the studio's booking hours, 7am–6pm by default, and last the package's length). Fill in details, send.
 2. Open Mailpit — you should see the notification to `bookings@…` and the customer acknowledgement.
-3. Open `/studio`, sign in as Erica — the request is in **Requests** with a badge. Set a quote, approve it.
-4. **Calendar** shows it colour-coded by status with its time. Click a day to see everything on it, **Block time** for appointments or holidays (the note is private; customers just lose those slots), **Move** a session, or open **Booking hours** to change the per-weekday window. Two people can't take the same slot: a booking locks its day's row (`SELECT … FOR UPDATE` on `calendar_day`) while the slot is re-checked and written, and a pending request holds its slot until it's declined. **Overview** includes it too. Once the session date has passed, start its gallery under **Galleries**; the last step, **Deliver & email link**, takes the client's gallery link and the final price (which replaces the quote, so Overview revenue shows what was actually paid) and emails the client a drafted note you can edit first.
-5. **Publish** — pricing, pop-ups and website photos are saved as a *draft*. The public site keeps serving the last published version until you press **Publish** in the bar at the top of the studio (or **Discard** to throw the draft away). Bookings and galleries are operational data and take effect immediately.
+3. Open `/studio`, sign in as Erica (admin) or Austin (owner) — the request is in **Sessions → Requests** with a badge. Set a quote, approve it.
+   Under **Team** you can add an employee: the invite email (with a temporary password) lands in Mailpit; sign in as them to see the reduced studio.
+4. **Calendar** shows it colour-coded by status with its time. Click a day to see everything on it, **Block time** (whole studio or one person) for appointments or holidays (the note is private; customers just lose those slots), **Move** a session (pick a reason; the client gets a "please confirm the new time" email you can edit first), or open **Booking hours** to change the per-weekday window. Two people can't take the same slot: a booking locks its day's row (`SELECT … FOR UPDATE` on `calendar_day`) while the slot is re-checked and written, and a pending request holds its slot until it's declined. **Overview** includes it too. After the shoot, on **Sessions → Booked** press **Mark as shot**, then **Start editing** and **Send to proofing**; the last step, **Deliver & email link…**, takes the client's gallery link and the final price (which replaces the quote, so Overview revenue shows what was actually paid) and emails the client a drafted note you can edit first.
+5. **Publish** — pricing, pop-ups and website photos are saved as a *draft*. The public site keeps serving the last published version until you press **Publish** in the bar at the top of the studio (or **Discard** to throw the draft away). Everything on the Pricing page, package lengths included, follows Save → Publish. Bookings, galleries, booking hours and time blocks are operational data and take effect immediately.
 6. **Pricing** — change a price, Save, Publish; the public `/pricing` page updates. You can also add or remove whole categories. Each category has a "Show in Portfolio" toggle: when on, the Portfolio page gets a filter chip for it (using the optional Portfolio label) and three photo slots appear under Photos and fill in a "What's included" list per package — one item per line — which shows up behind a "See what's included" toggle on the pricing page.
 7. **Photos** — drop an image onto a slot; it's resized, stored in SeaweedFS, and appears on the site once you Publish.
+
+## Site analytics (Insights)
+
+The public site reports anonymous events to its own API (`POST /api/analytics`): page views, time on page and the
+booking-form steps (opened, chose a type, picked a time, filled details, sent). No cookies and nothing identifying —
+a random visitor token in `localStorage`, a visit token in `sessionStorage`, referrer kept as a host name only,
+"Do Not Track" honoured, and nothing recorded on `/studio`. **Insights** in the admin turns it into visitors, visits,
+average visit length, bounce rate, pages, referring sites, mobile share and the booking funnel with drop-off per step.
+Browse the site in another tab (not signed in to the admin) and the numbers appear within a few seconds.
 
 ## Demo data
 

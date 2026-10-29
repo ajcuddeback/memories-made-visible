@@ -1,0 +1,15 @@
+{
+  "name": "mmv-e2e",
+  "private": true,
+  "description": "End-to-end tests: real backend (e2e profile, scratch Postgres), real frontend, captured email.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "smtp-server": "^3.13.6",
+    "mailparser": "^3.7.1"
+  }
+}

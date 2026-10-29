@@ -30,11 +30,26 @@ public class PricingService {
                     v.description(), v.from(), i);
             t.setShowInPortfolio(v.showInPortfolio());
             if (v.durationMinutes() > 0) t.setDurationMinutes(v.durationMinutes());
-            t.replaceTiers(v.tiers().stream()
-                    .map(x -> new PricingTier(x.name(), x.detail(), x.price(), x.includes())).toList());
+            t.replaceTiers(v.tiers().stream().map(x -> tierFrom(x, v.durationMinutes())).toList());
             rows.add(t);
         }
         types.saveAll(rows);
+    }
+
+    /** A tier entity from its DTO (admin save or snapshot restore). */
+    static PricingTier tierFrom(PricingDtos.Tier x, int defaultMinutes) {
+        var t = new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(), x.price().strip(), x.includes(),
+                x.durationMinutes() == null ? defaultMinutes : x.durationMinutes());
+        t.setPricingModel(x.hourly() ? PricingTier.PricingModel.HOURLY : PricingTier.PricingModel.FLAT);
+        t.setHourRange(x.minHours(), x.maxHours());
+        t.setAddOns(x.addonsOrEmpty().stream().map(a -> new PricingTier.AddOn(a.name(), a.price(), a.perHour(), a.extraPhotographer())).toList());
+        var seen = new java.util.HashSet<String>();
+        for (var a : t.getAddOns()) {
+            if (!seen.add(a.name().toLowerCase(java.util.Locale.ROOT))) {
+                throw new IllegalArgumentException("\"" + x.name() + "\" has two add-ons called \"" + a.name() + "\".");
+            }
+        }
+        return t;
     }
 
     /** First boot seeds the price list; after that the admin owns it. */
@@ -76,9 +91,13 @@ public class PricingService {
         return list();
     }
 
-    /** Full save: every category in the list, in list order. Categories not in the list are left alone. */
+    /**
+     * Save the given categories. When the list covers every category it also sets the order;
+     * a partial list leaves the existing order alone.
+     */
     @Transactional
     public List<PricingDtos.SessionTypeView> update(List<PricingDtos.TypeUpdate> updates) {
+        boolean reorder = updates.size() >= types.count();
         for (int i = 0; i < updates.size(); i++) {
             var u = updates.get(i);
             var t = types.findWithTiersByKey(u.key())
@@ -89,10 +108,15 @@ public class PricingService {
             t.setFromPrice(u.from().strip());
             t.setShowInPortfolio(u.showInPortfolio());
             if (u.durationMinutes() != null) t.setDurationMinutes(u.durationMinutes());
-            t.setSortOrder(i);
+            var seen = new java.util.HashSet<String>();
+            for (var x : u.tiers()) {
+                if (!seen.add(x.name().strip().toLowerCase(java.util.Locale.ROOT))) {
+                    throw new IllegalArgumentException("\"" + u.name() + "\" has two packages called \"" + x.name().strip() + "\" — package names need to be unique.");
+                }
+            }
+            if (reorder) t.setSortOrder(i);
             t.replaceTiers(u.tiers().stream()
-                    .map(x -> new PricingTier(x.name().strip(), x.detail() == null ? "" : x.detail().strip(),
-                            x.price().strip(), x.includes()))
+                    .map(x -> tierFrom(x, t.getDurationMinutes()))
                     .toList());
             types.save(t);
         }

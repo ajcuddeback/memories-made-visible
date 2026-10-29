@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { SiteDataService } from '../../core/site-data.service';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PhotoSlot } from '../../shared/photo-slot';
 
@@ -9,4 +10,5 @@ import { PhotoSlot } from '../../shared/photo-slot';
   styleUrl: './about.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AboutPage {}
+export class AboutPage {
+  readonly contact = inject(SiteDataService).contact;}

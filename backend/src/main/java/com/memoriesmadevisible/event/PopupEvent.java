@@ -31,6 +31,10 @@ public class PopupEvent {
     @Column(nullable = false, length = 160)
     private String venue;
 
+    /** Street address (optional); the public page links it to a map. */
+    @Column(length = 200)
+    private String address;
+
     @Column(name = "hours", nullable = false, length = 60)
     private String time;
 
@@ -47,6 +51,8 @@ public class PopupEvent {
     public void setTitle(String v) { this.title = v; }
     public String getTheme() { return theme; }
     public void setTheme(String v) { this.theme = v; }
+    public String getAddress() { return address; }
+    public void setAddress(String v) { this.address = v; }
     public String getVenue() { return venue; }
     public void setVenue(String v) { this.venue = v; }
     public String getTime() { return time; }

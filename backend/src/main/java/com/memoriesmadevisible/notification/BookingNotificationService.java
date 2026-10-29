@@ -25,9 +25,11 @@ public class BookingNotificationService {
 
     private final JavaMailSender mail;
     private final AppProperties.Notifications cfg;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
 
-    public BookingNotificationService(JavaMailSender mail, AppProperties props) {
+    public BookingNotificationService(JavaMailSender mail, AppProperties props, com.memoriesmadevisible.common.StudioMetrics metrics) {
         this.mail = mail;
+        this.metrics = metrics;
         this.cfg = props.notifications();
     }
 
@@ -47,7 +49,7 @@ public class BookingNotificationService {
 
                     Review it in the studio admin to set a quote and approve or decline — the customer will get an email either way.
                     """.formatted(b.getName(), sessionTypeName).strip(),
-                    List.of(new EmailTemplates.Detail("Session", sessionTypeName),
+                    List.of(new EmailTemplates.Detail("Session", b.getPackageName() == null ? sessionTypeName : sessionTypeName + " · " + b.packageSummary()),
                             new EmailTemplates.Detail("Date", BookingEmailDrafts.LONG_DATE.format(b.getDate())),
                             new EmailTemplates.Detail("Time", b.getTime()),
                             new EmailTemplates.Detail("Location", b.getLocation()),
@@ -56,12 +58,14 @@ public class BookingNotificationService {
                             new EmailTemplates.Detail("Phone", b.getPhone()),
                             new EmailTemplates.Detail("Starting quote", b.getQuote() == null ? null : BookingEmailDrafts.money(b.getQuote())),
                             new EmailTemplates.Detail("Notes", b.getNotes())),
-                    "Open in studio admin", siteUrl() + "/studio/requests",
+                    "Open in studio admin", siteUrl() + "/studio/sessions",
                     "Replying to this email goes straight to " + b.getEmail() + ".");
             send(cfg.from(), studioInbox(), b.getEmail(), null,
                     "New session request: " + sessionTypeName + " · " + b.getName(), r);
             log.info("Booking #{} notification sent to {}", b.getId(), cfg.to());
+            metrics.email("studio", true);
         } catch (Exception e) {
+            metrics.email("studio", false);
             log.error("Failed to send booking notification for #{}", b.getId(), e);
         }
 
@@ -79,7 +83,9 @@ public class BookingNotificationService {
                         "Reply to this email any time if you have questions.");
                 send(customerSender(), new String[]{b.getEmail()}, studioInbox()[0], null,
                         "We received your session request — Memories Made Visible", r);
+                metrics.email("customer", true);
             } catch (Exception e) {
+                metrics.email("customer", false);
                 log.error("Failed to send customer acknowledgement for #{}", b.getId(), e);
             }
         }
@@ -104,8 +110,25 @@ public class BookingNotificationService {
                     ctaLabel, ctaUrl, ctaUrl == null ? null : "If the button doesn't work, copy this link: " + ctaUrl);
             send(customerSender(), new String[]{b.getEmail()}, studioInbox()[0], studioInbox()[0], subject, r);
             log.info("Email \"{}\" sent to {} for booking #{}", subject, b.getEmail(), b.getId());
+            metrics.email("customer", true);
         } catch (Exception e) {
+            metrics.email("customer", false);
             log.error("Failed to send email \"{}\" for booking #{}", subject, b.getId(), e);
+        }
+    }
+
+    /** An email to a member of staff (invites, password resets) from the internal sender. */
+    @Async
+    public void sendStaffEmail(String to, String subject, String body, String ctaLabel, String ctaUrl) {
+        if (to == null || to.isBlank()) { log.warn("Staff email \"{}\" skipped: no address.", subject); return; }
+        try {
+            var r = EmailTemplates.render(siteUrl(), subject, body, List.of(), ctaLabel, ctaUrl, null);
+            send(cfg.from(), new String[]{to}, null, null, subject, r);
+            log.info("Staff email \"{}\" sent to {}", subject, to);
+            metrics.email("staff", true);
+        } catch (Exception e) {
+            metrics.email("staff", false);
+            log.error("Failed to send staff email \"{}\" to {}", subject, to, e);
         }
     }
 
@@ -117,9 +140,14 @@ public class BookingNotificationService {
         h.setTo(to);
         if (replyTo != null && !replyTo.isBlank()) h.setReplyTo(replyTo);
         if (bcc != null && !bcc.isBlank()) h.setBcc(bcc);
-        h.setSubject(subject);
+        h.setSubject(headerSafe(subject));
         h.setText(r.text(), r.html());
         mail.send(msg);
+    }
+
+    /** Header values are one line: strip CR/LF and other control characters from anything customer- or admin-typed. */
+    static String headerSafe(String s) {
+        return s == null ? "" : s.replaceAll("[\\p{Cntrl}]+", " ").strip();
     }
 
     private String customerSender() {

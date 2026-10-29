@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SeoService } from './core/seo.service';
 import { ThemeService } from './core/theme.service';
+import { AnalyticsService } from './core/analytics.service';
 
 @Component({
   selector: 'app-root',
@@ -15,5 +16,6 @@ export class App {
 
   constructor() {
     inject(SeoService).init();
+    inject(AnalyticsService).init();
   }
 }

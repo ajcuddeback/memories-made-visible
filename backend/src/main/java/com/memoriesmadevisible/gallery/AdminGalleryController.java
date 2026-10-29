@@ -27,24 +27,49 @@ public class AdminGalleryController {
     private final GalleryRepository galleries;
     private final BookingRepository bookings;
     private final GalleryService service;
+    private final com.memoriesmadevisible.auth.StaffAccess access;
 
-    public AdminGalleryController(GalleryRepository galleries, BookingRepository bookings, GalleryService service) {
+    public AdminGalleryController(GalleryRepository galleries, BookingRepository bookings, GalleryService service,
+                                  com.memoriesmadevisible.auth.StaffAccess access) {
         this.galleries = galleries;
         this.bookings = bookings;
         this.service = service;
+        this.access = access;
+    }
+
+    /** Delivering is for owner/admin or the session's lead photographer. */
+    private void requireLead(Long galleryId, java.security.Principal me) {
+        var g = galleries.findById(galleryId).orElseThrow(() -> new NotFoundException("Gallery " + galleryId + " not found"));
+        access.requireMayRun(me, bookings.findById(g.getBookingId()).orElse(null));
+    }
+
+    /** Employees may only touch galleries of sessions they're assigned to. */
+    private void requireAssigned(Long bookingId, java.security.Principal me) {
+        if (!access.limited(me)) return;
+        var b = bookings.findById(bookingId).orElse(null);
+        if (b == null || !b.isAssignedTo(me.getName())) {
+            throw new org.springframework.security.access.AccessDeniedException("Not your session");
+        }
     }
 
     public record CreateRequest(@NotNull Long bookingId) {}
     public record StageUpdate(@NotNull Integer stage) {}
 
     @GetMapping
-    public List<GalleryDtos.Response> list() {
-        return galleries.findAllByOrderByIdAsc().stream().map(GalleryDtos::toResponse).toList();
+    public List<GalleryDtos.Response> list(java.security.Principal me) {
+        var all = galleries.findAllByOrderByIdAsc();
+        if (access.limited(me)) {
+            var mine = new java.util.HashSet<Long>();
+            bookings.findAll().stream().filter(b -> b.isAssignedTo(me.getName())).forEach(b -> mine.add(b.getId()));
+            all = all.stream().filter(g -> mine.contains(g.getBookingId())).toList();
+        }
+        return all.stream().map(GalleryDtos::toResponse).toList();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public GalleryDtos.Response create(@RequestBody CreateRequest body) {
+    public GalleryDtos.Response create(@RequestBody CreateRequest body, java.security.Principal me) {
+        requireAssigned(body.bookingId(), me);
         var booking = bookings.findById(body.bookingId())
                 .orElseThrow(() -> new NotFoundException("Booking " + body.bookingId() + " not found"));
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
@@ -59,12 +84,14 @@ public class AdminGalleryController {
     }
 
     @PatchMapping("/{id}/stage")
-    public GalleryDtos.Response stage(@PathVariable Long id, @RequestBody StageUpdate body) {
+    public GalleryDtos.Response stage(@PathVariable Long id, @RequestBody StageUpdate body, java.security.Principal me) {
         var g = galleries.findById(id).orElseThrow(() -> new NotFoundException("Gallery " + id + " not found"));
+        requireAssigned(g.getBookingId(), me);
         g.setStage(body.stage());
         return GalleryDtos.toResponse(galleries.save(g));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         var g = galleries.findById(id).orElseThrow(() -> new NotFoundException("Gallery " + id + " not found"));
@@ -74,13 +101,15 @@ public class AdminGalleryController {
 
     /** The "photos are ready" email, pre-filled for the admin to edit before delivering. */
     @GetMapping("/{id}/draft")
-    public BookingDtos.EmailDraft draft(@PathVariable Long id) {
+    public BookingDtos.EmailDraft draft(@PathVariable Long id, java.security.Principal me) {
+        requireLead(id, me);
         return service.draft(id);
     }
 
     /** Mark delivered: record the link + final price and email the client (unless sendEmail=false). */
     @PostMapping("/{id}/deliver")
-    public GalleryDtos.Delivered deliver(@PathVariable Long id, @Valid @RequestBody GalleryDtos.DeliverRequest body) {
+    public GalleryDtos.Delivered deliver(@PathVariable Long id, @Valid @RequestBody GalleryDtos.DeliverRequest body, java.security.Principal me) {
+        requireLead(id, me);
         return service.deliver(id, body);
     }
 }

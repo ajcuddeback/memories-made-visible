@@ -9,9 +9,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 /**
- * Admin accounts are declared in configuration (name, role, password) and
- * upserted on boot. Changing a password in the env and restarting is the whole
- * password-reset story — right-sized for a two-person studio.
+ * The first accounts come from configuration (name, role, password); they are created
+ * once and never overwritten afterwards, because people change their own passwords in
+ * the studio now. {@code app.admin.owner} names the one OWNER account.
  */
 @Component
 public class AdminUserSeeder implements ApplicationRunner {
@@ -42,23 +42,24 @@ public class AdminUserSeeder implements ApplicationRunner {
             }
             var existing = users.findByNameIgnoreCase(u.name()).orElse(null);
             if (existing == null) {
-                users.save(new AdminUser(u.name(), u.role(), encoder.encode(u.password())));
-                log.info("Created admin user '{}'.", u.name());
-            } else {
-                boolean changed = false;
-                if (!encoder.matches(u.password(), existing.getPasswordHash())) {
-                    existing.setPasswordHash(encoder.encode(u.password()));
-                    changed = true;
-                }
-                if (u.role() != null && !u.role().equals(existing.getRole())) {
-                    existing.setRole(u.role());
-                    changed = true;
-                }
-                if (changed) {
-                    users.save(existing);
-                    log.info("Updated admin user '{}'.", u.name());
-                }
+                var created = new AdminUser(u.name(), u.role(), encoder.encode(u.password()));
+                created.setEmail(u.email());
+                users.save(created);
+                log.info("Created staff account '{}'.", u.name());
+            } else if (existing.getEmail() == null && u.email() != null && !u.email().isBlank()) {
+                existing.setEmail(u.email());
+                users.save(existing);
             }
+        }
+        // Exactly one owner: the configured name, else the first configured account.
+        if (!users.existsByAccess(AdminUser.Access.OWNER)) {
+            String ownerName = props.admin().owner() == null || props.admin().owner().isBlank()
+                    ? configured.get(0).name() : props.admin().owner();
+            users.findByNameIgnoreCase(ownerName).ifPresentOrElse(o -> {
+                o.setAccess(AdminUser.Access.OWNER);
+                users.save(o);
+                log.info("'{}' is the studio owner account.", o.getName());
+            }, () -> log.warn("app.admin.owner '{}' is not a configured user; no owner account set.", ownerName));
         }
     }
 }

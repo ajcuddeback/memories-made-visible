@@ -4,6 +4,22 @@ export interface PricingTier {
   price: string;
   /** "What's included" bullets, shown behind a toggle on the pricing page. */
   includes: string[];
+  /** How long this package blocks the calendar (minutes). FLAT packages only. */
+  durationMinutes: number;
+  /** FLAT: fixed length for `price`. HOURLY: `price` is per hour and the customer picks minHours…maxHours. */
+  pricingModel: 'FLAT' | 'HOURLY';
+  minHours: number;
+  maxHours: number;
+  addons: PricingAddOn[];
+}
+
+export interface PricingAddOn {
+  name: string;
+  price: number;
+  /** Charged per hour of the session instead of once. */
+  perHour: boolean;
+  /** Brings another photographer along (the session then needs a lead and a second). */
+  extraPhotographer: boolean;
 }
 
 export interface SessionType {
@@ -37,6 +53,13 @@ export interface AvailabilityHours {
   end: string;
 }
 
+/** A week of booking hours: the studio's (staffName null) or one person's own (custom = they have their own week). */
+export interface HoursWeek {
+  staffName: string | null;
+  custom: boolean;
+  hours: AvailabilityHours[];
+}
+
 /** Time the studio is unavailable. Times null = whole day(s). The note is private. */
 export interface TimeBlock {
   id: number;
@@ -45,6 +68,8 @@ export interface TimeBlock {
   startTime: string | null;
   endTime: string | null;
   note: string | null;
+  /** Whose time; null = the whole studio. */
+  staffName: string | null;
 }
 
 export interface TimeBlockCreate {
@@ -53,6 +78,27 @@ export interface TimeBlockCreate {
   startTime: string | null;
   endTime: string | null;
   note: string;
+  staffName: string | null;
+}
+
+/** Insights report from /api/admin/analytics. */
+export interface AnalyticsReport {
+  days: number;
+  totals: { visitors: number; visits: number; pageviews: number; avgVisitSeconds: number; bounceRate: number };
+  daily: { date: string; visitors: number; visits: number }[];
+  pages: { label: string; count: number }[];
+  referrers: { label: string; count: number }[];
+  devices: { label: string; count: number }[];
+  funnel: { key: string; label: string; visits: number }[];
+  bookingsSubmitted: number;
+}
+
+/** Direct contact details from the API (configured on the server). */
+export interface ContactInfo {
+  email: string | null;
+  phone: string | null;
+  instagram: string | null;
+  location: string | null;
 }
 
 export interface Slot {
@@ -73,6 +119,9 @@ export interface Booking {
   id: number;
   sessionType: string;
   sessionTypeName: string;
+  packageName: string | null;
+  hours: number | null;
+  addons: string[];
   name: string;
   email: string;
   phone: string | null;
@@ -88,10 +137,24 @@ export interface Booking {
   status: BookingStatus;
   quote: number | null;
   createdAt: string;
+  /** Everyone on the session, lead first. */
+  assignees: string[];
+  lead: string | null;
+  second: string | null;
+  /** The package/add-ons call for two photographers. */
+  needsSecond: boolean;
 }
 
 export interface BookingRequest {
   sessionType: string;
+  /** Package (tier) name; required when the session type has packages. */
+  packageName: string | null;
+  /** Hourly packages: how many hours. */
+  hours: number | null;
+  /** Chosen add-on names. */
+  addons: string[];
+  /** A bookable photographer's name, or null for no preference. */
+  photographer: string | null;
   name: string;
   email: string;
   phone: string;
@@ -109,6 +172,8 @@ export interface PublicPopupEvent {
   title: string;
   theme: string;
   venue: string;
+  /** Street address, optional; linked to a map on the Events page. */
+  address: string | null;
   time: string;
 }
 
@@ -122,6 +187,7 @@ export interface PopupEventUpsert {
   title: string;
   theme: string;
   venue: string;
+  address: string;
   time: string;
 }
 
@@ -157,6 +223,18 @@ export interface PhotoGroup {
 
 export type EmailAction = 'approve' | 'decline' | 'cancel' | 'message';
 
+export type MoveReason = 'CLIENT_REQUEST' | 'WEATHER' | 'STUDIO' | 'OTHER';
+
+export interface RescheduleRequest {
+  date: string;
+  /** "HH:mm" */
+  time: string;
+  reason: MoveReason;
+  sendEmail: boolean;
+  subject: string;
+  body: string;
+}
+
 /** Draft vs. live: which kinds of site content have unpublished changes. */
 export interface PublishStatus {
   dirty: boolean;
@@ -176,10 +254,35 @@ export interface EmailRequest {
   body?: string;
 }
 
+export type Access = 'OWNER' | 'ADMIN' | 'EMPLOYEE';
+
+/** The signed-in person. `role` is the job title; `access` decides which sections they see. */
 export interface AdminUser {
   name: string;
   role: string;
   initial: string;
+  access: Access;
+  mustChangePassword: boolean;
+}
+
+/** A team member as the Team page shows it. */
+export interface TeamMember {
+  name: string;
+  role: string;
+  email: string | null;
+  access: Access;
+  active: boolean;
+  mustChangePassword: boolean;
+  createdAt: string | null;
+  isYou: boolean;
+  /** Offered on the public booking page as a photographer to choose. */
+  bookable: boolean;
+}
+
+/** A photographer customers may pick on the booking page. */
+export interface Photographer {
+  name: string;
+  role: string;
 }
 
 export interface LoginResponse {

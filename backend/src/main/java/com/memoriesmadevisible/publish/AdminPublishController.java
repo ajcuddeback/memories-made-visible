@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 @RequestMapping("/api/admin/publish")
 public class AdminPublishController {
 

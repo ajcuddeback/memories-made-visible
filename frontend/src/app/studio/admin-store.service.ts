@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { forkJoin, tap } from 'rxjs';
-import { AvailabilityHours, Booking, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, SessionType, SessionTypeCreate } from '../core/models';
+import { forkJoin, of, tap } from 'rxjs';
+import { Access, AnalyticsReport, AvailabilityHours, Booking, HoursWeek, TeamMember, DeliverRequest, EmailAction, TimeBlock, TimeBlockCreate, EmailDraft, EmailRequest, Gallery, PhotoGroup, PopupEvent, PopupEventUpsert, PublishStatus, RescheduleRequest, MoveReason, SessionType, SessionTypeCreate } from '../core/models';
 import { SiteDataService } from '../core/site-data.service';
 
 /**
@@ -32,17 +32,19 @@ export class AdminStore {
   readonly bookingById = computed(() => new Map(this.bookings().map((b) => [b.id, b])));
   readonly typeName = computed(() => new Map(this.pricing().map((t) => [t.key, t.name])));
 
-  load(): void {
+  /** Employees can't read pricing drafts, photos or publish state; they get the public price list for names. */
+  load(canManage = true): void {
     this.loadError.set(null);
+    const empty = <T>(v: T) => of(v);
     forkJoin({
       bookings: this.http.get<Booking[]>('/api/admin/bookings'),
       events: this.http.get<PopupEvent[]>('/api/admin/events'),
       galleries: this.http.get<Gallery[]>('/api/admin/galleries'),
-      pricing: this.http.get<SessionType[]>('/api/admin/pricing'),
-      publish: this.http.get<PublishStatus>('/api/admin/publish'),
+      pricing: this.http.get<SessionType[]>(canManage ? '/api/admin/pricing' : '/api/pricing'),
+      publish: canManage ? this.http.get<PublishStatus>('/api/admin/publish') : empty<PublishStatus | null>(null),
       hours: this.http.get<AvailabilityHours[]>('/api/admin/availability/hours'),
       blocks: this.http.get<TimeBlock[]>('/api/admin/availability/blocks'),
-      photos: this.http.get<PhotoGroup[]>('/api/admin/photos'),
+      photos: canManage ? this.http.get<PhotoGroup[]>('/api/admin/photos') : empty<PhotoGroup[]>([]),
     }).subscribe({
       next: (r) => {
         this.bookings.set(r.bookings);
@@ -66,7 +68,36 @@ export class AdminStore {
     this.loaded.set(false);
   }
 
+  // ── assignments ──
+  assign(id: number, lead: string | null, second: string | null) {
+    return this.http.put<Booking>(`/api/admin/bookings/${id}/assignees`, { lead, second }).pipe(tap((b) => this.replaceBooking(b)));
+  }
+
+  // ── team ──
+  team() { return this.http.get<TeamMember[]>('/api/admin/users'); }
+  addMember(body: { name: string; role: string; email: string; access: Access }) { return this.http.post<TeamMember>('/api/admin/users', body); }
+  updateMember(name: string, body: { role?: string; email?: string; access?: Access; active?: boolean; bookable?: boolean }) {
+    return this.http.patch<TeamMember>(`/api/admin/users/${encodeURIComponent(name)}`, body);
+  }
+  reinvite(name: string) { return this.http.post<TeamMember>(`/api/admin/users/${encodeURIComponent(name)}/invite`, {}); }
+  removeMember(name: string) { return this.http.delete<void>(`/api/admin/users/${encodeURIComponent(name)}`); }
+
+  // ── insights ──
+  analytics(days: number) {
+    return this.http.get<AnalyticsReport>('/api/admin/analytics', { params: { days } });
+  }
+
   // ── availability ──
+  /** A person's week (their own or the studio's); staff null = the studio's. */
+  week(staff: string | null) {
+    return this.http.get<HoursWeek>('/api/admin/availability/week', { params: staff ? { staff } : {} });
+  }
+  saveWeek(staff: string, hours: AvailabilityHours[]) {
+    return this.http.put<HoursWeek>('/api/admin/availability/week', hours, { params: { staff } });
+  }
+  clearWeek(staff: string) {
+    return this.http.delete<HoursWeek>('/api/admin/availability/week', { params: { staff } });
+  }
   saveHours(hours: AvailabilityHours[]) {
     return this.http.put<AvailabilityHours[]>('/api/admin/availability/hours', hours).pipe(tap((h) => this.hours.set(h)));
   }
@@ -78,8 +109,12 @@ export class AdminStore {
   removeBlock(id: number) {
     return this.http.delete<void>(`/api/admin/availability/blocks/${id}`).pipe(tap(() => this.blocks.update((list) => list.filter((b) => b.id !== id))));
   }
-  reschedule(id: number, date: string, time: string) {
-    return this.http.post<Booking>(`/api/admin/bookings/${id}/reschedule`, { date, time }).pipe(tap((b) => this.replaceBooking(b)));
+  /** The "please confirm the new time" email for a move, pre-filled from the reason's template. */
+  rescheduleDraft(id: number, reason: MoveReason, date: string, time: string) {
+    return this.http.get<EmailDraft>(`/api/admin/bookings/${id}/reschedule-draft`, { params: { reason, date, time } });
+  }
+  reschedule(id: number, body: RescheduleRequest) {
+    return this.http.post<Booking>(`/api/admin/bookings/${id}/reschedule`, body).pipe(tap((b) => this.replaceBooking(b)));
   }
 
   // ── publish ──
@@ -150,6 +185,9 @@ export class AdminStore {
   addGallery(bookingId: number): void {
     this.http.post<Gallery>('/api/admin/galleries', { bookingId }).subscribe((g) => this.galleries.update((list) => [...list, g]));
   }
+  removeGallery(id: number): void {
+    this.http.delete(`/api/admin/galleries/${id}`).subscribe(() => this.galleries.update((list) => list.filter((g) => g.id !== id)));
+  }
   setStage(id: number, stage: number): void {
     this.http.patch<Gallery>(`/api/admin/galleries/${id}/stage`, { stage }).subscribe((g) =>
       this.galleries.update((list) => list.map((x) => (x.id === g.id ? g : x))),
@@ -202,6 +240,8 @@ export class AdminStore {
     this.photoGroups.update((groups) =>
       groups.map((g) => ({ ...g, slots: g.slots.map((s) => (s.id === slotId ? { ...s, url } : s)) })),
     );
+    // Portfolio groups grow by one empty slot per upload; ask the server for the fresh grid.
+    this.http.get<PhotoGroup[]>('/api/admin/photos').subscribe((g) => this.photoGroups.set(g));
     this.refreshPublishStatus();
   }
 }

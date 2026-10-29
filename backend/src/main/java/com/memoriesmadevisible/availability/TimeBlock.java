@@ -39,6 +39,10 @@ public class TimeBlock {
     @Column(length = 200)
     private String note;
 
+    /** Whose time this is; null = the whole studio. */
+    @Column(name = "staff_name", length = 60)
+    private String staffName;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -51,6 +55,12 @@ public class TimeBlock {
     public void setStartTime(LocalTime v) { this.startTime = v; }
     public LocalTime getEndTime() { return endTime; }
     public void setEndTime(LocalTime v) { this.endTime = v; }
+    public String getStaffName() { return staffName; }
+    public void setStaffName(String v) { this.staffName = v; }
+    /** Does this block apply to the given photographer (null = the studio as a whole)? */
+    public boolean appliesTo(String photographer) {
+        return staffName == null || (photographer != null && staffName.equalsIgnoreCase(photographer));
+    }
     public String getNote() { return note; }
     public void setNote(String v) { this.note = v; }
     public Instant getCreatedAt() { return createdAt; }

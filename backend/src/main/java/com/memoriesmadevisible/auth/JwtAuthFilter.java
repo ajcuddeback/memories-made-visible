@@ -16,6 +16,9 @@ import java.util.List;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    /** What someone who still has a temporary password may call (see AuthController). */
+    private static final java.util.Set<String> PASSWORD_SETUP = java.util.Set.of("/api/admin/auth/me", "/api/admin/auth/password");
+
     private final JwtService jwt;
     private final AdminUserRepository users;
 
@@ -30,10 +33,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ") && SecurityContextHolder.getContext().getAuthentication() == null) {
             jwt.verify(header.substring(7))
-                    .flatMap(users::findByNameIgnoreCase)
+                    .flatMap(v -> users.findByNameIgnoreCase(v.name()).filter(u -> jwt.matchesPassword(v, u)))
+                    .filter(AdminUser::isActive)
+                    // A temporary password only opens the door to choosing a real one.
+                    .filter(user -> !user.isMustChangePassword() || PASSWORD_SETUP.contains(request.getRequestURI()))
                     .ifPresent(user -> {
-                        var auth = new UsernamePasswordAuthenticationToken(
-                                user.getName(), null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+                        // ROLE_STAFF for anyone signed in; ROLE_<access> for what they may do.
+                        var auth = new UsernamePasswordAuthenticationToken(user.getName(), null,
+                                List.of(new SimpleGrantedAuthority("ROLE_STAFF"),
+                                        new SimpleGrantedAuthority("ROLE_" + user.getAccess().name())));
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     });
         }

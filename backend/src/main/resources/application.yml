@@ -41,10 +41,31 @@ server:
     enabled: true
 
 management:
+  # Health and Prometheus metrics live on their own port so nginx never exposes them. Prometheus on the same box
+  # scrapes http://127.0.0.1:9091/actuator/prometheus (see docs/DEPLOYMENT.md → Metrics).
+  server:
+    port: ${MANAGEMENT_PORT:9091}
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
+  endpoint:
+    health:
+      probes:
+        # Also answer /livez and /readyz on the API port itself, for the container healthcheck and hosts that
+        # only reach one port (Railway). Readiness includes the database.
+        enabled: true
+        add-additional-paths: true
+      group:
+        readiness:
+          include: readinessState,db
+  metrics:
+    tags:
+      application: mmv
+    distribution:
+      # Histogram buckets so Grafana can plot p50/p95/p99 request latency.
+      percentiles-histogram:
+        http.server.requests: true
   health:
     # A slow SMTP server shouldn't take the whole app out of the load balancer.
     mail:
@@ -52,14 +73,21 @@ management:
 
 app:
   seed-demo-data: false
+  # The studio's time zone: "today", booking notice and upcoming pop-ups are judged in it, not the server's.
+  time-zone: ${APP_TIME_ZONE:America/New_York}
   admin:
+    # The one OWNER account. The rest start as ADMIN; more people are added from Studio → Team.
+    owner: ${ADMIN_OWNER:Austin}
+    # First accounts, created once on first boot (never overwritten — people change passwords in the studio).
     users:
       - name: Erica
         role: Lead photographer
         password: ${ADMIN_ERICA_PASSWORD:}
+        email: ${ADMIN_ERICA_EMAIL:}
       - name: Austin
         role: Second photographer & operations
         password: ${ADMIN_AUSTIN_PASSWORD:}
+        email: ${ADMIN_AUSTIN_EMAIL:}
   jwt:
     # At least 32 characters. Generate one with: openssl rand -base64 48
     secret: ${APP_JWT_SECRET:}
@@ -76,6 +104,14 @@ app:
     customer-from: ${NOTIFY_CUSTOMER_FROM:hello@memoriesmadevisible.com}
     send-customer-confirmation: ${NOTIFY_CUSTOMER:false}
     site-url: ${APP_SITE_URL:http://localhost:4200}
+  # Who leads a session when the customer didn't (or couldn't) choose a photographer.
+  default-photographer: ${DEFAULT_PHOTOGRAPHER:Erica}
+  # Direct contact details shown on the site (booking page, about page, footer).
+  contact:
+    email: ${CONTACT_EMAIL:hello@memoriesmadevisible.com}
+    phone: ${CONTACT_PHONE:}
+    instagram: ${CONTACT_INSTAGRAM:}
+    location: ${CONTACT_LOCATION:Winter Haven, FL · Serving all of Polk County}
   s3:
     bucket: ${S3_BUCKET:mmv-photos}
     region: ${AWS_REGION:us-east-1}

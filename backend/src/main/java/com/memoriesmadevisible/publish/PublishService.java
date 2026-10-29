@@ -38,6 +38,7 @@ import java.util.TreeMap;
  * galleries are operational data, not site content, so they are not staged.
  */
 @Service
+@SuppressWarnings("unchecked")
 public class PublishService {
 
     private static final Logger log = LoggerFactory.getLogger(PublishService.class);
@@ -61,9 +62,14 @@ public class PublishService {
     private final PopupEventRepository events;
     private final SitePhotoRepository photos;
     private final PhotoStorage storage;
+    private final com.memoriesmadevisible.common.StudioClock clock;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
 
     public PublishService(PublishedSiteRepository snapshots, ObjectMapper json, PricingService pricing,
-                          PopupEventRepository events, SitePhotoRepository photos, PhotoStorage storage) {
+                          PopupEventRepository events, SitePhotoRepository photos, PhotoStorage storage,
+                          com.memoriesmadevisible.common.StudioClock clock, com.memoriesmadevisible.common.StudioMetrics metrics) {
+        this.clock = clock;
+        this.metrics = metrics;
         this.snapshots = snapshots;
         this.json = json;
         this.pricing = pricing;
@@ -84,9 +90,10 @@ public class PublishService {
 
     // ── what the public site sees ──
 
+    /** The published price list: what customers see, book against, and what sets a booking's length. */
     @Transactional(readOnly = true)
     public List<PricingDtos.SessionTypeView> publishedPricing() {
-        return read(PRICING, PRICING_T).orElseGet(pricing::list);
+        return read(PRICING, PRICING_T).orElseGet(pricing::list).stream().map(PricingDtos.SessionTypeView::normalized).toList();
     }
 
     @Transactional(readOnly = true)
@@ -98,7 +105,7 @@ public class PublishService {
 
     @Transactional(readOnly = true)
     public List<PopupEventDtos.PublicResponse> publishedUpcoming() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         return read(EVENTS, EVENTS_T).orElseGet(this::draftEvents).stream()
                 .filter(e -> !e.date().isBefore(today)).toList();
     }
@@ -135,13 +142,14 @@ public class PublishService {
     public Status publish() {
         Set<String> previouslyLive = publishedPhotoKeys();
         var draftPhotos = draftPhotos();
-        write(PRICING, pricing.list());
+        write(PRICING, pricing.list().stream().map(PricingDtos.SessionTypeView::normalized).toList());
         write(EVENTS, draftEvents());
         write(PHOTOS, draftPhotos);
         // Objects the old snapshot used that nothing references any more.
         Set<String> stillUsed = new HashSet<>();
         draftPhotos.values().forEach(r -> stillUsed.add(r.key()));
         previouslyLive.stream().filter(k -> !stillUsed.contains(k)).forEach(this::safeDelete);
+        metrics.sitePublished();
         return status();
     }
 
@@ -151,6 +159,7 @@ public class PublishService {
         read(PRICING, PRICING_T).ifPresent(pricing::restore);
         read(EVENTS, EVENTS_T).ifPresent(this::restoreEvents);
         read(PHOTOS, PHOTOS_T).ifPresent(this::restorePhotos);
+        metrics.siteDiscarded();
         return status();
     }
 
@@ -165,6 +174,7 @@ public class PublishService {
             e.setTitle(v.title());
             e.setTheme(v.theme());
             e.setVenue(v.venue());
+            e.setAddress(v.address());
             e.setTime(v.time());
             e = events.save(e);
             keep.add(e.getId());
@@ -219,8 +229,27 @@ public class PublishService {
         }
     }
 
+    /**
+     * Does the draft differ from what's published? Both sides are parsed and re-serialized through the
+     * current DTOs, so a snapshot written by an older version (missing fields that now have defaults)
+     * compares equal once the draft matches it in substance — otherwise "Unpublished changes" could never clear.
+     */
     private boolean differs(String kind, Object draft) {
-        return snapshots.findById(kind).map(s -> !s.getPayload().equals(serialize(draft))).orElse(true);
+        var row = snapshots.findById(kind).orElse(null);
+        if (row == null) return true;
+        try {
+            Object published = switch (kind) {
+                case PRICING -> json.readValue(row.getPayload(), PRICING_T).stream().map(PricingDtos.SessionTypeView::normalized).toList();
+                case EVENTS -> json.readValue(row.getPayload(), EVENTS_T);
+                default -> json.readValue(row.getPayload(), PHOTOS_T);
+            };
+            Object current = PRICING.equals(kind)
+                    ? ((List<PricingDtos.SessionTypeView>) draft).stream().map(PricingDtos.SessionTypeView::normalized).toList()
+                    : draft;
+            return !serialize(published).equals(serialize(current));
+        } catch (java.io.IOException e) {
+            return true;
+        }
     }
 
     private String serialize(Object value) {

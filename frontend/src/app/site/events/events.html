@@ -41,6 +41,7 @@
             <span class="tag tag-accent event-tag">{{ e.theme }}</span>
           </div>
           <div class="event-meta">{{ e.venue }} · {{ e.time }}</div>
+          @if (e.address) { <a class="event-address" [href]="mapUrl(e.address)" target="_blank" rel="noopener">{{ e.address }} ↗</a> }
         </div>
       </div>
     }

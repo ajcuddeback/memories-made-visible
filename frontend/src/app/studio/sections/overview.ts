@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MON, MONTHS, fromISO, money, num, sameMonth, today } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
+import { AuthService } from '../auth.service';
 
 @Component({
   selector: 'app-overview',
@@ -12,35 +13,59 @@ import { AdminStore } from '../admin-store.service';
 })
 export class OverviewSection {
   readonly store = inject(AdminStore);
+  readonly canManage = inject(AuthService).canManage;
   private readonly today = today();
 
-  /** Confirmed-session quotes plus pop-up print sales for a given month. */
-  private monthRevenue(y: number, m: number): number {
+  /** Confirmed-session quotes and pop-up print sales for a given month, separately. */
+  private monthParts(y: number, m: number): { sessions: number; popups: number } {
     const sessions = this.store.confirmed().filter((b) => sameMonth(b.date, y, m)).reduce((a, b) => a + num(b.quote), 0);
-    const prints = this.store.events().filter((e) => sameMonth(e.date, y, m)).reduce((a, e) => a + e.prints * num(e.printPrice), 0);
-    return sessions + prints;
+    const popups = this.store.events().filter((e) => sameMonth(e.date, y, m)).reduce((a, e) => a + e.prints * num(e.printPrice), 0);
+    return { sessions, popups };
+  }
+  private monthRevenue(y: number, m: number): number {
+    const p = this.monthParts(y, m);
+    return p.sessions + p.popups;
   }
 
-  /** Six-month window: three back, this month, two ahead. */
+  /** Chart window. */
+  readonly range = signal<'6m' | '12m' | 'year'>('6m');
+  readonly ranges: { key: '6m' | '12m' | 'year'; label: string }[] = [
+    { key: '6m', label: '6 months' }, { key: '12m', label: 'Past year' }, { key: 'year', label: String(this.today.getFullYear()) },
+  ];
+
+  /** Months in the chosen window: 6m = three back, now, two ahead; 12m = the past twelve; year = Jan–Dec. */
   readonly months = computed(() => {
+    const y0 = this.today.getFullYear(), m0 = this.today.getMonth();
     const range: [number, number][] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(this.today.getFullYear(), this.today.getMonth() - i + 2, 1);
-      range.push([d.getFullYear(), d.getMonth()]);
+    const push = (offset: number) => { const d = new Date(y0, m0 + offset, 1); range.push([d.getFullYear(), d.getMonth()]); };
+    switch (this.range()) {
+      case '6m': for (let i = -3; i <= 2; i++) push(i); break;
+      case '12m': for (let i = -11; i <= 0; i++) push(i); break;
+      case 'year': for (let m = 0; m < 12; m++) range.push([y0, m]); break;
     }
-    const vals = range.map(([y, m]) => this.monthRevenue(y, m));
-    const max = Math.max(1, ...vals);
+    const parts = range.map(([y, m]) => this.monthParts(y, m));
+    const max = Math.max(1, ...parts.map((p) => Math.max(p.sessions, p.popups)));
+    const showYear = range.some(([y]) => y !== y0);
     return range.map(([y, m], i) => {
-      const isNow = y === this.today.getFullYear() && m === this.today.getMonth();
+      const isNow = y === y0 && m === m0;
       const future = new Date(y, m, 1) > this.today;
+      const total = parts[i].sessions + parts[i].popups;
       return {
-        mon: MON[m],
-        label: vals[i] ? money(vals[i]) : '—',
-        h: Math.round((vals[i] / max) * 72),
-        bg: isNow ? 'var(--color-accent)' : future ? 'var(--color-accent-300)' : 'var(--color-accent-2)',
+        key: `${y}-${m}`,
+        mon: MON[m] + (showYear && (m === 0 || i === 0) ? ` ’${String(y).slice(2)}` : ''),
+        label: total ? money(total) : '—',
+        total,
+        sessionsH: Math.round((parts[i].sessions / max) * 72),
+        popupsH: Math.round((parts[i].popups / max) * 72),
+        isNow, future,
+        name: `${MONTHS[m]} ${y}`,
+        sessions: money(parts[i].sessions),
+        popups: money(parts[i].popups),
       };
     });
   });
+  readonly rangeTotal = computed(() => money(this.months().reduce((a, m) => a + m.total, 0)));
+  readonly rangeAria = computed(() => ({ '6m': 'Monthly revenue, three months back through two ahead', '12m': 'Monthly revenue, past twelve months', year: `Monthly revenue, ${this.today.getFullYear()}` })[this.range()]);
 
   readonly stats = computed(() => {
     const y = this.today.getFullYear();
@@ -78,6 +103,6 @@ export class OverviewSection {
   readonly galleriesLabel = computed(() => {
     const ids = this.store.bookingById();
     const n = this.store.galleries().filter((g) => g.stage < 3 && ids.has(g.bookingId)).length;
-    return `${n} galler${n === 1 ? 'y' : 'ies'} in progress`;
+    return `${n} session${n === 1 ? '' : 's'} being edited`;
   });
 }

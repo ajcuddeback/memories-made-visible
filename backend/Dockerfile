@@ -25,5 +25,5 @@ ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport -Djava.s
     PORT=8080
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${PORT}/actuator/health | grep -q '"UP"' || exit 1
+  CMD wget -qO- http://127.0.0.1:${PORT}/readyz | grep -q '"UP"' || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]

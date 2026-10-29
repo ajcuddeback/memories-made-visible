@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 @RequestMapping("/api/admin/photos")
 public class AdminPhotoController {
 

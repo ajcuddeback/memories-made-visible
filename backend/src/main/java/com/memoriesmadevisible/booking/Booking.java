@@ -46,6 +46,31 @@ public class Booking {
     private LocalDate date;
 
     /** Display label ("9:00 AM"); kept for emails and old rows. */
+    /** The package the customer picked (its name at the time); null on older rows. */
+    @Column(name = "package_name", length = 80)
+    private String packageName;
+
+    /** Hours booked for an hourly package; null for flat packages. */
+    @Column
+    private Integer hours;
+
+    /** Chosen add-on names, comma-separated; null when none. */
+    @Column(name = "addons_text", length = 300)
+    private String addonsText;
+
+    public enum Role { LEAD, SECOND }
+
+    /** Staff on this session: sign-in name → LEAD or SECOND. Employees only see sessions they're on. */
+    @jakarta.persistence.ElementCollection(fetch = jakarta.persistence.FetchType.EAGER)
+    @jakarta.persistence.CollectionTable(name = "booking_assignment", joinColumns = @jakarta.persistence.JoinColumn(name = "booking_id"))
+    @jakarta.persistence.MapKeyColumn(name = "staff_name", length = 60)
+    @Column(name = "role", length = 10)
+    private java.util.Map<String, String> assignments = new java.util.HashMap<>();
+
+    /** True when the chosen package/add-ons call for two photographers. */
+    @Column(name = "needs_second", nullable = false)
+    private boolean needsSecond;
+
     @Column(name = "session_time", nullable = false, length = 40)
     private String time;
 
@@ -86,6 +111,41 @@ public class Booking {
     public void setNotes(String v) { this.notes = v; }
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate v) { this.date = v; }
+    /** Everyone on the session, lead first. */
+    public java.util.List<String> getAssignees() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (getLead() != null) out.add(getLead());
+        if (getSecond() != null) out.add(getSecond());
+        return out;
+    }
+    public String getLead() { return assignments.entrySet().stream().filter(e -> "LEAD".equals(e.getValue())).map(java.util.Map.Entry::getKey).findFirst().orElse(null); }
+    public String getSecond() { return assignments.entrySet().stream().filter(e -> "SECOND".equals(e.getValue())).map(java.util.Map.Entry::getKey).findFirst().orElse(null); }
+    public void setTeam(String lead, String second) {
+        assignments.clear();
+        if (lead != null) assignments.put(lead, "LEAD");
+        if (second != null && (lead == null || !second.equalsIgnoreCase(lead))) assignments.put(second, "SECOND");
+    }
+    public boolean isAssignedTo(String name) { return assignments.keySet().stream().anyMatch(a -> a.equalsIgnoreCase(name)); }
+    public boolean isNeedsSecond() { return needsSecond; }
+    public void setNeedsSecond(boolean v) { this.needsSecond = v; }
+    public Integer getHours() { return hours; }
+    public void setHours(Integer v) { this.hours = v; }
+    public java.util.List<String> getAddons() {
+        return addonsText == null || addonsText.isBlank() ? java.util.List.of()
+                : java.util.Arrays.stream(addonsText.split(",")).map(String::strip).filter(s -> !s.isEmpty()).toList();
+    }
+    public void setAddons(java.util.List<String> names) { this.addonsText = names == null || names.isEmpty() ? null : String.join(", ", names); }
+    /** "Event coverage · 3 hrs + Second photographer" — what the customer actually chose. */
+    public String packageSummary() {
+        if (packageName == null) return null;
+        StringBuilder sb = new StringBuilder(packageName);
+        if (hours != null) sb.append(" · ").append(hours).append(hours == 1 ? " hr" : " hrs");
+        var a = getAddons();
+        if (!a.isEmpty()) sb.append(" + ").append(String.join(" + ", a));
+        return sb.toString();
+    }
+    public String getPackageName() { return packageName; }
+    public void setPackageName(String v) { this.packageName = v; }
     public String getTime() { return time; }
     public void setTime(String v) { this.time = v; }
     public LocalTime getStartTime() { return startTime; }

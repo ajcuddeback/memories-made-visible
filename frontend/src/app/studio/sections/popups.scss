@@ -30,3 +30,7 @@
 .revenue { min-width: 70px; }
 .revenue-value { font-size: 17px; font-weight: 700; color: var(--color-text); }
 .remove { font-size: 13px; color: var(--color-accent-700); }
+
+.add-address { grid-column: 1 / -1; }
+.add-address .hint { font-weight: 500; color: var(--ink-65); }
+.pop-meta a { color: var(--color-accent-700); }

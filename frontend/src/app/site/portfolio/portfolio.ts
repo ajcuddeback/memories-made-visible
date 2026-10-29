@@ -9,9 +9,10 @@ interface PortfolioItem {
   ratio: string;
 }
 
-/** Three photo slots per pricing category (pf-<key>-1..3); ratios vary so the masonry staggers. */
-const PER_CATEGORY = 3;
+/** Before any photos are uploaded, a category shows this many placeholders so the page isn't empty. */
+const PLACEHOLDERS = 3;
 const RATIOS = ['3 / 4', '4 / 5', '1 / 1', '3 / 2', '4 / 5', '2 / 3'];
+const SLOT = /^pf-(.+)-(\d+)$/;
 
 @Component({
   selector: 'app-portfolio',
@@ -31,26 +32,32 @@ export class PortfolioPage {
     ...this.shown().map((t) => ({ key: t.key, label: t.shortName })),
   ]);
 
-  private readonly all = computed<PortfolioItem[]>(() => {
-    const out: PortfolioItem[] = [];
-    this.shown().forEach((t, ci) => {
-      for (let i = 0; i < PER_CATEGORY; i++) {
-        out.push({ id: `${t.key}-${i + 1}`, key: t.key, cat: t.shortName, ratio: RATIOS[(ci + i * 2) % RATIOS.length] });
-      }
+  /** Every uploaded portfolio photo, grouped by category in slot order; categories with none get placeholders. */
+  private readonly byCategory = computed<PortfolioItem[][]>(() => {
+    const uploaded = new Map<string, number[]>();
+    for (const id of Object.keys(this.data.photos())) {
+      const m = SLOT.exec(id);
+      if (m) uploaded.set(m[1], [...(uploaded.get(m[1]) ?? []), Number(m[2])]);
+    }
+    return this.shown().map((t, ci) => {
+      const ns = (uploaded.get(t.key) ?? []).sort((a, b) => a - b);
+      const list = ns.length ? ns : Array.from({ length: PLACEHOLDERS }, (_, i) => i + 1);
+      return list.map((n, i) => ({ id: `${t.key}-${n}`, key: t.key, cat: t.shortName, ratio: RATIOS[(ci + i * 2) % RATIOS.length] }));
     });
-    return out;
   });
 
-  /** "All" interleaves categories instead of listing them in blocks. */
+  /** "All" interleaves categories round-robin instead of listing them in blocks. */
   readonly items = computed(() => {
-    const all = this.all();
-    if (this.filter() !== 'all') return all.filter((p) => p.key === this.filter());
-    const ordered: PortfolioItem[] = [];
-    for (let i = 0; i < PER_CATEGORY; i++) all.filter((_, j) => j % PER_CATEGORY === i).forEach((p) => ordered.push(p));
-    return ordered;
+    const groups = this.byCategory();
+    if (this.filter() !== 'all') return groups.flat().filter((p) => p.key === this.filter());
+    const out: PortfolioItem[] = [];
+    const longest = Math.max(0, ...groups.map((g) => g.length));
+    for (let i = 0; i < longest; i++) for (const g of groups) if (g[i]) out.push(g[i]);
+    return out;
   });
 
   constructor() {
     this.data.loadPricing();
+    this.data.loadPhotos();
   }
 }

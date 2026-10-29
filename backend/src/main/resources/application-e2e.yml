@@ -1,0 +1,54 @@
+# End-to-end test profile: a scratch Postgres database, fixed staff accounts, email captured by the
+# e2e runner's SMTP server (port 2525), no demo data, generous rate limits. Never used in production.
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/mmv_e2e}
+    username: ${DATABASE_USERNAME:mmv}
+    password: ${DATABASE_PASSWORD:mmv}
+  mail:
+    host: localhost
+    port: 2525
+    properties:
+      mail.smtp.auth: false
+      mail.smtp.starttls.enable: false
+
+app:
+  seed-demo-data: false
+  time-zone: America/New_York
+  booking-rate-limit: 10000
+  default-photographer: Erica
+  login-rate-limit: 10000
+  admin:
+    owner: Austin
+    users:
+      - name: Erica
+        role: Lead photographer
+        password: erica-e2e
+        email: erica@e2e.local
+      - name: Austin
+        role: Second photographer & operations
+        password: austin-e2e
+        email: austin@e2e.local
+  jwt:
+    secret: e2e-only-secret-e2e-only-secret-e2e-only-secret
+  cors:
+    allowed-origins: http://localhost:4200,http://127.0.0.1:4200
+  notifications:
+    from: admin@e2e.local
+    to: bookings@e2e.local
+    customer-from: hello@e2e.local
+    send-customer-confirmation: true
+    site-url: http://localhost:4200
+  contact:
+    email: hello@e2e.local
+    phone: "(863) 555-0100"
+    instagram: memoriesmadevisible
+  s3:
+    bucket: e2e-photos
+    endpoint: http://localhost:9
+    path-style-access: true
+    public-base-url: http://cdn.e2e.local/photos
+
+logging:
+  level:
+    com.memoriesmadevisible: INFO

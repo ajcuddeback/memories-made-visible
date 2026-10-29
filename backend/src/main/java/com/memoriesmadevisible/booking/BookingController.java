@@ -21,10 +21,12 @@ public class BookingController {
     private final BookingService service;
     /** Public requests per client per 15 minutes (app.booking-rate-limit; tests raise it). */
     private final RateLimiter limiter;
+    private final com.memoriesmadevisible.common.StudioMetrics metrics;
 
-    public BookingController(BookingService service,
+    public BookingController(BookingService service, com.memoriesmadevisible.common.StudioMetrics metrics,
                              @org.springframework.beans.factory.annotation.Value("${app.booking-rate-limit:5}") int rateLimit) {
         this.service = service;
+        this.metrics = metrics;
         this.limiter = new RateLimiter(rateLimit, Duration.ofMinutes(15));
     }
 
@@ -35,6 +37,7 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("ok", true));
         }
         if (!limiter.tryAcquire(RateLimiter.clientKey(http))) {
+            metrics.rateLimited("booking");
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Too many requests from this connection. Please try again later."));
         }

@@ -7,6 +7,7 @@ import { ViewportService } from '../core/viewport.service';
 import { AdminStore } from './admin-store.service';
 import { AuthService } from './auth.service';
 import { StudioLogin } from './login';
+import { PasswordPanel } from './password-panel';
 
 interface NavItem {
   path: string;
@@ -17,7 +18,7 @@ interface NavItem {
 
 @Component({
   selector: 'app-studio-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, StudioLogin, DatePipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, StudioLogin, DatePipe, PasswordPanel],
   templateUrl: './studio-shell.html',
   styleUrl: './studio-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,21 +30,26 @@ export class StudioShell {
   readonly viewport = inject(ViewportService);
   private readonly router = inject(Router);
 
-  readonly nav: NavItem[] = [
+  private readonly allNav: (NavItem & { manage?: boolean })[] = [
     { path: '/studio', label: 'Overview', title: 'Overview', exact: true },
-    { path: '/studio/requests', label: 'Requests', title: 'Booking requests', exact: false },
+    { path: '/studio/sessions', label: 'Sessions', title: 'Sessions', exact: false },
     { path: '/studio/calendar', label: 'Calendar', title: 'Calendar', exact: false },
     { path: '/studio/popups', label: 'Pop-ups', title: 'Pop-up events', exact: false },
-    { path: '/studio/galleries', label: 'Galleries', title: 'Client galleries', exact: false },
-    { path: '/studio/pricing', label: 'Pricing', title: 'Pricing', exact: false },
-    { path: '/studio/photos', label: 'Photos', title: 'Website photos', exact: false },
+    { path: '/studio/pricing', label: 'Pricing', title: 'Pricing', exact: false, manage: true },
+    { path: '/studio/photos', label: 'Photos', title: 'Website photos', exact: false, manage: true },
+    { path: '/studio/insights', label: 'Insights', title: 'Site insights', exact: false, manage: true },
+    { path: '/studio/team', label: 'Team', title: 'Team', exact: false, manage: true },
   ];
+  /** Employees only see the day-to-day sections. */
+  readonly nav = computed<NavItem[]>(() => this.allNav.filter((n) => !n.manage || this.auth.canManage()));
+  readonly accessLabel = computed(() => ({ OWNER: 'Owner', ADMIN: 'Admin', EMPLOYEE: 'Employee' })[this.auth.user()?.access ?? 'EMPLOYEE']);
+  readonly pwOpen = signal(false);
 
   readonly menuOpen = signal(false);
   readonly url = signal(this.router.url);
   readonly sectionTitle = computed(() => {
     const u = this.url().split('?')[0];
-    return this.nav.find((n) => (n.exact ? u === n.path : u.startsWith(n.path)))?.title ?? 'Overview';
+    return this.allNav.find((n) => (n.exact ? u === n.path : u.startsWith(n.path)))?.title ?? 'Overview';
   });
   readonly pendingCount = computed(() => this.store.pending().length);
   readonly publishMsg = signal('');
@@ -72,9 +78,10 @@ export class StudioShell {
     });
     // Fetch fresh studio data every time the admin opens (sign-in or return from the site);
     // the store is only a cache of API responses, never a source of data.
+    // A temporary password only unlocks the password screen, so wait until a real one is set.
     effect(() => {
-      if (this.auth.isLoggedIn()) {
-        this.store.load();
+      if (this.auth.isLoggedIn() && !this.auth.mustChangePassword()) {
+        this.store.load(this.auth.canManage());
       } else {
         this.store.reset();
       }

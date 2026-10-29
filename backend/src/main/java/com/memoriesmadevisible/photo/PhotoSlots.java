@@ -20,8 +20,9 @@ public final class PhotoSlots {
     public record Slot(String id, String label) {}
     public record Group(String title, List<Slot> slots) {}
 
-    public static final int PER_CATEGORY = 3;
-    private static final Pattern PORTFOLIO = Pattern.compile("^pf-([a-z0-9-]+)-([1-3])$");
+    /** Portfolio photos per category are open-ended (up to this many); the admin always sees one empty slot to fill next. */
+    public static final int MAX_PER_CATEGORY = 40;
+    private static final Pattern PORTFOLIO = Pattern.compile("^pf-([a-z0-9-]+)-([1-9][0-9]?)$");
 
     public static final Group FIXED = new Group("Home, events & about", List.of(
             new Slot("home-hero", "Home · hero"),
@@ -36,13 +37,20 @@ public final class PhotoSlots {
 
     private static final Set<String> FIXED_IDS = Set.copyOf(FIXED.slots().stream().map(Slot::id).toList());
 
-    public static List<Group> groups(List<PricingDtos.SessionTypeView> categories) {
+    /** Fixed slots, then per category every filled portfolio slot plus one empty one to add to. */
+    public static List<Group> groups(List<PricingDtos.SessionTypeView> categories, Set<String> filledSlotIds) {
         List<Group> groups = new ArrayList<>();
         groups.add(FIXED);
         for (var c : categories) {
             if (!c.showInPortfolio()) continue;
+            int highest = 0;
+            for (String id : filledSlotIds) {
+                var m = PORTFOLIO.matcher(id);
+                if (m.matches() && m.group(1).equals(c.key())) highest = Math.max(highest, Integer.parseInt(m.group(2)));
+            }
+            int count = Math.min(MAX_PER_CATEGORY, highest + 1);
             List<Slot> slots = new ArrayList<>();
-            for (int n = 1; n <= PER_CATEGORY; n++) {
+            for (int n = 1; n <= count; n++) {
                 slots.add(new Slot("pf-" + c.key() + "-" + n, c.shortName() + " " + n));
             }
             groups.add(new Group("Portfolio · " + c.shortName(), slots));
@@ -55,6 +63,6 @@ public final class PhotoSlots {
         if (slotId == null) return false;
         if (FIXED_IDS.contains(slotId)) return true;
         var m = PORTFOLIO.matcher(slotId);
-        return m.matches() && categoryExists.test(m.group(1));
+        return m.matches() && Integer.parseInt(m.group(2)) <= MAX_PER_CATEGORY && categoryExists.test(m.group(1));
     }
 }

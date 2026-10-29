@@ -28,8 +28,12 @@ home sections use incremental hydration. Lighthouse (mobile, throttled) on the p
 SEO 100, accessibility 100, best practices 100, CLS 0.
 
 **Studio admin** — `/studio`. Not linked from anywhere on the site; share the URL with the two studio accounts only.
-Sections: Overview (revenue + next up), Requests (approve / decline / quote), Calendar, Pop-ups (with print sales),
-Galleries (delivery pipeline), Pricing (edits publish straight to the site), Photos (upload to S3 into named site slots).
+Sections: Overview (revenue + next up), Sessions (one row per session: request → booked → shot/editing/proofing →
+delivered, with the quote, approval/decline emails and the delivery email), Calendar (status-coloured, block time,
+booking hours), Pop-ups (with print sales), Pricing (categories, packages, lengths, add-ons — Save, then Publish),
+Photos (upload to S3 into named site slots — Publish to go live), Insights (first-party, anonymous site analytics: visitors, time on site, pages, referrers, booking funnel), Team (owner /
+admin / employee accounts; invites by email with a temporary password; forgot-password by email; employees see only the
+sessions they're assigned to).
 
 **Booking requests** from `/book` are stored as `PENDING` and immediately emailed to **bookings@memoriesmadevisible.com**
 (`NOTIFY_TO`) from admin@, with an optional acknowledgement to the customer (`NOTIFY_CUSTOMER=true`). The form has a honeypot
@@ -74,7 +78,7 @@ Everything the API needs is an environment variable — see [`.env.example`](.en
 
 | Variable | Purpose |
 | --- | --- |
-| `ADMIN_ERICA_PASSWORD`, `ADMIN_AUSTIN_PASSWORD` | Admin passwords; upserted (bcrypt) on every boot, so changing one and restarting is the reset flow |
+| `ADMIN_ERICA_PASSWORD`, `ADMIN_AUSTIN_PASSWORD`, `ADMIN_*_EMAIL`, `ADMIN_OWNER` | The first accounts, created once (bcrypt) on first boot; after that passwords are changed in the studio and people are managed under Team |
 | `APP_JWT_SECRET` | ≥ 32 chars; signs admin sessions (12 h) |
 | `NOTIFY_TO` / `NOTIFY_FROM` | Booking requests go to `bookings@memoriesmadevisible.com`, sent from `admin@memoriesmadevisible.com` (defaults; override per environment). Customer acknowledgements come from `NOTIFY_CUSTOMER_FROM` (bookings@) |
 | `SMTP_*` | Mail server. Namecheap Private Email: `mail.privateemail.com`, port 587 (STARTTLS), username = the real mailbox (`hello@`), password = its password. `NOTIFY_FROM`/`NOTIFY_TO` can be any alias of that mailbox (`admin@`, `bookings@`) |
@@ -92,7 +96,7 @@ Both apps ship a multi-stage `Dockerfile`:
 
 | Image | Base | Serves |
 | --- | --- | --- |
-| `backend/Dockerfile` | Temurin 21 JRE (alpine), non-root, layered Spring Boot jar | API on `:8080`, health at `/actuator/health` |
+| `backend/Dockerfile` | Temurin 21 JRE (alpine), non-root, layered Spring Boot jar | API on `:8080`, health at `/readyz`; metrics on `:9091/actuator/prometheus` |
 | `frontend/Dockerfile` | nginx-unprivileged (alpine) | Angular build on `:8080`, SPA fallback, `/api/*` proxied to `BACKEND_URL` |
 
 **Single host with Compose** (site + API + Postgres; photos on S3, mail via your SMTP provider):
@@ -145,3 +149,6 @@ backend/src/main/java/com/memoriesmadevisible
 ├── photo/       slots, S3 storage, upload
 └── seed/        dev-profile demo data
 ```
+
+
+See [docs/TESTING.md](docs/TESTING.md) for the test suites.

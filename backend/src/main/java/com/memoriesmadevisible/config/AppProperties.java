@@ -14,11 +14,18 @@ public record AppProperties(
         Jwt jwt,
         Cors cors,
         Notifications notifications,
-        S3 s3
+        S3 s3,
+        Contact contact,
+        /** Lead photographer for requests that didn't choose one (nobody bookable, or "no preference" with nobody free to pick). */
+        String defaultPhotographer
 ) {
 
-    public record Admin(List<User> users) {
-        public record User(String name, String role, String password) {}
+    /** How customers reach the studio directly (shown on the booking page, about page and footer). */
+    public record Contact(String email, String phone, String instagram, String location) {}
+
+    /** {@code owner} names the single OWNER account; the rest are ADMIN until changed in the studio. */
+    public record Admin(List<User> users, String owner) {
+        public record User(String name, String role, String password, String email) {}
     }
 
     /** Secret must be at least 32 bytes; token lifetime in hours. */

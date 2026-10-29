@@ -8,7 +8,7 @@
     </div>
     <div class="cal-tools">
       <button type="button" class="btn btn-primary sm" (click)="openBlock()">Block time</button>
-      <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">Booking hours</button>
+      <button type="button" class="btn btn-secondary sm" (click)="toggleHours()" [attr.aria-expanded]="hoursOpen()">{{ canManage() ? 'Booking hours' : 'My hours' }}</button>
     </div>
   </div>
   <div class="legend" aria-label="Legend">
@@ -22,20 +22,36 @@
 
   @if (hoursOpen()) {
     <section class="panel hours" aria-label="Booking hours">
-      <h3 class="panel-title">Booking hours</h3>
-      <p class="panel-hint">Customers can only pick start times inside these windows (a session must also finish inside them). Use <em>Block time</em> for one-offs like appointments or holidays.</p>
+      <div class="hours-head">
+        <h3 class="panel-title">Booking hours</h3>
+        @if (canManage()) {
+          <label class="field field--sm hours-for">Hours for
+            <select class="input" [value]="hoursFor()" (change)="pickHoursFor($event)">
+              <option value="" [selected]="!hoursFor()">The studio (default for everyone)</option>
+              @for (p of staff(); track p.name) { <option [value]="p.name" [selected]="hoursFor() === p.name">{{ p.name }} · {{ p.role }}</option> }
+            </select>
+          </label>
+        }
+      </div>
+      <p class="panel-hint">
+        @if (!hoursFor()) { Customers can only pick start times inside these windows (a session must also finish inside them). Anyone without their own week follows these. }
+        @else if (hoursCustom()) { {{ hoursFor() }} has their own week — it replaces the studio's hours for them on the booking page. }
+        @else { {{ hoursFor() }} follows the studio's hours. Change anything and save to give them their own week. }
+        Use <em>Block time</em> for one-offs like appointments or holidays.
+      </p>
       <div class="hours-grid">
         @for (h of hoursDraft(); track h.weekday) {
           <div class="hour-row" [class.is-closed]="!h.open">
             <label class="hour-day"><input type="checkbox" [checked]="h.open" (change)="setHour(h.weekday, 'open', checked($event))" /> {{ weekdays[h.weekday] }}</label>
-            <input class="input hour-time" type="time" step="1800" [value]="h.start" [disabled]="!h.open" (change)="setHour(h.weekday, 'start', val($event))" [attr.aria-label]="weekdays[h.weekday] + ' opens'" />
+            <app-time-field class="hour-time" [value]="h.start" [disabled]="!h.open" (valueChange)="setHour(h.weekday, 'start', $event)" [label]="weekdays[h.weekday] + ' opens'" />
             <span class="hour-sep">to</span>
-            <input class="input hour-time" type="time" step="1800" [value]="h.end" [disabled]="!h.open" (change)="setHour(h.weekday, 'end', val($event))" [attr.aria-label]="weekdays[h.weekday] + ' closes'" />
+            <app-time-field class="hour-time" [value]="h.end" [disabled]="!h.open" (valueChange)="setHour(h.weekday, 'end', $event)" [label]="weekdays[h.weekday] + ' closes'" />
           </div>
         }
       </div>
       <div class="panel-actions">
         <button type="button" class="btn btn-primary sm" [disabled]="hoursBusy()" (click)="saveHours()">{{ hoursBusy() ? 'Saving…' : 'Save hours' }}</button>
+        @if (hoursFor() && hoursCustom()) { <button type="button" class="btn btn-ghost sm" [disabled]="hoursBusy()" (click)="useStudioHours()">Use studio hours</button> }
         <button type="button" class="btn btn-secondary sm" (click)="toggleHours()">Close</button>
         <span class="panel-msg" aria-live="polite">{{ hoursMsg() }}</span>
       </div>
@@ -45,15 +61,25 @@
   @if (block(); as b) {
     <form class="panel block-form" (submit)="$event.preventDefault(); saveBlock()" aria-label="Block time">
       <h3 class="panel-title">Block time</h3>
-      <p class="panel-hint">Customers just see the time as unavailable — the note is only for you.</p>
+      <p class="panel-hint">Customers just see the time as unavailable — the note is only for you. A block for one person only affects their own availability on the booking page.</p>
       <div class="block-grid">
-        <label class="field field--sm">From<input class="input" type="date" [value]="b.startDate" (change)="setBlock('startDate', val($event))" required /></label>
-        <label class="field field--sm">Through <span class="hint">(optional)</span><input class="input" type="date" [value]="b.endDate" [min]="b.startDate" (change)="setBlock('endDate', val($event))" /></label>
+        <div class="field field--sm">From<app-date-field [value]="b.startDate" (valueChange)="setBlock('startDate', $event)" label="Block from" /></div>
+        <div class="field field--sm">Through <span class="hint">(optional)</span><app-date-field [value]="b.endDate" [min]="b.startDate" [clearable]="true" placeholder="Same day" (valueChange)="setBlock('endDate', $event)" label="Block through" /></div>
         <label class="toggle"><input type="checkbox" [checked]="b.allDay" (change)="setBlock('allDay', checked($event))" /> All day</label>
         @if (!b.allDay) {
-          <label class="field field--sm">Start<input class="input" type="time" step="900" [value]="b.startTime" (change)="setBlock('startTime', val($event))" /></label>
-          <label class="field field--sm">End<input class="input" type="time" step="900" [value]="b.endTime" (change)="setBlock('endTime', val($event))" /></label>
+          <div class="field field--sm">Start<app-time-field [value]="b.startTime" [step]="15" (valueChange)="setBlock('startTime', $event)" label="Block start" /></div>
+          <div class="field field--sm">End<app-time-field [value]="b.endTime" [step]="15" (valueChange)="setBlock('endTime', $event)" label="Block end" /></div>
         }
+        <label class="field field--sm">Who's unavailable
+          @if (canManage()) {
+            <select class="input" [value]="b.staffName" (change)="setBlock('staffName', val($event))">
+              <option value="" [selected]="!b.staffName">Whole studio (everyone)</option>
+              @for (p of staff(); track p.name) { <option [value]="p.name" [selected]="b.staffName === p.name">{{ p.name }} · {{ p.role }}</option> }
+            </select>
+          } @else {
+            <input class="input" [value]="b.staffName" disabled />
+          }
+        </label>
         <label class="field field--sm block-note">Note <span class="hint">(private)</span><input class="input" [value]="b.note" (input)="setBlock('note', val($event))" placeholder="Dentist, vacation, family day…" maxlength="200" /></label>
       </div>
       @if (b.error) { <p class="panel-error" role="alert">{{ b.error }}</p> }
@@ -110,7 +136,7 @@
               @if (it.sub) { <span class="dayi-sub">{{ it.sub }}</span> }
             </span>
             <span class="tag dayi-tag" [class]="'tag dayi-tag tag--' + it.kind">{{ kindLabel[it.kind] }}</span>
-            @if (it.bookingId && it.kind !== 'declined') {
+            @if (it.bookingId && it.kind !== 'declined' && canManage()) {
               <button type="button" class="btn btn-ghost sm dayi-act" (click)="openMove(it.bookingId!)">Move</button>
             }
             @if (it.blockId) {
@@ -119,14 +145,23 @@
             @if (move(); as mv) {
               @if (mv.bookingId === it.bookingId) {
                 <form class="move" (submit)="$event.preventDefault(); saveMove()">
-                  <label class="field field--sm">Date<input class="input" type="date" [value]="mv.date" (change)="setMove('date', val($event))" /></label>
-                  <label class="field field--sm">Start<input class="input" type="time" step="1800" [value]="mv.time" (change)="setMove('time', val($event))" /></label>
+                  <div class="field field--sm">New date<app-date-field [value]="mv.date" [min]="todayIso" (valueChange)="setMoveSlot('date', $event)" label="New date" /></div>
+                  <div class="field field--sm">New start<app-time-field [value]="mv.time" (valueChange)="setMoveSlot('time', $event)" label="New start time" /></div>
+                  <label class="field field--sm move-reason">Reason
+                    <select class="input" [value]="mv.reason" (change)="setMoveSlot('reason', val($event))">
+                      @for (r of moveReasons; track r.key) { <option [value]="r.key" [selected]="r.key === mv.reason">{{ r.label }}</option> }
+                    </select>
+                  </label>
+                  <label class="toggle move-send"><input type="checkbox" [checked]="mv.sendEmail" (change)="setMove('sendEmail', checked($event))" /> Email {{ mv.to }} to confirm the new time</label>
+                  @if (mv.loading) { <p class="panel-hint move-wide">Loading email…</p> }
+                  <label class="field field--sm move-wide">Subject<input class="input" [value]="mv.subject" (input)="editMoveText('subject', val($event))" [disabled]="!mv.sendEmail" /></label>
+                  <label class="field field--sm move-wide">Message<textarea class="input move-body" rows="8" [value]="mv.body" (input)="editMoveText('body', val($event))" [disabled]="!mv.sendEmail"></textarea></label>
                   <div class="panel-actions">
-                    <button type="submit" class="btn btn-primary sm" [disabled]="mv.busy">{{ mv.busy ? 'Moving…' : 'Move session' }}</button>
+                    <button type="submit" class="btn btn-primary sm" [disabled]="mv.busy || mv.loading">{{ mv.busy ? 'Moving…' : (mv.sendEmail ? 'Move & send confirmation request' : 'Move without emailing') }}</button>
                     <button type="button" class="btn btn-secondary sm" (click)="closeMove()">Cancel</button>
                   </div>
                   @if (mv.error) { <p class="panel-error" role="alert">{{ mv.error }}</p> }
-                  <p class="panel-hint">A confirmed session can only move to a free time; the customer isn’t emailed automatically — send them a note from Requests.</p>
+                  <p class="panel-hint">The new time has to be free. The email asks the client to reply and confirm; a copy goes to the studio inbox.</p>
                 </form>
               }
             }

@@ -31,8 +31,25 @@
 }
 .type.is-on .type-dot { background: var(--color-accent); }
 .type-name { font-size: 15px; font-weight: 600; }
+.type-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.type-sub { font-size: 12.5px; color: var(--ink-65); }
 .type--skeleton { cursor: default; }
 .type--skeleton .sk { display: block; height: 15px; width: 60%; border-radius: 999px; background: var(--ink-7); }
+
+.packages { display: grid; gap: 10px; }
+.pkg {
+  text-align: left; cursor: pointer; padding: 14px 18px; border-radius: 22px; width: 100%;
+  border: 2px solid var(--color-divider); background: var(--color-surface); color: var(--color-text);
+  display: flex; align-items: center; gap: 12px; transition: border-color 0.15s, background-color 0.15s;
+}
+.pkg:hover { border-color: var(--color-accent); }
+.pkg.is-on { border-color: var(--color-accent); background: var(--color-accent-100); }
+.pkg.is-on .type-dot { background: var(--color-accent); }
+.pkg-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.pkg-name { font-size: 15px; font-weight: 600; }
+.pkg-length { font-weight: 500; color: var(--ink-65); }
+.pkg-detail { font-size: 13px; color: var(--ink-70); }
+.pkg-price { font-family: var(--font-heading); font-size: 18px; white-space: nowrap; }
 
 .calendar { background: var(--color-surface); border-radius: 32px; padding: 24px; max-width: 460px; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
@@ -72,3 +89,24 @@ textarea.input.lg { min-height: 120px; }
 .hint { font-size: 13px; line-height: 1.5; margin: 14px 0 0; color: var(--ink-70); }
 .hint.is-error { color: var(--color-accent-700); font-weight: 600; }
 @media (max-width: 819px) { .summary { position: static; } }
+
+.intro-link { color: var(--color-accent-700); font-weight: 600; }
+.reach { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--color-divider); }
+.reach-title { font-size: 18px; margin: 0 0 8px; }
+.reach-text { font-size: 14px; line-height: 1.55; margin: 0 0 12px; color: var(--ink-70); }
+.reach-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 15px; font-weight: 600; }
+.reach-list a { color: var(--color-accent-700); }
+
+.pkg-options { margin-top: 14px; display: grid; gap: 14px; }
+.pkg-hours { max-width: 320px; }
+.pkg-hours .hint { font-weight: 500; color: var(--ink-65); }
+.addons { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.addons-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; padding: 0; }
+.addon {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 18px; cursor: pointer;
+  border: 2px solid var(--color-divider); background: var(--color-surface);
+}
+.addon:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent-100); }
+.addon input { width: 18px; height: 18px; accent-color: var(--color-accent); }
+.addon-name { flex: 1; font-weight: 600; font-size: 15px; }
+.addon-price { font-family: var(--font-heading); font-size: 16px; }

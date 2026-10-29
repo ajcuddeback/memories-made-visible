@@ -4,10 +4,16 @@ import { AdminStore } from '../admin-store.service';
 import { Icon } from '../../shared/icons';
 import { fmtDuration } from '../../core/dates';
 
+interface DraftAddOn { name: string; price: string; perHour: boolean; extraPhotographer: boolean; }
 interface DraftTier {
   name: string;
   detail: string;
   price: string;
+  durationMinutes: number;
+  hourly: boolean;
+  minHours: number;
+  maxHours: number;
+  addons: DraftAddOn[];
   /** Edited as one item per line; split on save. */
   includesText: string;
 }
@@ -24,7 +30,7 @@ interface Draft {
 }
 
 /** 30-minute steps up to 8 hours, for the "session length" picker. */
-export const DURATIONS = Array.from({ length: 16 }, (_, i) => (i + 1) * 30);
+export const DURATIONS = [15, 30, 45, ...Array.from({ length: 23 }, (_, i) => (i + 2) * 30)];
 
 @Component({
   selector: 'app-pricing-admin',
@@ -39,6 +45,24 @@ export class PricingAdminSection {
   readonly msg = signal('');
   readonly busy = signal(false);
   readonly dirty = signal(false);
+  /** Categories whose editor is expanded; the rest show a summary. */
+  readonly open = signal<Set<string>>(new Set());
+  readonly addOpen = signal(false);
+  isOpen(key: string): boolean { return this.open().has(key); }
+  /** One package editor open per category at a time. */
+  readonly openPkg = signal<Map<string, number>>(new Map());
+  isPkgOpen(key: string, ti: number): boolean { return this.openPkg().get(key) === ti; }
+  togglePkg(key: string, ti: number): void {
+    this.openPkg.update((m) => { const n = new Map(m); if (n.get(key) === ti) n.delete(key); else n.set(key, ti); return n; });
+  }
+  toggleOpen(key: string): void { this.open.update((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; }); }
+  /** "$1,800 · 6 hrs" / "$150/hr · 2–8 hrs · 1 add-on" */
+  pkgSummary(t: DraftTier): string {
+    const parts = [t.price || '—', t.hourly ? `${t.minHours}–${t.maxHours} hrs` : fmtDuration(t.durationMinutes || 60)];
+    const n = t.addons.filter((a) => a.name.trim()).length;
+    if (n) parts.push(`${n} add-on${n === 1 ? '' : 's'}`);
+    return parts.join(' · ');
+  }
 
   // "Add a category" form
   readonly nc = signal({ name: '', shortName: '', description: '', from: '', showInPortfolio: true, durationMinutes: 60 });
@@ -66,7 +90,12 @@ export class PricingAdminSection {
       key: s.key, name: s.name, shortName: s.shortName === s.name ? '' : s.shortName, description: s.description, from: s.from,
       showInPortfolio: s.showInPortfolio,
       durationMinutes: s.durationMinutes || 60,
-      tiers: s.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, includesText: (t.includes ?? []).join('\n') })),
+      tiers: s.tiers.map((t) => ({
+        name: t.name, detail: t.detail, price: t.price, durationMinutes: t.durationMinutes || 60,
+        hourly: t.pricingModel === 'HOURLY', minHours: t.minHours || 2, maxHours: t.maxHours || 8,
+        addons: (t.addons ?? []).map((a) => ({ name: a.name, price: String(a.price), perHour: a.perHour, extraPhotographer: !!a.extraPhotographer })),
+        includesText: (t.includes ?? []).join('\n'),
+      })),
     }));
   }
 
@@ -75,7 +104,9 @@ export class PricingAdminSection {
       key: c.key, name: c.name, shortName: c.shortName, description: c.description, from: c.from,
       showInPortfolio: c.showInPortfolio,
       durationMinutes: c.durationMinutes,
-      tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price,
+      tiers: c.tiers.map((t) => ({ name: t.name, detail: t.detail, price: t.price, durationMinutes: t.durationMinutes,
+        pricingModel: t.hourly ? 'HOURLY' as const : 'FLAT' as const, minHours: t.minHours, maxHours: t.maxHours,
+        addons: t.addons.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), price: Number(a.price.replace(/[^0-9.]/g, '')) || 0, perHour: a.perHour, extraPhotographer: a.extraPhotographer })),
         includes: t.includesText.split(/\r?\n/).map((s) => s.trim()).filter(Boolean) })),
     }));
   }
@@ -101,11 +132,42 @@ export class PricingAdminSection {
     this.edit((d) => { const j = i + dir; if (j < 0 || j >= d.length) return; [d[i], d[j]] = [d[j], d[i]]; });
   }
   // package fields
-  setTier(i: number, ti: number, field: keyof DraftTier, e: Event): void {
+  setTier(i: number, ti: number, field: 'name' | 'detail' | 'price' | 'includesText', e: Event): void {
     const v = this.val(e); this.edit((d) => { d[i].tiers[ti][field] = v; });
   }
-  addTier(i: number): void { this.edit((d) => { d[i].tiers.push({ name: 'New package', detail: '', price: '$', includesText: '' }); }); }
-  removeTier(i: number, ti: number): void { this.edit((d) => { d[i].tiers.splice(ti, 1); }); }
+  addTier(i: number): void {
+    const key = this.draft()[i].key;
+    const idx = this.draft()[i].tiers.length;
+    this.edit((d) => { d[i].tiers.push({ name: '', detail: '', price: '', durationMinutes: 60, hourly: false, minHours: 2, maxHours: 8, addons: [], includesText: '' }); });
+    this.openPkg.update((m) => new Map(m).set(key, idx));
+  }
+  setHourly(i: number, ti: number, e: Event): void {
+    const v = (e.target as HTMLSelectElement).value === 'HOURLY'; this.edit((d) => { d[i].tiers[ti].hourly = v; });
+  }
+  setHours(i: number, ti: number, field: 'minHours' | 'maxHours', e: Event): void {
+    const v = Math.max(1, Math.min(12, Number((e.target as HTMLInputElement).value) || 1)); this.edit((d) => { d[i].tiers[ti][field] = v; });
+  }
+  addAddon(i: number, ti: number): void { this.edit((d) => { d[i].tiers[ti].addons.push({ name: '', price: '', perHour: false, extraPhotographer: false }); }); }
+  setAddonExtra(i: number, ti: number, ai: number, e: Event): void {
+    const v = (e.target as HTMLInputElement).checked; this.edit((d) => { d[i].tiers[ti].addons[ai].extraPhotographer = v; });
+  }
+  removeAddon(i: number, ti: number, ai: number): void { this.edit((d) => { d[i].tiers[ti].addons.splice(ai, 1); }); }
+  setAddon(i: number, ti: number, ai: number, field: 'name' | 'price', e: Event): void {
+    const v = (e.target as HTMLInputElement).value; this.edit((d) => { d[i].tiers[ti].addons[ai][field] = v; });
+  }
+  setAddonPerHour(i: number, ti: number, ai: number, e: Event): void {
+    const v = (e.target as HTMLInputElement).checked; this.edit((d) => { d[i].tiers[ti].addons[ai].perHour = v; });
+  }
+  setTierDuration(i: number, ti: number, e: Event): void {
+    const v = Number((e.target as HTMLSelectElement).value); this.edit((d) => { d[i].tiers[ti].durationMinutes = v; });
+  }
+  removeTier(i: number, ti: number): void {
+    const t = this.draft()[i].tiers[ti];
+    if ((t.name || t.price) && !confirm(`Remove the "${t.name || 'untitled'}" package?`)) return;
+    const key = this.draft()[i].key;
+    this.edit((d) => { d[i].tiers.splice(ti, 1); });
+    this.openPkg.update((m) => { const n = new Map(m); n.delete(key); return n; });
+  }
 
   setNc(field: 'name' | 'shortName' | 'description' | 'from', e: Event): void {
     const v = this.val(e); this.nc.update((n) => ({ ...n, [field]: v }));
@@ -122,7 +184,8 @@ export class PricingAdminSection {
         this.busy.set(false);
         this.nc.set({ name: '', shortName: '', description: '', from: '', showInPortfolio: true, durationMinutes: 60 });
         const added = list.find((s) => !this.draft().some((d) => d.key === s.key));
-        if (added) this.draft.update((d) => [...d, ...this.toDraft([added])]);
+        if (added) { this.draft.update((d) => [...d, ...this.toDraft([added])]); this.open.update((s) => new Set(s).add(added.key)); }
+        this.addOpen.set(false);
         this.store.applyPricing(list);
         this.msg.set(`Added "${n.name.trim()}" to the draft${n.showInPortfolio ? ' (three Portfolio photo slots are waiting under Photos)' : ''}. Publish to make it live.`);
       },
@@ -156,7 +219,7 @@ export class PricingAdminSection {
     }
     this.busy.set(true);
     this.store.savePricing(this.toPayload(this.draft())).subscribe({
-      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved to the draft. Press Publish (top of the page) when you want it live.'); },
+      next: (list) => { this.busy.set(false); this.dirty.set(false); this.store.applyPricing(list); this.msg.set('Saved to the draft. Press Publish in the bar above to make it live — prices, lengths, everything on this page.'); },
       error: (err) => { this.busy.set(false); this.msg.set(err?.error?.message ?? 'Couldn’t save. Please try again.'); },
     });
   }

@@ -19,14 +19,24 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
 
     private final AppProperties props;
     private final JwtAuthFilter jwtAuthFilter;
+    /** The port actuator endpoints are served on, learned when that server starts (0 = none, or same as the API). */
+    private volatile int managementPort;
 
     public SecurityConfig(AppProperties props, JwtAuthFilter jwtAuthFilter) {
         this.props = props;
         this.jwtAuthFilter = jwtAuthFilter;
+    }
+
+    @org.springframework.context.event.EventListener
+    void onServerStarted(org.springframework.boot.web.context.WebServerInitializedEvent event) {
+        if ("management".equals(event.getApplicationContext().getServerNamespace())) {
+            managementPort = event.getWebServer().getPort();
+        }
     }
 
     @Bean
@@ -37,11 +47,15 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Login + the "who's signing in" picker are open; everything else under /api/admin needs a token.
-                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login", "/api/admin/auth/forgot", "/api/admin/auth/reset").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/auth/users").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Any active staff account gets in; @PreAuthorize on the controllers decides what each level may do.
+                        .requestMatchers("/api/admin/**").hasRole("STAFF")
                         .requestMatchers("/api/**").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/livez", "/readyz").permitAll()
+                        // Metrics are open only on the management port, which is never published to the internet.
+                        .requestMatchers(r -> managementPort > 0 && r.getLocalPort() == managementPort
+                                && r.getRequestURI().startsWith("/actuator/")).permitAll()
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

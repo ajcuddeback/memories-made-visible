@@ -1,18 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { MON, fromISO, money, num, today } from '../../core/dates';
+import { MON, fromISO, money, num, toISO, today } from '../../core/dates';
 import { AdminStore } from '../admin-store.service';
+import { DateField } from '../../shared/pickers';
 
 @Component({
   selector: 'app-popups',
+  imports: [DateField],
   templateUrl: './popups.html',
   styleUrl: './popups.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PopupsSection {
+  readonly todayIso = toISO(today());
+  setDate(iso: string): void { this.ne.update((n) => ({ ...n, date: iso })); }
+  mapUrl(address: string): string { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address); }
   readonly store = inject(AdminStore);
   private readonly today = today();
 
-  readonly ne = signal({ date: '', title: '', theme: '', venue: '', time: '' });
+  readonly ne = signal({ date: '', title: '', theme: '', venue: '', address: '', time: '' });
   readonly cantAdd = computed(() => !this.ne().date || !this.ne().title.trim());
 
   readonly popups = computed(() =>
@@ -30,7 +35,7 @@ export class PopupsSection {
     }),
   );
 
-  set(key: 'date' | 'title' | 'theme' | 'venue' | 'time', e: Event): void {
+  set(key: 'date' | 'title' | 'theme' | 'venue' | 'address' | 'time', e: Event): void {
     const v = (e.target as HTMLInputElement).value;
     this.ne.update((s) => ({ ...s, [key]: v }));
   }
@@ -38,8 +43,8 @@ export class PopupsSection {
   add(): void {
     if (this.cantAdd()) return;
     const n = this.ne();
-    this.store.addEvent({ date: n.date, title: n.title.trim(), theme: n.theme.trim(), venue: n.venue.trim(), time: n.time.trim() });
-    this.ne.set({ date: '', title: '', theme: '', venue: '', time: '' });
+    this.store.addEvent({ date: n.date, title: n.title.trim(), theme: n.theme.trim(), venue: n.venue.trim(), address: n.address.trim(), time: n.time.trim() });
+    this.ne.set({ date: '', title: '', theme: '', venue: '', address: '', time: '' });
   }
 
   inc(id: number, prints: number): void { this.store.setPrints(id, { prints: prints + 1 }); }

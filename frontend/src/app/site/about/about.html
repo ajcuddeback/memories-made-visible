@@ -31,6 +31,9 @@
 <section class="container cta-wrap">
   <div class="cta">
     <h2 class="cta-title">We'd love to photograph your story.</h2>
+    <p class="cta-reach">
+      Questions first? @if (contact().email) { Email <a [href]="'mailto:' + contact().email">{{ contact().email }}</a> }@if (contact().phone) { · call <a [href]="'tel:' + contact().phone">{{ contact().phone }}</a> }@if (contact().instagram) { · <a [href]="'https://instagram.com/' + contact().instagram" target="_blank" rel="noopener">&#64;{{ contact().instagram }}</a> }
+    </p>
     <a routerLink="/book" class="btn btn-primary btn-xl">Book a session</a>
   </div>
 </section>
