@@ -54,41 +54,49 @@ services:
     ports:
       - "${HTTP_PORT:-80}:8080"
 
-  # Optional: self-hosted, S3-compatible photo storage (MinIO) instead of AWS S3.
+  # Optional: self-hosted, S3-compatible photo storage (SeaweedFS, Apache-2.0, on Docker Hub) instead of AWS S3.
   #   docker compose -f docker-compose.prod.yml --profile storage up -d
-  # Then in .env: S3_ENDPOINT=http://storage:9000  S3_PATH_STYLE=true  AWS_ACCESS_KEY_ID/SECRET = the MINIO_* values
-  # below, and S3_PUBLIC_BASE_URL=https://www.memoriesmadevisible.com/photos/mmv-photos with nginx proxying
-  # /photos/ → 127.0.0.1:9000/ (see docs/DEPLOYMENT.md → Photos without AWS).
+  # Writes need the backend's AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (any values you choose); reads are anonymous
+  # so nginx can serve /photos/ straight from it. In .env: S3_ENDPOINT=http://storage:8333  S3_PATH_STYLE=true
+  # S3_PUBLIC_BASE_URL=https://www.memoriesmadevisible.com/photos/mmv-photos (see docs/DEPLOYMENT.md → Photos without AWS).
   storage:
-    image: minio/minio:latest
+    image: chrislusf/seaweedfs:latest
     profiles: ["storage"]
     restart: unless-stopped
-    command: server /data
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-mmv}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /etc/seaweedfs
+        cat > /etc/seaweedfs/s3.json <<JSON
+        {"identities":[
+          {"name":"backend","credentials":[{"accessKey":"${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID in .env}","secretKey":"${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY in .env}"}],
+           "actions":["Admin","Read","Write","List","Tagging"]},
+          {"name":"anonymous","actions":["Read"]}
+        ]}
+        JSON
+        exec weed server -s3 -dir=/data -ip.bind=0.0.0.0 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -master.volumeSizeLimitMB=256
     volumes:
       - photos:/data
     ports:
-      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:8333:8333"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9333/cluster/status || exit 1"]
       interval: 10s
       timeout: 3s
-      retries: 10
+      retries: 20
 
-  # Creates the bucket and makes it publicly readable (uploads still need the key), then exits.
+  # Creates the photo bucket once SeaweedFS is up, then exits.
   storage-init:
-    image: minio/mc:latest
+    image: chrislusf/seaweedfs:latest
     profiles: ["storage"]
     depends_on:
       storage:
         condition: service_healthy
-    entrypoint: >
-      sh -c "mc alias set local http://storage:9000 ${MINIO_ROOT_USER:-mmv} ${MINIO_ROOT_PASSWORD}
-      && mc mb --ignore-existing local/${S3_BUCKET:-mmv-photos}
-      && mc anonymous set download local/${S3_BUCKET:-mmv-photos}
-      && echo 'photo bucket ready'"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until echo "s3.bucket.create -name ${S3_BUCKET:-mmv-photos}" | weed shell -master=storage:9333 2>&1 | grep -qv "connect"; do sleep 2; done
+        echo "photo bucket ${S3_BUCKET:-mmv-photos} ready"
 
 volumes:
   pgdata:

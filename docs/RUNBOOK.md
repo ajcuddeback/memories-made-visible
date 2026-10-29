@@ -1,7 +1,7 @@
 # Runbook: your own server, now and after AWS
 
 Two parts. **Part A** puts the site live today on a server you already run, with nginx + Let's Encrypt for TLS,
-Postgres and photo storage (MinIO) on the same box, and metrics into your existing Grafana. **Part B** moves
+Postgres and photo storage (SeaweedFS) on the same box, and metrics into your existing Grafana. **Part B** moves
 photos (and optionally the database) to AWS later without downtime. `docs/DEPLOYMENT.md` has the background for
 each piece; this is the ordered checklist.
 
@@ -75,7 +75,7 @@ Generate the secrets first:
 ```bash
 openssl rand -base64 48      # APP_JWT_SECRET
 openssl rand -hex 24         # POSTGRES_PASSWORD
-openssl rand -hex 24         # MINIO_ROOT_PASSWORD
+openssl rand -hex 24         # AWS_SECRET_ACCESS_KEY (the photo store's write key)
 ```
 
 Then set these (everything else in `.env.example` can keep its default):
@@ -114,15 +114,13 @@ POSTGRES_DB=mmv
 POSTGRES_USER=mmv
 POSTGRES_PASSWORD=<openssl rand -hex 24>
 
-# photos (bundled MinIO, S3-compatible)
-MINIO_ROOT_USER=mmv
-MINIO_ROOT_PASSWORD=<openssl rand -hex 24>
-S3_ENDPOINT=http://storage:9000
+# photos (bundled SeaweedFS, S3-compatible; the key pair is whatever you choose, it's the store's only write login)
+S3_ENDPOINT=http://storage:8333
 S3_PATH_STYLE=true
 S3_BUCKET=mmv-photos
 AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=mmv                       # = MINIO_ROOT_USER
-AWS_SECRET_ACCESS_KEY=<MINIO_ROOT_PASSWORD> # = MINIO_ROOT_PASSWORD
+AWS_ACCESS_KEY_ID=mmv
+AWS_SECRET_ACCESS_KEY=<openssl rand -hex 24>
 S3_PUBLIC_BASE_URL=https://www.memoriesmadevisible.com/photos/mmv-photos
 
 # ports on this box (nginx owns 80/443)
@@ -149,7 +147,7 @@ curl -s localhost:9091/actuator/prometheus | grep mmv_bookings_pending
 ```
 
 What is listening: `8080` (site + API, all interfaces, nginx proxies to it), `127.0.0.1:9091` (metrics),
-`127.0.0.1:9000` (MinIO). Postgres is not published. If the box has a public firewall, only 80 and 443 need to be
+`127.0.0.1:8333` (SeaweedFS). Postgres is not published. If the box has a public firewall, only 80 and 443 need to be
 open; close 8080 from the outside (`ufw deny 8080` or a security group rule) so traffic only enters through nginx.
 
 ### A4. nginx + Let's Encrypt
@@ -177,11 +175,10 @@ server {
 
     client_max_body_size 26m;          # studio photo uploads
 
-    # Photos: MinIO on loopback, cached by browsers for a month
+    # Photos: SeaweedFS on loopback, cached by browsers for a month
     location /photos/ {
-        proxy_pass         http://127.0.0.1:9000/;
+        proxy_pass         http://127.0.0.1:8333/;
         proxy_set_header   Host $host;
-        proxy_hide_header  x-amz-request-id;
         expires            30d;
         add_header         Cache-Control "public";
     }
@@ -277,7 +274,7 @@ the same command; the database schema is forward-only, so take a backup before u
 Do photos first (B1); it is the one that changes the public site. The database (B2) is optional; the bundled
 Postgres is fine indefinitely for a studio-sized site as long as backups leave the box.
 
-### B1. Photos: MinIO → S3
+### B1. Photos: SeaweedFS → S3
 
 1. **Bucket + user.** S3 → Create bucket `mmv-photos` in `us-east-1`, keep *Block all public access* on.
    IAM → user `mmv-backend`, programmatic access, inline policy allowing `s3:PutObject`, `s3:GetObject`,
@@ -288,14 +285,15 @@ Postgres is fine indefinitely for a studio-sized site as long as backups leave t
    bucket policy it prints. Note the domain, e.g. `d1234.cloudfront.net`. Skip this and the backend falls back to
    12-hour presigned URLs (works, slower, not cacheable).
 
-3. **Copy the objects** while the site keeps running (MinIO is still serving):
+3. **Copy the objects** while the site keeps running (SeaweedFS is still serving), with rclone from the server:
    ```bash
-   docker run --rm --network mmv_default -e MC_HOST_src=http://mmv:$MINIO_ROOT_PASSWORD@storage:9000 \
-     -e MC_HOST_aws=https://<AWS_KEY>:<AWS_SECRET>@s3.amazonaws.com minio/mc \
-     mirror --overwrite src/mmv-photos aws/mmv-photos
+   sudo apt install -y rclone
+   rclone copy --progress \
+     :s3,provider=Other,endpoint=http://127.0.0.1:8333,force_path_style=true,access_key_id=$AWS_ACCESS_KEY_ID,secret_access_key=$AWS_SECRET_ACCESS_KEY:mmv-photos \
+     :s3,provider=AWS,region=us-east-1,access_key_id=<AWS_KEY>,secret_access_key=<AWS_SECRET>:mmv-photos
    ```
-   Re-run it right before the switch to catch uploads made in between. (The network name is `<folder>_default`;
-   `docker network ls` shows it.)
+   (Run `set -a; . /opt/mmv/.env; set +a` first so the local key pair is in the environment.) Re-run it right before
+   the switch to catch uploads made in between.
 
 4. **Switch the backend.** In `.env`:
    ```ini
@@ -309,7 +307,7 @@ Postgres is fine indefinitely for a studio-sized site as long as backups leave t
    key on every request, so already-published photos move with the setting; no database change.
 
 5. **Verify**: open the site, confirm image URLs now point at CloudFront; upload a new photo in the studio and
-   publish it. Then **retire MinIO**: `docker compose -f docker-compose.prod.yml --profile storage stop storage`,
+   publish it. Then **retire SeaweedFS**: `docker compose -f docker-compose.prod.yml --profile storage stop storage`,
    remove the `/photos/` block from nginx, and drop the photo line from `backup.sh`. Keep the volume for a couple of
    weeks (`docker volume rm mmv_photos` when you're sure).
 
