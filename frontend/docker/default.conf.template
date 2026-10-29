@@ -9,6 +9,10 @@ server {
     # Photo uploads from the studio admin go through here (backend allows 25MB)
     client_max_body_size 26m;
 
+    # This container sits behind a TLS proxy. Redirects it issues itself (e.g. /pricing → /pricing/ for a
+    # prerendered folder) must stay relative, or the browser is sent to http://host:8080/... and leaves the proxy.
+    absolute_redirect off;
+
     gzip on;
     gzip_types text/plain text/css application/javascript application/json image/svg+xml font/woff2;
     gzip_min_length 1024;
