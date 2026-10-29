@@ -1,6 +1,6 @@
 # Production deployment
 
-> Deploying to a server you already run, with nginx/Let's Encrypt, bundled Postgres and MinIO? Follow
+> Deploying to a server you already run, with nginx/Let's Encrypt, bundled Postgres and SeaweedFS? Follow
 > **`docs/RUNBOOK.md`**: an ordered checklist for that shape, plus the later migration to AWS.
 
 Step-by-step from "nothing" to a live site. Two hosting shapes are covered; pick one.
@@ -8,7 +8,7 @@ Step-by-step from "nothing" to a live site. Two hosting shapes are covered; pick
 - **A. One small VPS with Docker Compose** — cheapest, fully under your control, ~$6–12/mo (or a server you already have).
 - **B. Managed platform (Railway)** — no server to maintain, ~$10–20/mo.
 
-Both use the same images, the same env vars, S3-compatible photo storage (AWS, or self-hosted MinIO, see 2b) and your
+Both use the same images, the same env vars, S3-compatible photo storage (AWS, or self-hosted SeaweedFS, see 2b) and your
 Namecheap mailbox. Do the **shared setup** first.
 
 ---
@@ -45,39 +45,40 @@ You'll point the domain at the host in the last step. For now, note that the sit
      `S3_PUBLIC_BASE_URL=https://<your-distribution>.cloudfront.net`. Fast, cached, HTTPS, no public bucket.
    - **No CDN**: leave `S3_PUBLIC_BASE_URL` blank. The API hands out 12-hour presigned URLs. Works, slightly slower.
 
-### 2b. Photos without AWS (self-hosted MinIO)
+### 2b. Photos without AWS (self-hosted SeaweedFS)
 
-If an AWS account isn't an option, the server can hold the photos itself. MinIO speaks the S3 API, so the
-backend code path is identical to AWS; only the endpoint changes. It is built into the production compose file
-behind a profile:
+If an AWS account isn't an option, the server can hold the photos itself. The production compose file bundles
+**SeaweedFS** (the same S3-compatible store local development uses; Apache-2.0 and on Docker Hub) behind a profile.
+The backend code path is identical to AWS; only the endpoint changes.
 
-1. In `.env` set `MINIO_ROOT_USER=mmv`, `MINIO_ROOT_PASSWORD=<generated>` and point the backend at it:
+1. In `.env` choose any access key and secret (they become SeaweedFS's only write credentials) and point the
+   backend at it:
    ```
-   S3_ENDPOINT=http://storage:9000
+   AWS_ACCESS_KEY_ID=mmv
+   AWS_SECRET_ACCESS_KEY=<openssl rand -hex 24>
+   S3_ENDPOINT=http://storage:8333
    S3_PATH_STYLE=true
    S3_BUCKET=mmv-photos
-   AWS_ACCESS_KEY_ID=mmv                 # same as MINIO_ROOT_USER
-   AWS_SECRET_ACCESS_KEY=<MINIO_ROOT_PASSWORD>
    S3_PUBLIC_BASE_URL=https://www.memoriesmadevisible.com/photos/mmv-photos
    ```
 2. Start with the profile: `docker compose -f docker-compose.prod.yml --profile storage up -d`.
-   `storage-init` creates the bucket and makes it readable without a key (uploads still need one).
-3. Serve the photos through your TLS proxy so visitors get HTTPS and caching. MinIO listens on loopback `:9000`
+   `storage-init` creates the bucket. Reads are anonymous (that is how visitors get the images); writes, lists and
+   deletes need the key.
+3. Serve the photos through your TLS proxy so visitors get HTTPS and caching. SeaweedFS listens on loopback `:8333`
    only. nginx:
    ```nginx
    location /photos/ {
-       proxy_pass         http://127.0.0.1:9000/;
+       proxy_pass         http://127.0.0.1:8333/;
        proxy_set_header   Host $host;
-       proxy_hide_header  x-amz-request-id;
        expires            30d;
        add_header         Cache-Control "public";
    }
    ```
-   Caddy: `handle_path /photos/* { reverse_proxy localhost:9000 }`.
+   Caddy: `handle_path /photos/* { reverse_proxy localhost:8333 }`.
 4. Back up the `photos` volume with the database (`docker run --rm -v mmv_photos:/data -v $PWD:/out alpine tar czf /out/photos-$(date +%F).tgz /data`).
 
 Everything else (upload, resize, publish, delete of unpublished objects) works unchanged. Moving to AWS S3 or
-Cloudflare R2 later is a matter of copying the bucket with `mc mirror` and changing the four variables.
+Cloudflare R2 later is a matter of copying the bucket (any S3 client, e.g. `rclone`) and changing the variables.
 
 ### 3. Email (Namecheap Private Email)
 
